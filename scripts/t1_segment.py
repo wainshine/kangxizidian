@@ -97,6 +97,62 @@ def hard_criteria(ink, box):
     return blobs_ok, edge_ok, {"blobs": int(big), "edge_frac": round(float(edge_frac), 3)}
 
 
+
+def rule_xs(ink):
+    """界栏 x 位置：长竖线（run≥30% 高）"""
+    vk = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 200))
+    v = cv2.morphologyEx(ink, cv2.MORPH_OPEN, vk)
+    colsum = v.sum(axis=0)
+    xs = np.where(colsum > 0.3 * ink.shape[0])[0]
+    groups = []
+    for x in xs:
+        if groups and x - groups[-1][-1] <= 4:
+            groups[-1].append(x)
+        else:
+            groups.append([x])
+    return [int(np.mean(g)) for g in groups]
+
+
+def clip_to_column(box, rules, min_w=40):
+    """横向界栏约束：框跨栏时裁到中心所在列内（r6 教训：框宽超列距=吞邻列）"""
+    x0, y0, x1, y1 = box
+    cx = (x0 + x1) / 2
+    inside = [r for r in rules if x0 < r < x1]
+    if not inside:
+        return box
+    left = max([r for r in rules if r <= cx], default=None)
+    right = min([r for r in rules if r >= cx], default=None)
+    nx0 = left + 3 if left is not None else x0
+    nx1 = right - 3 if right is not None else x1
+    if nx1 - nx0 < min_w:
+        return box
+    return [nx0, y0, nx1, y1]
+
+
+def trim_vertical_gap(ink, box, zone=0.25, min_gap=6):
+    """纵向白隙修剪：框内顶部/底部 25% 区域的 ≥min_gap 全空行带 = 条目间隙，裁掉。
+    （r8 教训：框顶含上一行圈号下缘；「二」类中部空隙不受影响）"""
+    x0, y0, x1, y1 = box
+    sub = ink[y0:y1, x0:x1]
+    h = y1 - y0
+    rowink = sub.sum(axis=1)
+    empty = rowink <= 2
+    z = int(h * zone)
+    ny0, ny1 = 0, h
+    # 顶部区内的空隙
+    for s in range(z - 1, -1, -1):
+        if empty[s:s + min_gap].all() and not empty[s + min_gap:s + min_gap + 3].all():
+            ny0 = s + min_gap
+            break
+    # 底部区内的空隙
+    for e in range(h - z, h):
+        if empty[max(0, e - min_gap):e].all() and not empty[max(0, e - min_gap - 3):max(0, e - min_gap)].all():
+            ny1 = e - min_gap
+            break
+    if ny1 - ny0 < 45:
+        return box
+    return [x0, y0 + int(ny0), x1, y0 + int(ny1)]
+
 def dense_enough(ink, box, min_frac=0.08):
     """邻域墨密度（T0 已验证：书眉字/孤立字周围空白，字头嵌在注文中间）"""
     x0, y0, x1, y1 = box
@@ -110,6 +166,87 @@ def dense_enough(ink, box, min_frac=0.08):
     outside = ink[ny0:ny1, nx0:nx1][ring]
     return float((outside > 0).mean()) >= min_frac
 
+
+
+def refine_v3(ink, box):
+    """refine v3：种子 + 多数归属生长。
+
+    1) 种子 = 与内 50% 区重叠的连通域（邻字进不了内 50%）；
+    2) 生长（2 轮）= 分量 ≥40% 的像素落在「种子膨胀 5px」带内才并入——
+       字形自身部件（间隙 2-6px）可靠并入，邻字（列间隙 8-14px）够不着；
+    3) 无收缩步（过收缩会伤「字头+贴边长笔」）。
+    """
+    x0, y0, x1, y1 = box
+    w, h = x1 - x0, y1 - y0
+    px, py = int(w * 0.3) + 6, int(h * 0.3) + 6
+    X0, Y0 = max(0, x0 - px), max(0, y0 - py)
+    X1, Y1 = min(ink.shape[1], x1 + px), min(ink.shape[0], y1 + py)
+    sub = ink[Y0:Y1, X0:X1]
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(sub, connectivity=8)
+    ix0, iy0 = int((x0 - X0) + w * 0.25), int((y0 - Y0) + h * 0.25)
+    ix1, iy1 = int((x0 - X0) + w * 0.75), int((y0 - Y0) + h * 0.75)
+    seed = np.zeros_like(sub, dtype=bool)
+    comps = {}
+    for i in range(1, n):
+        if stats[i, 4] < 25:
+            continue
+        comp = (lab == i)
+        comps[i] = comp
+        if comp[iy0:iy1, ix0:ix1].any():
+            seed |= comp
+    if not seed.any():
+        return None
+    grown = seed.copy()
+    ker = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+    for _ in range(2):
+        band = cv2.dilate(grown.astype(np.uint8), ker) > 0
+        added = False
+        for i, comp in comps.items():
+            if (grown & comp).any():
+                continue
+            inter = (comp & band).sum()
+            if inter >= 0.4 * max(1, comp.sum()):
+                grown |= comp
+                added = True
+        if not added:
+            break
+    ys, xs = np.where(grown)
+    bx0, by0 = int(xs.min()), int(ys.min())
+    bx1, by1 = int(xs.max()) + 1, int(ys.max()) + 1
+    # 方形度驱动补并：亻旁/言旁与主体间隙可达 15-30px（距离判据分不开），
+    # 但并上它们后框接近方形（~85px），并上邻列则变成 1.7:1 长条——用方形度区分
+    for _ in range(3):
+        bw, bh = bx1 - bx0, by1 - by0
+        if bw >= 0.7 * bh and bh >= 0.7 * bw:
+            break  # 已近方形
+        band = cv2.dilate(grown.astype(np.uint8),
+                          cv2.getStructuringElement(cv2.MORPH_RECT, (45, 45))) > 0
+        best = None
+        for i, comp in comps.items():
+            if (grown & comp).any():
+                continue
+            npts = comp.sum()
+            if npts < 200:
+                continue
+            cys, cxs = np.where(comp)
+            cx0, cx1 = int(cxs.min()), int(cxs.max()) + 1
+            cy0, cy1 = int(cys.min()), int(cys.max()) + 1
+            mx0, mx1 = min(bx0, cx0), max(bx1, cx1)
+            my0, my1 = min(by0, cy0), max(by1, cy1)
+            mw, mh = mx1 - mx0, my1 - my0
+            if mw > 130 or mh > 130:
+                continue
+            ar = mw / mh
+            if not (0.7 <= ar <= 1.4):
+                continue
+            score = npts
+            if best is None or score > best[0]:
+                best = (score, comp, (mx0, my0, mx1, my1))
+        if best is None:
+            break
+        grown |= best[1]
+        bx0, by0, bx1, by1 = best[2]
+    return [int(X0 + bx0), int(Y0 + by0), int(X0 + bx1), int(Y0 + by1)]
 
 def merge_splits(cands):
     """同列相邻候选合并：腐蚀把字形左右部件拆成两个 blob 时，各自紧化成半字。
@@ -163,12 +300,28 @@ def segment_half(gray):
         x, y, w, h, area = sb[i]
         if max(w, h) < 45 or w >= 12 * h or h >= 12 * w:
             continue
-        r = center_refine(ink, (x, y, x + w, y + h))
+        r = refine_v3(ink, (x, y, x + w, y + h))
         if r is None or max(r[2] - r[0], r[3] - r[1]) < 45:
             continue
         cands.append(r)
     cands = merge_splits(cands)
     cands = nms(cands)
+    rules = rule_xs(ink)
+
+    def shrink_tall(ink_, b, h_prior=95):
+        x0, y0, x1, y1 = b
+        if y1 - y0 <= h_prior:
+            return b
+        sub = ink_[y0:y1, x0:x1]
+        rowink = sub.sum(axis=1)
+        csum = np.concatenate([[0], np.cumsum(rowink)])
+        best_s, best_v = 0, -1
+        for s0 in range(0, (y1 - y0) - h_prior + 1):
+            v = csum[s0 + h_prior] - csum[s0]
+            if v > best_v:
+                best_v, best_s = v, s0
+        return [x0, y0 + best_s, x1, y0 + best_s + h_prior]
+
     out, edge_flags = [], []
     for b in cands:
         x0, y0, x1, y1 = b
@@ -178,6 +331,12 @@ def segment_half(gray):
         if not dense_enough(ink, b):
             dropped.append({"box": b, "why": "density"})
             continue
+        b = clip_to_column(b, rules)
+        b = trim_vertical_gap(ink, b)
+        b = shrink_tall(ink, b)
+        if max(b[2]-b[0], b[3]-b[1]) < 45:
+            dropped.append({"box": b, "why": "post-trim tiny"})
+            continue
         blobs_ok, edge_ok, info = hard_criteria(ink, b)
         if not blobs_ok:
             # 墨团数>1 = 并格（一格两字），真失败，丢弃；=0 也异常，丢弃
@@ -186,6 +345,31 @@ def segment_half(gray):
         # 触边只标记不丢弃：密排页紧框天然贴墨，邻字归属由 T2 记账解决（D9 修正）
         out.append(b)
         edge_flags.append({"edge_flag": not edge_ok, **info})
+    # C. 细笔画字头兜底：一/乙/𠃊类被腐蚀核吃掉 → raw ink 大分量且不与已有框重叠者
+    n2, _, s2, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
+    for i in range(1, n2):
+        x, y, w, h, area = s2[i]
+        if w < 45 or h < 30 or w > 130 or h > 130:
+            continue
+        bb = [int(x), int(y), int(x + w), int(y + h)]
+        if any(iou(bb, o) > 0.25 for o in out):
+            continue
+        if w >= 12 * h or h >= 12 * w:
+            continue
+        # 粗略密度闸：笔画字密度低但非噪点
+        if area < 250:
+            continue
+        # 笔画形态检验：细长/扁平（宽高比 ≥2）或低墨密度（薄笔画），二者居一
+        ar = max(w, h) / max(1, min(w, h))
+        density = area / max(1, w * h)
+        if ar < 1.8 and density > 0.34:
+            continue
+        if not dense_enough(ink, bb, min_frac=0.05):
+            continue
+        out.append(bb)
+        edge_flags.append({"edge_flag": False, "blobs": 1, "edge_frac": 0.0,
+                           "src": "thin"})
+    out = nms(out, thr=0.4)
     return out, dropped, edge_flags
 
 
