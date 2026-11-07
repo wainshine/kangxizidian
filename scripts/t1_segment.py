@@ -153,6 +153,26 @@ def trim_vertical_gap(ink, box, zone=0.25, min_gap=6):
         return box
     return [x0, y0 + int(ny0), x1, y0 + int(ny1)]
 
+
+def raw_blocks(sub):
+    """未膨胀墨块高度（供 h0 统计）"""
+    n, _, stats, _ = cv2.connectedComponentsWithStats(sub, connectivity=8)
+    hs = []
+    for i in range(1, n):
+        x, y, w, h, area = stats[i]
+        if area >= 30 and min(w, h) >= 10:
+            hs.append(int(h))
+    return hs
+
+
+def height_mode(hs):
+    hs = [h for h in hs if 15 <= h <= 70]
+    if len(hs) < 20:
+        return None
+    bins = np.bincount([(h - 15) // 4 for h in hs], minlength=15)
+    return 15 + int(np.argmax(bins)) * 4 + 2
+
+
 def dense_enough(ink, box, min_frac=0.08):
     """邻域墨密度（T0 已验证：书眉字/孤立字周围空白，字头嵌在注文中间）"""
     x0, y0, x1, y1 = box
@@ -288,9 +308,12 @@ def merge_splits(cands):
     return cands
 
 
-def segment_half(gray):
-    """单版切格：提议（腐蚀/膨胀）→ 中心紧化 → 拆字合并 → NMS → 硬判据+密度过滤"""
+def segment_half(gray, thin_ok=False):
+    """单版切格：提议（腐蚀/膨胀）→ 中心紧化 → 拆字合并 → NMS → 硬判据+密度过滤
+    字头/注文分界 = 1.5×注文高（所有者 r7 指示：只收大字；注文双字粘连块 ~55×37 被此闸杀）"""
     ink = page_ink(gray)
+    h0 = height_mode(raw_blocks(ink))
+    thr = max(45, int(1.5 * h0)) if h0 else 55
     cores = cv2.erode(ink, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
     blobs = cv2.dilate(cores, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (18, 18)))
     nb, _, sb, _ = cv2.connectedComponentsWithStats(blobs, connectivity=8)
@@ -298,10 +321,10 @@ def segment_half(gray):
     cands, dropped = [], []
     for i in range(1, nb):
         x, y, w, h, area = sb[i]
-        if max(w, h) < 45 or w >= 12 * h or h >= 12 * w:
+        if max(w, h) < thr or w >= 12 * h or h >= 12 * w:
             continue
         r = refine_v3(ink, (x, y, x + w, y + h))
-        if r is None or max(r[2] - r[0], r[3] - r[1]) < 45:
+        if r is None or max(r[2] - r[0], r[3] - r[1]) < thr:
             continue
         cands.append(r)
     cands = merge_splits(cands)
@@ -345,8 +368,10 @@ def segment_half(gray):
         # 触边只标记不丢弃：密排页紧框天然贴墨，邻字归属由 T2 记账解决（D9 修正）
         out.append(b)
         edge_flags.append({"edge_flag": not edge_ok, **info})
-    # C. 细笔画字头兜底：一/乙/𠃊类被腐蚀核吃掉 → raw ink 大分量且不与已有框重叠者
-    n2, _, s2, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
+    # C. 细笔画字头兜底：仅笔画部首页（一部/丨部/丶部/丿部/乙部/亅部）启用——
+    #    其他页的 raw ink 大分量 = 注文粘连块，放进来就是 FP（所有者 r8 指示）
+    n2, _, s2, _ = (cv2.connectedComponentsWithStats(ink, connectivity=8)
+                    if thin_ok else (0, None, None, None))
     for i in range(1, n2):
         x, y, w, h, area = s2[i]
         if w < 45 or h < 30 or w > 130 or h > 130:
@@ -373,6 +398,9 @@ def segment_half(gray):
     return out, dropped, edge_flags
 
 
+THIN_PAGES = {'01_0006'}   # 笔画部首页（一/丨/丶/丿/乙/亅），细笔画兜底仅在此启用
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["orig", "rect"], default="orig")
@@ -395,7 +423,7 @@ def main():
                     halves.append((side, cv2.imread(p, cv2.IMREAD_GRAYSCALE)))
         all_boxes, all_dropped, all_flags = [], [], []
         for side, g in halves:
-            boxes, dropped, flags = segment_half(g)
+            boxes, dropped, flags = segment_half(g, thin_ok=(stem in THIN_PAGES))
             all_boxes += boxes
             all_dropped += dropped
             all_flags += flags

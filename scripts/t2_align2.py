@@ -18,16 +18,18 @@ T00 = os.path.join(ROOT, "work", "t00")
 RAD214 = "一丨丶丿乙亅二亠人儿入八冂冖冫几凵刀力勹匕匚匸十卜卩厂厶又口囗土士夂夊夕大女子宀寸小尢尸屮山巛工己巾干幺广廴廾弋弓彐彡彳心戈戶手支攴文斗斤方无日曰月木欠止歹殳毋比毛氏气水火爪父爻爿片牙牛犬玄玉瓜瓦甘生用田疋疒癶白皮皿目矛矢石示禸禾穴立竹米糸缶网羊羽老而耒耳聿肉臣自至臼舌舛舟艮色艸虍虫血行衣襾見角言谷豆豕豸貝赤走足身車辛辰辵邑酉釆里金長門阜隶隹雨靑非面革韋韭音頁風飛食首香馬骨高髟鬥鬯鬲鬼魚鳥鹵鹿麥麻黃黍黑黹黽鼎鼓鼠鼻齊齒龍龜龠"
 ALIAS = {'户': '戶', '青': '靑'}
 # 书眉读得的部首+画数（AI 人读，个别 None=未辨）
-# 书眉只含 集/部/页码——此前的「X畫」是内文渗入误读（数据集笔画=总笔画，部内分布连续）
+# 书眉画数 = 康熙惯例「部外笔画」；数据集笔画 = 总笔画；桥：dataset = 画数 + 部首自身笔画
 MARGIN = {
- '01_0006': ('一', None), '01_0027': ('乙', None), '01_0110': ('人', None),
- '02_0029': ('口', None), '02_0155': ('土', None), '03_0015': ('八', None),
- '03_0027': ('戶', None), '04_0017': ('心', None), '04_0030': ('心', None),
- '05_0017': ('日', None), '05_0030': ('日', None), '06_0018': ('水', None),
- '06_0032': ('水', None), '07_0021': ('玉', None), '08_0020': ('竹', None),
- '09_0017': ('艸', None), '10_0023': ('角', None), '11_0020': ('金', None),
- '12_0017': ('馬', None), '13_0163': (None, None),
+ '01_0006': ('一', [1]), '01_0027': ('乙', [1, 2]), '01_0110': ('人', [8]),
+ '02_0029': ('口', [4, 5]), '02_0155': ('土', [10]), '03_0015': ('八', [2]),
+ '03_0027': ('戶', [7]), '04_0017': ('心', [5]), '04_0030': ('心', [6]),
+ '05_0017': ('日', [5]), '05_0030': ('日', [6]), '06_0018': ('水', [4]),
+ '06_0032': ('水', [5]), '07_0021': ('玉', [6]), '08_0020': ('竹', [5, 6]),
+ '09_0017': ('艸', [5]), '10_0023': ('角', [5]), '11_0020': ('金', [5]),
+ '12_0017': ('馬', [6]), '13_0163': (None, None),
 }
+RAD_STROKES = {'一':1,'乙':1,'人':2,'口':3,'土':3,'八':2,'戶':4,'心':4,'日':4,
+               '水':4,'玉':5,'竹':6,'艸':6,'角':7,'金':8,'馬':10}
 
 
 def is_cjk(ch):
@@ -51,8 +53,10 @@ def main():
             cand[page] = None
             continue
         ri = RAD214.index(rad)
+        rs = RAD_STROKES.get(rad, 0)
+        tgt = {x + rs for x in strokes} if strokes else None
         rows = [e for e in seq if e['rad_i'] == ri and
-                (strokes is None or e['stroke'] in strokes)]
+                (tgt is None or e['stroke'] in tgt)]
         cand[page] = rows
         print(page, rad, strokes, '候选', len(rows),
               '样例', ''.join(e['char'] for e in rows[:12]))
@@ -111,10 +115,12 @@ def main():
     json.dump([{'page': r['page'], 'i': r['i']} for r in pick],
               open(os.path.join(T2, 'review100_ids.json'), 'w'), ensure_ascii=False)
     random.shuffle(pick)
-    CELL_W, CELL_H, COLS = 240, 300, 8
+    CELL_W, CELL_H, COLS = 240, 310, 8
     rows_n = (len(pick) + COLS - 1) // COLS
     sheet = Image.new('RGB', (COLS * CELL_W, rows_n * CELL_H), 'white')
     d = ImageDraw.Draw(sheet)
+    F = ImageFont.truetype('/System/Library/Fonts/Hiragino Sans GB.ttc', 15)
+    FS = ImageFont.truetype('/System/Library/Fonts/Hiragino Sans GB.ttc', 12)
     for k, r in enumerate(pick):
         gx = cv2.imread(os.path.join(T00, 'pages', r['page'] + '.png'),
                         cv2.IMREAD_GRAYSCALE)
@@ -129,17 +135,17 @@ def main():
         x = (k % COLS) * CELL_W
         y = (k // COLS) * CELL_H
         sheet.paste(im, (x + 4, y + 4))
-        d.text((x + 4, y + CELL_H - 56), f"#{k} {r['page']}", fill='blue')
-        d.text((x + 4, y + CELL_H - 44), f"v6:{r['v6'][:6]} v5:{r['v5'][:6]}", fill='black')
-        d.text((x + 4, y + CELL_H - 32), f"trust:{r['trust']}", fill='purple')
-        cc = ''.join(r['candidates'][:14])
-        d.text((x + 4, y + CELL_H - 20), f"候选:{cc}", fill='red')
+        d.text((x + 4, y + CELL_H - 58), f"#{k} {r['page']}", fill='blue', font=FS)
+        d.text((x + 4, y + CELL_H - 44), f"v6:{r['v6'][:8]}  v5:{r['v5'][:8]}", fill='black', font=F)
+        d.text((x + 4, y + CELL_H - 28), f"trust:{r['trust']}", fill='purple', font=FS)
+        cc = ''.join(r['candidates'][:10])
+        d.text((x + 4, y + CELL_H - 14), f"候选:{cc}", fill='red', font=FS)
     sheet.save(os.path.join(T2, 'review100.png'))
     print('review100.png:', len(pick), 'boxes; suspects', n_susp)
 
 
 if __name__ == '__main__':
     import PIL.Image as Image
-    from PIL import ImageDraw
+    from PIL import ImageDraw, ImageFont
     import random
     main()
