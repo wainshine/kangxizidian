@@ -20,7 +20,7 @@
 
 | 文件 | 来源 | 许可 | 用途 | 入库 |
 |---|---|---|---|---|
-| `data/ref/kangxi-dictionary/kx_full.xlsx` | [samsonhoi/kangxi-dictionary](https://github.com/samsonhoi/kangxi-dictionary)（源自汉典系转录，2021） | MIT（`data/ref/kangxi-dictionary/LICENSE` 已入库） | 字头参照集（46,815 条；基本区 16,791） | 仅 LICENSE |
+| `data/ref/kangxi-dictionary/kx_full.xlsx` | [samsonhoi/kangxi-dictionary](https://github.com/samsonhoi/kangxi-dictionary)（源自汉典系转录，2021） | MIT（**许可文本未入库**——所有者指定屏蔽该目录；MIT 全文见上游仓库，发布前重估入库） | 字头参照集（46,815 条；基本区 16,791） | ❌ |
 | `data/unihan/Unihan_*.txt` | [Unicode UCD](https://www.unicode.org/Public/UCD/latest/ucd/Unihan.zip)（2026-07-31 构建） | Unicode License v3 | kKangXi（上界）、kRSUnicode、kTraditionalVariant | ❌ 可重下载 |
 | `data/base/LXGWWenKai-Regular.ttf` | [LXGW WenKai](https://github.com/lxgw/LxgwWenKai/releases)（计划，未下载） | OFL 1.1 含 RFN | 训练输入骨架 + 标点来源；**不进发布字形** | ❌ |
 
@@ -35,7 +35,7 @@
 | `work/t00/pages/*.png` | 150 dpi 渲染（282 = 280 抽样 + 2 探针；有字头页 271） |
 | `work/t00/headwords.jsonl` | 5,039 字头框 |
 | `work/t00/ocr.jsonl / ocr_v5.jsonl` | PP-OCRv6 / v5 逐框识别 |
-| `work/t00/gold50.json` | 53 框金标准（**provisional**：AI 目检，待所有者抽检 ≥20 框） |
+| `work/t00/gold50.json` | 切格金标 **60 框 owner-certified**（2026-11-07 七轮抽检；权威副本 `data/gold-certified/gold50.json` 入库） |
 | `work/t00/rect/` | 纠偏半版图 + 变换记录 + 评估 |
 | `work/t00/pdf_sha256.txt` | 14 册 PDF 校验和 |
 
