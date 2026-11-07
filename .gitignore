@@ -1,0 +1,44 @@
+/康熙字典
+.DS_Store
+
+# === 源数据（大文件，永不入库）===
+*.pdf
+
+# === 工作区（过程数据，可重建）===
+work/
+work-*/
+
+# === 构建产物与发布包 ===
+build/
+release/
+release-*/
+*.zip
+
+# === 模型 / 检查点 / 大型中间数组 ===
+*.pt
+*.pth
+*.npy
+*.npz
+
+# === 训练输入骨架字体（OFL，可自行下载，不入库）===
+data/base/
+
+# === 第三方克隆（如有）===
+data/vendor/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# === OCR 模型缓存 ===
+.paddleocr/
+.paddlex/
+
+# === 参照数据（可重下载；按 guangeti 原则保留许可文本入库）===
+/data/unihan
+data/ref/kangxi-dictionary/*
+!data/ref/kangxi-dictionary/LICENSE
+/data/ref/kangxi-dictionary
