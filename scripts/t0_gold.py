@@ -15,7 +15,8 @@ cv2.setNumThreads(1)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 T00 = os.path.join(ROOT, "work", "t00")
 
-PAGES = {"01_0006": 3, "01_0110": 14, "13_0163": 34, "08_0020": 8}   # 目标 ~59 提议 → 金标 ~50
+PAGES = {"01_0006": 3, "01_0110": 14, "13_0163": 34, "08_0020": 8,
+         "01_0027": 9, "02_0155": 6}   # 主卷 40 / 补遗 34 → 分层门：主卷≥30、补遗≥15
 
 
 def ink_of(gray150):
