@@ -16,7 +16,7 @@ def _job(args):
     os.environ.setdefault("OMP_NUM_THREADS", "1")
     os.environ.setdefault("MKL_NUM_THREADS", "1")
     from paddleocr import TextRecognition
-    rec = TextRecognition(model_name="PP-OCRv5_server_rec")
+    rec = TextRecognition(model_name=os.environ.get("OCR_MODEL", "PP-OCRv5_server_rec"))
     from t1_count_v3 import is_head_v3
     import fitz
     mp = json.load(open(os.path.join(ROOT, "work/t2/pdf_map.json"), encoding="utf-8"))
@@ -38,7 +38,7 @@ def _job(args):
                     cr = img[max(0, y0 - 6):y1 + 6, max(0, x0 - 6):x1 + 6]
                     if cr.size == 0 or cr.shape[0] < 20 or cr.shape[1] < 15:
                         continue
-                    cr = cv2.resize(cr, None, fx=1.6, fy=1.6, interpolation=cv2.INTER_CUBIC)
+                    cr = cv2.resize(cr, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
                     crops.append(np.stack([cr] * 3, -1))
                     metas.append({"page": page, "half": half, "idx": k, "box": c["box"]})
             if crops:
