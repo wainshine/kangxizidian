@@ -384,7 +384,8 @@ def main():
     per_char = build_font(glyphs, out, source_date_epoch=args.source_date_epoch)
     digest = sha256(out)
     stats = {
-        "font": str(out.relative_to(ROOT)),
+        "font": str(out.relative_to(ROOT)) if out.is_relative_to(ROOT) else str(out),
+        "file_bytes": out.stat().st_size,
         "family": FAMILY, "style": STYLE, "version": VERSION, "upm": EM,
         "ascent": ASCENT, "descent": DESCENT,
         "n_glyphs": len(glyphs) + 1, "n_chars": len(glyphs),
@@ -392,6 +393,7 @@ def main():
         "source_date_epoch": int(os.environ.get("SOURCE_DATE_EPOCH",
                                                 args.source_date_epoch or DEFAULT_SOURCE_DATE_EPOCH)),
         "glyphs": {ch: {**src[ch], **per_char[ch]} for ch in sorted(glyphs)},
+        **extra,                      # mapping/manifest 批处理统计（耗时/缓存/跳过）
     }
     stats_path = Path(args.stats) if args.stats else out.with_suffix(".build_stats.json")
     stats_path.parent.mkdir(parents=True, exist_ok=True)

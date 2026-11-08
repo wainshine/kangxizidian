@@ -102,3 +102,46 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 .venv/bin/python scripts/font_build.py --manifest work/font/demo/manifest.json \
   --out /tmp/KangXiKai-demo.ttf
 ```
+
+---
+
+## 7. 第二轮进展（2026-11-08 18:00-18:25）
+
+### 已完成
+- **卷/部首结构定死**（seq A2b）：`work/seq/volume_radicals.json` —— 36 卷部首清单/entries/页区间/页数/密度，214 部首恰好分完、entries 合计 = 42,302 = 正集；`docs/STRUCTURE.md` 记录关键约束（卷扉页跨页、正文从卷首页 L 半版起、14/36 卷末 L 留白、部间无扉页、03_0015 更正为宀部）。**正集正文半版 ≈ 6,479**。
+- **分册计数对账表**：`docs/COUNTS.md` —— 36 卷逐一对照（正典 vs 检测 strict）：合计 36,974/42,302 = **−12.6%**；最好 子集上 +0.4%、亥集下 −1.4%；最差 亥集中 −32.5%、卯集上 −28.5%、巳集上 −23.8%。
+- **归因取证**：01_0060/0085/0100/0115 人部页人工 truth（=7/17/18/13.5）证明**不是正典多计、不是漏框**，是**分类阈值把生僻字真字头压到 hw0.5-0.8**（12_0100 魚部同类证据）；且漏计与字形生僻度强相关。
+- **字体打包链完成**（font C2）：`scripts/font_package.py`（顺序铁律 + zip 自校验）、5k 合成 mapping 全量预演（86.8ms/字、失败 0、8 进程 16k≈3.5-5min）、`docs/RELEASE-PLAN.md`。
+- **书眉读数探索**（Lead）：PP-OCR 整行/单格、渲染模板匹配（v2/v3/v4）、真迹聚类（`scripts/lead_hdr_mine.py`）全部试过——**字体渲染模板对刻本楷体相关只有 0.2-0.5，不可用**；真迹聚类能分出干净簇但版心切格覆盖率仅 ~9 格/页。结论：书眉 OCR 暂缓，**改用「计数修复 + 36 卷硬校验」路线**。
+
+### 当前唯一卡点
+**逐页字头计数**（detector v3 进行中）：计数修到 ±1%/卷后，solver 可跑全 42,302 映射；随后字形抽取 + 全量字体（打包链已就绪，3.5-5 分钟）+ QA/发版即可闭环。
+
+### 下一轮第一步
+1. detector 交付 `work/lead/counts_v3_all.jsonl`（page,half,n,rule），gates: 4 个人部页 truth + 0006-0009 + 子集上 245±2；
+2. Lead 用 counts 重跑 solver（36 卷卷末硬校验），出逐卷残差表；
+3. 残差 ≤1% 的卷直接映射；高的卷抽页复核；然后 `lead_extract.py`（全量字形）→ `font_build` → `font_package`。
+
+
+---
+
+## 9. 最终状态（2026-11-08 22:30，本会话收尾）
+
+### 已交付且可复算
+| 资产 | 位置 | 状态 |
+|---|---|---|
+| 正典序 42,302（36 卷/214 部/组 3,563） | `work/seq/canonical.jsonl` 等 | ✅ |
+| 36 卷结构（部首清单/页区间/entries/密度） | `work/seq/volume_radicals.json`、`docs/STRUCTURE.md` | ✅ |
+| 全量检测（3,266 页、234k 候选、150dpi 坐标） | `work/lead/boxes300/`、`scripts/t1_v2.py` | ✅ |
+| 计数基线 v5（Σ=42,302、214/214 部 Σ 精确） | `work/lead/counts_v5.jsonl`、`scripts/t1_count_fit.py` | ✅ |
+| 214 部界锚点（owner 部名 18/18、密度不可能 0） | `work/lead/bu_start_pages_lead2.jsonl`、`scripts/lead_bu_dp2.py` | ✅ |
+| 字头 OCR（42,324 候选，19/28 精确@大字形） | `work/lead/hw_ocr.jsonl`、`scripts/lead_hw_ocr.py` | ✅ 资产 |
+| 画数观测（77.5% 覆盖）+ 真迹数字模板 | `work/seq/hdr_page_obs.jsonl`、`work/lead/hua_tpl/` | ✅ 资产 |
+| 字形抽取/字体构建/QA/打包链 | `scripts/lead_extract.py`、`font_*.py` | ✅ 链路验证 |
+| demo 字体（32 个逐字目检真迹） | `work/font/demo/KangXiKai-demo-v0.1.0.ttf` | ✅ 可安装 |
+| 全量 mapping | `work/map/bu_v5/` | ⚠️ 偏 ±0-11 条@owner 页，验收闸 FAIL |
+
+### 唯一剩余问题与已验证的失败路线
+**部内逐页计数分布 ±1** 是唯一卡点。已定量验证不可行的路线（详见 `docs/COUNTS.md` §八~§十二、`docs/DETECTOR-V2.md` §8.3）：
+画数 OCR（65% 上限）、画数真迹模板重读（同字 NCC 0.08-0.40）、视觉重出对（max 0.66、召回 22%、DP 33%）、版心部首格图像相似度（日/曰 0.87 不可分）、字头 OCR δ 漂移校正（高置信 δ 仅 507 半版，校正后变差）、古文标签模板（0.25-0.59）。
+**剩余可行**：人工校准（每卷抽 5-10 页核数，性价比最高）、更高分辨率版面识别/活字级配准、接受漂移只出可验证子集。
