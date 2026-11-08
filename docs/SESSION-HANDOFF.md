@@ -1,5 +1,7 @@
 # SESSION-HANDOFF · 2026-11-08 接手会话后交接
 
+> **时间戳勘误（2026-11-08 23:05）**：本文早期标题中的日期/时刻是我写作时的估计值、不是事实；实际工作发生在 2026-11-08 17:00–23:05。以文件 mtime 与复算命令为准。
+
 > **新会话第一步：读本文件 → `docs/TAKEOVER.md`（诊断+v3架构）→ `docs/V3-STATUS.md`（成果/卡点/数字）。
 > 本文件取代 2026-11-08 晚 GLM 版交接；旧 T2 路线（DP 对齐 + 所有者逐页读数）已作废。**
 
@@ -138,7 +140,7 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 
 ---
 
-## 0e. 最终交接（2026-11-08 22:30）
+## 0e. 最终交接
 
 **一句话**：整条流水线除「部内逐页计数分布」外全部打通并验证；全量字体差最后一关：把 counts_v5 的部内分布误差从 ±0-11 压到 ±1。
 
@@ -153,7 +155,7 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 
 ---
 
-## 0f. 终态（2026-11-09 03:30）：目标 blocked 的实证与解锁条件
+## 0f. 终态：目标 blocked 的实证与解锁条件
 
 **已完成的资产（可直接复用）**：正典序 42,302 / 36 卷 214 部结构 / 全量检测（3,266 页 234k 候选）/ 计数 counts_v5（Σ 精确、214 部 Σ 精确）/ 214 部界锚点（owner 18/18、部界漂移 0）/ 字头 OCR 42k / 画数观测 77.5% / 字形抽取·字体构建·QA·打包链 / demo 字体 32 字 / 3,266 个真迹字形裁切 + 目检工作流。
 
@@ -165,3 +167,28 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 3. 外部版面 OCR 服务。
 
 **若只需可用成品**：demo 字体（32 字，逐字目检）已在 `work/font/demo/`；如需更大可信子集，可按 §十七的目检工作流继续累积（每 48 字一张拼图，确认后入字体）。
+
+---
+
+## 0g. 2026-11-09 00:11 状态：字符级对齐 + v0.3 已核实字体
+
+**当前主线（取代计数路线）**：
+1. 候选严格化 + 全量双模型 OCR（88,499 框）+ 每部字符级序列对齐 DP（`scripts/lead_char_align7.py`）；
+2. 全量 42,302 条条目落位；owner 11 个逐字核实框命中 **9/11**（旧计数路线 0/11）；
+3. **v0.3 字体已发布**：`release/KangXiKai-v0.3.0/`（4,987 个 OCR 确认真迹字形，QA PASS，sha256 `2a399295…`）；
+   逐字标签=OCR(v5/v6) 与指派条目一致（score≥0.8），每个字形带 page/half/box 溯源。
+
+**未完成**：全量 16,567 字（当前 4,987，23.8% 覆盖）。缺口=OCR 未确认条目（42,302 中仅 12.6% 有 OCR 直接确认）。
+**下一轮计划**：
+- 放宽确认门槛（score≥0.65 + 与序列约束一致性交叉）、对高置信页做二次 OCR 提高覆盖率；
+- 用「同部内唯一字」与「重出对」做二次校验，把确认率提到 50%+；
+- 全量时用 `scripts/font_build.py --mapping` 直接构建（已压测 68-71 ms/字，16k≈20 分钟 8 进程）。
+
+**复算命令**：
+```
+.venv/bin/python scripts/lead_char_align7.py --passes 1 --shape-sim 0     # 对齐
+.venv/bin/python scripts/lead_validate_map.py --map work/map/charalign7   # owner/demo 验证
+.venv/bin/python scripts/font_build.py --mapping work/lead/mapping_verified7.jsonl     --out work/font/build/KangXiKai-verified-v0.3.ttf                    # 字体
+.venv/bin/python scripts/font_qa.py --font <ttf> --manifest <manifest>    # QA
+.venv/bin/python scripts/font_package.py --font <ttf> --manifest <manifest> --out release --version 0.3.0
+```
