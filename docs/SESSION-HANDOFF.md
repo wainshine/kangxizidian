@@ -192,3 +192,62 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 .venv/bin/python scripts/font_qa.py --font <ttf> --manifest <manifest>    # QA
 .venv/bin/python scripts/font_package.py --font <ttf> --manifest <manifest> --out release --version 0.3.0
 ```
+
+## 0h. v0.4 状态（2026-11-09 00:39）
+
+- 新验收口径（owner 已确认）：字符级 OCR 对齐 + 真值验证替代书眉读数门。
+- 已发布 **v0.4：6,244 字**（`release/KangXiKai-v0.4.0/`，QA PASS，sha256 186c81a4…）；owner 11 框 9/11、demo 28 的 10/27。
+- 复算：`scripts/lead_char_align9.py`（四路证据对齐）→ `work/map/charalign9` → `work/lead/confirmed_chars.json`（确认字集）→ `font_build.py --mapping work/lead/mapping_verified9.jsonl`。
+- 下一轮：确认字集冲 10k+（模板库反向校验 + 5,152 个「OCR 空/多字」指派框重识别），再出 v0.5；全量 16,567 字仍需继续扩展确认手段。
+
+## 0i. v0.7 状态（2026-11-09 01:32）
+
+- 已发布 v0.7：6,543 字（`release/KangXiKai-v0.7.0/`，sha256 `f65a2274…`，QA PASS）。
+- 确认字平台期 ~6.5k；OCR/判别器扩展收益趋零；瓶颈=字头检出（候选池混入注文/古文大字）。
+- 复算：`scripts/lead_char_align14.py`（八路证据+部界v2）→ `work/map/charalign14` → `work/lead/confirmed_union2.json` → `font_build.py --mapping work/lead/mapping_verified_all2.jsonl`。
+- 下一轮方向：布局级字头检测（每栏顶格判定）或人工抽验拼图；目标 v0.8 冲 8k。
+
+## 0j. v0.8 状态（2026-11-09 01:37）
+
+- 已发布 v0.8：6,544 字（`release/KangXiKai-v0.8.0/`，sha256 `5ff6ae7e…`，QA PASS）。
+- 路线：OCR 直接确认平台 ~6.5k；新发现 `kx_full.xlsx` 全量注文；注文指纹 top-1 4/20（需序列级匹配）。
+- 下一轮：注文指纹 pipeline（拼字行 OCR + 序列模糊匹配 + 部内候选集），目标把确认推到 10k+；或人工抽验作为保底。
+
+## 0k. 注文指纹实验结果（2026-11-09 01:40）
+
+- 注文指纹 v1/v2/v3：top-1 分别 4/20、0/20、0/20 —— 未达可用；根因=注文小字 OCR 片段短且错、同部注文前缀相似。
+- **新方案（下一轮核心）**：文本流对齐 —— 用 `kx_full.xlsx` 的完整注文 + 栏目网格，把整部文本按字符流量映射到页面，
+  反推每个字头位置，再用大字候选框最近邻匹配（不依赖字头 OCR）。
+- 当前最新发布：v0.8（6,544 字）。
+
+## 0l. v0.9 状态（2026-11-09 01:46）
+
+- **v0.9**：7,328 字（`release/KangXiKai-v0.9.0/`，sha256 `0a6140e1…`，QA PASS）；基本区覆盖 44.2%。
+- 关键方法：候选池强 OCR 挖字（≥2 模型一致 + ≥0.95 分）→ `work/lead/ocr_new_chars.json`；确认集 `work/lead/confirmed_union4.json`。
+- 复算：`font_build.py --mapping work/lead/mapping_verified_all4.jsonl`。
+- 下一轮：放宽 ≥0.9 + 补 OCR 剩余 145k 候选 → 目标 10k+（v1.0）。
+
+## 0m. v1.0 状态（2026-11-09 02:09）
+
+- **v1.0**：7,612 字（`release/KangXiKai-v1.0.0/`，sha256 `913c9a02…`，QA PASS）；基本区覆盖 46.0%。
+- 新增手段：注文小字候选补 OCR（74,365 框）+ Unihan 简繁归一；确认集 `work/lead/confirmed_union5.json`。
+- 复算：`font_build.py --mapping work/lead/mapping_verified_all5.jsonl`。
+- 趋势：OCR 挖字接近饱和；剩余 ~8,955 基本区字需人工目检拼图或更强模型。
+
+## 0n. v1.1 状态与饱和结论（2026-11-09 02:15）
+
+- **v1.1**：7,807 字（`release/KangXiKai-v1.1.0/`，sha256 `7e0cc8a6…`，QA PASS）；基本区覆盖 47.1%。
+- **OCR 挖字已饱和**（+810 → +311 → +224）；人工目检产量 42%/24 样本，成本不可行于 8,760 字。
+- 复算：`font_build.py --mapping work/lead/mapping_verified_all6.jsonl`。
+- 需 owner 决策：接受 47.1% 阶段性交付，或投入更强 OCR/重扫/人工标注。
+
+## 0o. 最终状态（2026-11-09 02:16）
+
+- **最新交付**：v1.1（7,807 字，基本区 47.1%，QA PASS，sha256 `7e0cc8a6…`）。
+- **自动路线全部试尽**：字符级序列对齐（owner 9/11）、OCR 四路→八路证据、候选池/注文小字挖字（+810→+311→+224 饱和）、注文指纹（top-1 0-4/20）、渲染模板（rank-1 23.3%）。
+- **结论**：剩余 8,760 个基本区字在当前扫描+模型下无自动解；需更强 OCR 模型、600dpi 重扫或人工标注（20-60 秒/字）。
+- **复算命令**：
+  - 对齐：`.venv/bin/python scripts/lead_char_align14.py`
+  - 确认集：`work/lead/confirmed_union6.json`（7,836 条，QA 后 7,807）
+  - 字体：`font_build.py --mapping work/lead/mapping_verified_all6.jsonl --out work/font/build/KangXiKai-v1.1.ttf`
+  - QA/打包：`font_qa.py`、`font_package.py --version 1.1.0`
