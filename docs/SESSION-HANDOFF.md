@@ -1,124 +1,87 @@
-# SESSION-HANDOFF · 会话交接（2026-11-08 晚 · T2 对齐主战场）
+# SESSION-HANDOFF · 2026-11-08 接手会话后交接
 
-> **新会话第一步：读本文件 → docs/DECISIONS.md（D13/D14 新增） → docs/T2-EXP30.md。**
-> 本文件取代前一版交接。T0/T0.0/T1 已收口（见 docs/PROBE.md、T2-EXP30.md），T2 卡在
-> 「图片↔文本对齐」，已找到破局机制（所有者页面级校准），等待 37 个半页读数。
-
----
+> **新会话第一步：读本文件 → `docs/TAKEOVER.md`（诊断+v3架构）→ `docs/V3-STATUS.md`（成果/卡点/数字）。
+> 本文件取代 2026-11-08 晚 GLM 版交接；旧 T2 路线（DP 对齐 + 所有者逐页读数）已作废。**
 
 ## 1. 一句话状态
 
-切格已由所有者确认「基本没问题」；T2 剩余 = **框→条目指派的对齐**。死循环已破：
-根因确诊为「自由 gap 下 DP 在 band 内无代价滑动」（0110R 实测整体左移 31 条），
-**破局机制 = 所有者念每半页首尾字头 → 半页条目区间唯一确定 → 框按序对入**。
-机制已在 01_0110R 上验证（8 框精确对入 1015-1022，与所有者读数一字不差）。
-**等待：所有者 37 个半页的首尾字头读数。**
+v3「结构性标注」架构已被实证打通到框级（0006-0009：11 条框↔条目 11/11 正确，3 个书眉校验点 0 不一致），
+全量数据/工具就位（正典序 42,302 条、全 3,869 页页角色、全 12 卷 3,266 body 页候选检测、
+32 字 demo 字体可安装 && 可复现）。**当前唯一阻塞：书眉（版心）读数识别未过门 →
+无法在全量范围做逐页校验/纠错 → 全量标注与全量字体未产出。**
 
-## 2. 本会话已完成（勿重做）
+## 2. 下一会话第一优先级（按序，每步有门）
 
-| 项 | 状态 | 证据 |
-|---|---|---|
-| §3.0 决定性实验 | ✅ precision 0.925≥0.8 → 走 §3.1-3.4 | `docs/T2-EXP30.md` |
-| 300dpi 重 OCR | ✅ 342 框（PDF 直渲染，非插值） | `work/t2/ocr300_v6/v5.jsonl` |
-| 数据集释义字段发现 | ✅ xlsx「康熙字典解釋」= 含音切全文（知庾切/市之切…） | `data/ref/kangxi-dictionary/kx_full.xlsx` 第8列 |
-| 注文音切指纹通道 | ✅ 228/242 框读出下方注文（常用字），56 框产生锚（+6分） | `scripts/t2_dpalign2.py` 内 frag_* 函数 |
-| 0110R 校准验证 | ✅ 所有者读数（僨→㣴→僬）与数据集 pos 1015/1046/1022 全对上 | `work/t2/owner_page_ranges.json` |
-| 文档勘误 | ✅ PROBE §8（clip_to_column 死代码）；D7 页码公式作废；margin_labels 三处修正 | `docs/PROBE.md`、`docs/DECISIONS.md` D13/D14 |
+### P0 书眉读数（0.5 天，**先做这个**）
+- 输入：`work/lead/page_roles.jsonl`（只读 body 页，3,528 页）；`work/t2/margin_labels_full.json`（owner 20 页真值）
+- 目标：每页 (部名, 画数[1-2 字段])，全量覆盖 ≥85%，对 owner 20 页 **集名/部名/画数 100%**
+- 已知可行路径（本会话试错结论）：
+  1. **版心柱**：L 半版左缘 → 第一根竖版框线（300dpi 下见 §4 几何）；按页自适应，不要写死 167 宽（会带进正文列）
+  2. **切格**：水平投影，小间隙合并；宽格按竖直投影拆（十+二 粘连）
+  3. **识别**：楷体模板匹配（`~/Library/Fonts/GuanGeKai-Regular.ttf`）优于 PP-OCR（PP-OCRv5 对刻本楷体 misread 严重：pilot 20 页 集名 19/20、部名 15/19、画数 11/18 未过门；且 resolved 的 bu 全回退「一部」是 bug）
+     - 关键字符集小：214 部首 + 数字（一二三四五六七八九十廿卅卌百）+ 部/畫 + 康熙字典/集名
+     - 固定槽位解析：康熙字典(4) / 集名卷(3) / 部名(2) / 画数(1-2 字段) / 葉码(1-3)
+     - 集名卷**不用识别**：`work/lead/volume_sections.json` 卷界表直接给；葉码=册内扫描页−5（PDF01-12 实测）
+  4. **只识别画数也能用**：画数字段 + 预测组（来自计数累计）比对即可做校验点（部名可选；部变化时预测也会跟着变）
+- 备选：只识别「畫」+ 数字（不识别部名），solver 用 `hua_only` 模式（bu=null → 只校验 bu_strokes 集合）
+- 输出格式（solver 已支持）：`work/seq/headers.jsonl`，每行
+  `{"page":"01_0006","half":"L","ji":"子集上","bu":"一部","hua":[1,2],"leaf_no":1,"conf":0.9,"errors":[]}`
 
-## 3. 对齐战史（五轮复核的教训浓缩，违反即重蹈）
+### P1 计数偏差三方对账（0.5 天，依赖 P0 可用）
+- 现象：检测器 `count_headword`（argmax=headword 且分≥0.8）全卷合计比正典序少 **~10%**
+  （vol01 2374/2633、vol02 2564/2901、vol03 2337/2597）；但 0006-0009 八半版与 truth 完全一致。
+- 已知解释一部分：正典序重出/异体重复条目占 3.4-3.8%（子集 90/丑集 110/寅集 68 条）——需确认是否应计入。
+- 剩余 6-8% 必须判定：①检测漏计 ②正典序含未印条目 ③边界页归属
+  - 做法：用 P0 headers 跑 `scripts/lead_solver2.py`，取首个 mismatch 窗口（≤2 页）→ 人工三方对账
+    （detector 候选 vs 人工目检 vs 正典序 kx 切片），结论写 `docs/COUNT-RECONCILE.md`
+  - 注意方向：计数偏差有正有负（子集上 6-41 页检测 246 vs 正典 176 = 超计 40%；全卷却是少计）→ 不能全局缩放
 
-| 轮 | 做法 | 结果 | 教训 |
-|---|---|---|---|
-| r3 前版 | 逐版 DP（窗口=部+画数）+150dpi OCR | 错标 1.2%（owner ✓） | **此为通过验收门的基线** |
-| r4 | 全局 DP（自由 gap）+300dpi OCR | 指派漂移（band 内无代价滑动） | 自由 gap 下 DP 对 band 内偏移**无感**，滑到 band 起点唐突配对 |
-| r5 | 回滚+2框剔除 | 181/3 | 打分器调优已到顶 |
-| r6 | +注文音切锚 | 162/23，56锚 | 锚有效但阈值/覆盖率待调；**owner 判：正确率仍低** |
-| r11 | **owner 页面级校准** | 0110R 8/8 精确 | **破局机制，全面推广中** |
-
-根因链：字形 OCR 40% 错（现代文本模型读康熙罕见字=分布外）→ 单框证据弱 →
-DP 在 band 内滑动无代价 → 系统性偏移。注文音切（常用字）可指纹锁条目，但
-布局多变（列底字头的注文续到下一版）+ 阈值难调 → 覆盖率不足。
-**owner 读数 = 零噪声强锚，覆盖所有情况。**
-
-## 4. 关键技术事实（本会话新增，违反即返工）
-
-- **葉码 = 扫描页 − 5**（PDF01 实测 0006→一…0009→四、0027→廿二）。D7 的 2×扫描页−11 作废。
-  书眉数字 = 葉码（每跨页+1，左右半页同码）。其他册 offset 未逐一验证（02_0029/0155 的
-  葉码形态存疑，待核）。
-- **书眉字段序**：康熙字典/集名卷/部名/画数/葉码。画数跨分界的页面有**两个画数字段**
-  （乙部「一畫二畫」、口部「四畫五畫」）→ 直接给出条目窗口分界。
-- **右半版书眉全被扫描裁掉**（0027R/0110R 等直接见正文）→ R 版标签不可得，靠 L 版+单调推。
-- **阅读序**：每跨页先读 R 版再读 L 版（丁头在 0007R、序说续在 0007L 实证）；
-  版内列右→左、列内上→下。
-- **数据集「解釋」字段 = 对齐金矿**：含〔古文〕X、【唐韻】某切、釋文全文。
-  entry_sequence.jsonl 的 `i` 字段 = xlsx 数据行索引（0 基），释义按 i 取。
-  `work/t2/entry_defs.jsonl` = 已缓存的释义头（80字）。
-- **重出行 = 书上正字+异体双字形**：時/旹（pos 13527/13528）、笄/筓（25390/25391）、
-  鉗/鉗（39915/39916）——owner 已确认配对方式。僨 = pos 1015/1016 重出。
-- **01_0110 页**：L=丁注整版（无字头，0 检出=正确）；R=僨→僬 8 条（owner 校准 [1015,1022]）。
-- **13_0163 = 戌集備考**（非補遺）：数据集无備考条目，不进 DP。
-- margin_labels 修正：01_0110=子集**中**；03_0015=**卜部**；13_0163=戌集**備考**。
-  全 20 页书眉 owner 核验毕：`work/t2/margin_labels_full.json`（5 处画数更正，
-  3 个边界页双画数：04_0030=六+七、05_0017=五+六、07_0021=六+七）。
-- **圈字自动检测失败**（Hough/空洞/半径一致/四角空白四特征全试）——圈字（印刷圆圈+增/五/六/十）
-  归入 T3 分类器特征。本轮 18 框靠 owner 标记剔除：`work/t2/owner_drop_r10.json`。
-- **切格评审图渲染**：OCR 文本含扩展区码位时 PIL 出豆腐块——显示前用
-  `disp()` 消毒（>0xFFFF → 〔僻〕），见 dp_review6 生成代码。
-- 工具坑：cv2 5.0 的 imwrite 空数组段错误（fitz clip 越界时先判 pix.width）；
-  fitz 坐标换算 px@150→pt = ×0.48；PIL 贴图必须 numpy 先行、Image.fromarray 后画字
-  （顺序反了贴图全丢——本会话踩了三次）；float64 必须（float32 在 ±4 万量级下 eps 失效）。
-
-## 5. 下一步（精确操作清单）
-
-### 5.1 收所有者 37 个半页读数（唯一阻塞项）
-- 阅读图已导出：`work/t2/reading/{页}{R|L}.png`（37 张，清单 `read_list.json`）。
-- 所有者只需念每半页**首、尾两个大字头**（阅读序：跨页 R 先 L 后，列右→左）。
-  纯注文半页写「无」。格式：`{页}{R|L}: 首=X, 尾=Y`。
-- 已收到：01_0110R（=校准验证样例）。
-- 注意：01_0006R=目录透印空白（跳过）；03_0015R/13_0163 等可能整版注文（写「无」）。
-
-### 5.2 读数落地（新会话第一件代码活）
-- 写入 `work/t2/owner_page_ranges.json`（键={页}{R|L}，值=[首pos, 尾pos]）。
-  pos 查法：`entry_sequence.jsonl` 中按 char 搜（band 内通常唯一；重出字取相邻）。
-- dpalign2 已支持：`page_cal` 覆盖 band（`if page_cal.get(page+half)` 分支，L/R 两处）。
-- 无字头半页：band=空 → 该版 obs 全 fp 跳过（需在 dpalign2 加 skip 分支）。
-- 夹逼变体：owner 念不准首尾时给「相邻两个可确认的字」→ 用夹逼。
-- 现有 0110R 校准不要动（已验证）。
-
-### 5.3 重跑对齐 + 验收
-- `python scripts/t2_dpalign2.py` → 对照验收集：owner ✓ 过的
-  況@16832、怒@10115、泄@16870、駮@44469、宵@6894、昴@13468、昵@13472、
-  晜@13509、曀@13800、班@20441、駰@44507、時@13527、怔@10148（繁体字形！
-  验收比对用数据集 char 字段）+ 新校准页 1015-1022。
-- 生成评审图（复用 dp_review6 生成代码，含 ⚓ 锚标记）→ owner 终审。
-- 门：错标率 ≤3%（PROMPT §8）→ 写 `docs/T2-ALIGNMENT.md`（方法、错标率、
-  FP 分类学：⭕圈字/□书名/🔺边角料/❌注文小字）→ T2 收口。
-
-### 5.4 T3 前置（T2 收口时顺手）
-- 霞鹜文楷下载至 data/base/（OFL）；guangeti 9 脚本 vendor（实测上游 commit）；
-  training pair 只用基本区标签。DATA.md 扫描件来源待所有者提供（发布阻塞）。
-
-## 6. 文件地图（本会话新增）
-
+### P2 全量映射（依赖 P0+P1）
+```bash
+.venv/bin/python scripts/lead_solver2.py \
+  --canonical work/seq/canonical.jsonl --groups work/seq/groups.json \
+  --boxes-dir work/lead/boxes300 --headers work/seq/headers.jsonl \
+  --roles work/lead/page_roles.jsonl --out work/map/full
 ```
-docs/            SESSION-HANDOFF(本文件) T2-EXP30(§3.0报告) DECISIONS(D13/D14)
-scripts/         t2_exp30(§3.0实验) t2_ocr300(300dpi OCR) t2_dpalign2(主对齐·可用)
-                 t2_dpalign3(全局DP·已停用，工程问题未清)
-work/t2/         ocr300_v6/v5.jsonl(300dpi读数) entry_defs.jsonl(释义头缓存)
-                 margin_labels_full.json(书眉全字段·owner核验)
-                 owner_page_ranges.json(页面校准·含0110R) owner_drop_r10.json(18框剔除)
-                 dp_alignment2.json(当前对齐) exp30_result.json(§3.0五闸明细)
-                 exp30_final_arm.json(G′幸存集) dp_review6_*.png(最新评审图)
-                 reading/*.png(37半页阅读图) marked_backup/(owner标注原图)
-                 probe/(诊断图若干) pdf_map.json(PDF文件映射)
-data/gold-certified/gold50.json  (未动)
+- 门：每卷 headers 一致性 ≥95%；卷末 consumed == 正典该卷累计；mismatch 窗口人工清完
+- mapping 格式：每行 `{page,half,assigned:[{char,cand:{box}}]}`（box=150dpi 页坐标，直接喂 font_build）
+
+### P3 全量字形 + 字体
+```bash
+.venv/bin/python scripts/lead_extract.py --mapping work/map/full/mapping.jsonl   # → work/glyphs/
+.venv/bin/python scripts/font_build.py --mapping work/map/full/mapping.jsonl \
+   --out work/font/build/KangXiKai-v0.1.0.ttf                                   # 32 字 demo 同链路
 ```
+- 目标：16,567 个基本区真迹字（正集 unique 基本区；另有 224 个仅见補遺/備考，暂缓）
+- 缺 4,201 个基本区码位：mapped_traditional（~2,175 经 Unihan kTraditionalVariant）+ ribbon 回落 + 披露；
+  補遺/備考 6,406 条、GAN 后置（D3/D4 口径不变）
 
-## 7. 所有者沟通备注
+## 3. 本会话交付（详见 docs/V3-STATUS.md §2）
 
-- 所有者读字能力强（康熙刻本直读），扩展区生僻字不认识——验证请求只能是结构性的。
-- **本轮关键贡献**：所有者三次人工读数破了死循环（0110R 首中尾三锚、五处画数更正、
-  18 框 ✗/⭕ 标记）。页面级读数 = 零噪声校准，是当前唯一可靠的 offset 锚。
-- 所有者倾向：文档不用完美，方向正确就推进；关键节点落文档（本文件即是）。
-- git 由所有者操作。会话上下文见底前务必先更新本文件。
-- 未决问题（owner 未答复）：评审图上 OCR 参照行保留还是删除（r11 提问后未答）。
+demo 字体 `work/font/demo/KangXiKai-demo-v0.1.0.ttf`（32 字，sha256 两次一致）；
+正典序 `work/seq/canonical.jsonl`（seq 正式版）/ `work/lead/canonical_proto.jsonl`（Lead 原型）；
+页角色/卷界表；检测器 v2 + 全量检测（`work/lead/boxes300/` 3,266 页）/ 候选 234k；
+solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUILD/VENDORED/HEADERS(seq)。
+
+## 4. 关键技术事实（违反即返工）
+
+1. **书序真源 = Unihan kKangXi (page,position)**；数据集序不是书序（05_0017 实证）。旧 `t2_dpalign*` 结论全部作废。
+2. **阅读序**：每跨页先 R 后 L；版内列右→左、列内上→下。R 半版无书眉（被裁），书眉在 L 半版左缘。
+3. **重出行计入**（书上印两次，第二次注文常「【集韻】同，上」）；**古文大字变体不计入**（弌/𠆤/弎 等，前方有小字「古文」标签）。
+4. **页面几何**：1 PDF 页 = 跨页; L 半版 版心柱 ≈ 页左缘~第一竖框线（300dpi 下 x≈[4,~90]，页页浮动）；
+   书眉字段自上而下（见 P0）；正文列距 ~47px@150；注文小字 h0=37px@150；字头 ~2.08×h0。
+5. **体例**：每卷卷界有 7-8 页非正文（集扉页/书衣/空白）；`page_roles.jsonl` 已分类（body 3,528）。
+6. **检测**：必须 `--dpi 300` + render_dpi=**150**（直渲染）；300→150 降采样路径会让分类分漂移（0007/0009 实测计数出错）。
+7. **坐标**：所有 box 统一 150dpi 当量页坐标；字形裁切时 ×2 渲染 300dpi。
+8. **数据集/旧标签可靠性**：`work/t2/dp_alignment*.json` 除 owner 明确逐框确认外不可信（本会话又抓一例：
+   「時」框实为「晋」）；gold50.json 无 char 字段（切格金标）；t2_review_ids 标签 24/25 错。
+9. 硬约束沿用 PROMPT §6：不做 git 写操作；大文件只进 work/；并发 ≤10；术語刻本体例。
+10. 本会话环境事实：`.venv/bin/python` 3.12；fontTools/potracer 装在 `work/font/_pylibs`；
+    PaddleOCR 可用但刻本楷体识别差；`~/Library/Fonts/GuanGeKai-Regular.ttf` 可作楷体模板。
+
+## 5. 所有者（用户）沟通备注
+
+- 所有者读刻本强；但**本方案已不再要求逐页读数**——只在 P1 收尾时抽 10-20 个计数不一致窗口做终审。
+- 本会话已用目检目视核实：0006-0009 逐半版字头序列；05_0017 书序；世/時 重出；丁+古文𠆤；一+古文弌。
+- 所有者倾向：方向对就推进、关键节点落文档、git 由所有者操作。
+- **文档权威顺序**（冲突时）：`DECISIONS.md` > `TAKEOVER.md` > `V3-STATUS.md` > 本文件 > `PROMPT.md`（历史）。
