@@ -79,6 +79,9 @@ def main():
     print('OCR 源:', '300dpi' if v6 else '150dpi')
     owner_drop = [(p, i) for p, i in
                   json.load(open(os.path.join(T2, 'owner_drop_r10.json')))['owner_drop']]
+    page_cal = {k: v for k, v in
+                json.load(open(os.path.join(T2, 'owner_page_ranges.json'))).items()
+                if k.endswith(('R', 'L'))}
 
     # 部首自身笔画 = 该部最小 stroke（部首自字）；S(部,k) = 部外笔画≥k 的首条 pos
     rad_self = {}
@@ -265,6 +268,9 @@ def main():
             klast = v['lks'][-1] if v['lks'] else 0
             lo = max(cur, S(v['lri'], k0))
             hi = S(v['lri'], klast + 1)
+        elif page_cal.get(page + half):
+            a, b = page_cal[page + half]
+            lo, hi = max(cur, a), b + 1
         else:                          # unlabeled R： principled band
             nxt = None
             for w in versions[vi:]:
