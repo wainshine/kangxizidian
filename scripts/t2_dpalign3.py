@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 from t1_segment import page_ink, height_mode, raw_blocks
 
 SPLIT_X = 950
-GAP_O, GAP_E, NEG = -1.2, 0.0, -1e9   # 跳条目免费：未采样间隙不是漏检；漏检按 band 事后记账
+GAP_O, GAP_E, NEG = -1.2, 0.0, -1e9   # 跳条目免费：未采样间隙不是漏检
 
 
 def is_cjk(ch):
@@ -151,65 +151,175 @@ def main():
             k0 = v['lks'][0] if v['lks'] else 0
             klast = v['lks'][-1] if v['lks'] else 0
             bands[vi] = [S(v['lri'], k0), S(v['lri'], klast + 1)]
-    prev_lo = None
+    # R band：lo = max(前一个 labeled 的 lo, S(同页L.k0)-2n_R-5)，hi = 同页 L 的 hi
     for vi, v in enumerate(versions):
         if bands[vi] is None:
-            bands[vi] = [prev_lo if prev_lo is not None else 0, 0]
-        else:
-            prev_lo = bands[vi][0]
-    for vi, v in enumerate(versions):
-        if v['lri'] is None:
-            for w in versions[vi:]:
-                if w['lri'] is not None:
-                    bands[vi][1] = bands[versions.index(w)][1]
-                    break
+            n_R = len(v['items'])
+            lo2 = 0; hi2 = 0
+            if vi + 1 < len(versions) and versions[vi+1]['page'] == v['page'] \
+                    and versions[vi+1]['lri'] is not None:
+                L = versions[vi+1]
+                k0 = L['lks'][0] if L['lks'] else 0
+                klast = L['lks'][-1] if L['lks'] else 0
+                lo2 = max(0, S(L['lri'], k0) - 2 * n_R - 5)
+                hi2 = S(L['lri'], klast + 1)
+                if bands[vi - 1] is not None and versions[vi-1]['lri'] is not None:
+                    lo2 = max(lo2, bands[vi - 1][0])
+            bands[vi] = [lo2, hi2]
     bands = [(int(max(0, a)), int(min(N, b))) for a, b in bands]
+
+    # ---- 注文音切通道：字头下方（或左列顶）注文带 → 竖列 OCR → 常用字指纹 ----
+    from paddleocr import PaddleOCR
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    import warnings; warnings.filterwarnings("ignore")
+    import fitz
+    pdf_map = json.load(open(os.path.join(T2, 'pdf_map.json')))
+    docs = {}
+    def doc_of(idx):
+        if idx not in docs:
+            docs[idx] = fitz.open(os.path.join(ROOT, '康熙字典', pdf_map[idx]))
+        return docs[idx]
+    e6 = PaddleOCR(use_doc_orientation_classify=False, use_doc_unwarping=False,
+                   use_textline_orientation=False)
+    e5 = PaddleOCR(use_doc_orientation_classify=False, use_doc_unwarping=False,
+                   lang="ch", text_recognition_model_name="PP-OCRv5_server_rec")
+    def ocr_frag(img):
+        import tempfile
+        tp = os.path.join(T2, 'tmp', 'frag.png')
+        cv2.imwrite(tp, img)
+        out = []
+        for eng in (e6, e5):
+            try:
+                res = eng.predict(tp)
+                if res:
+                    j = res[0].json.get('res', res[0]) if hasattr(res[0], 'json') else res[0]
+                    t = j.get('rec_texts', []); bx = j.get('rec_boxes', [])
+                    for k, txt in enumerate(t):
+                        ytop = bx[k][1] if k < len(bx) and len(bx[k]) == 4 else 0
+                        out.append((float(ytop), str(txt)))
+            except Exception:
+                pass
+        out.sort()
+        s = ''.join(t for _, t in out)
+        return ''.join(ch for ch in s if is_cjk(ch))[:10]
+
+    # 每条目的释义头（清洗：仅 CJK，去括号），i = xlsx 行索引
+    import openpyxl, glob as _glob
+    wb = openpyxl.load_workbook(_glob.glob('data/ref/**/*.xls*', recursive=True)[0], read_only=True)
+    ws = wb.active
+    xrows = list(ws.iter_rows(values_only=True))
+    defn = {}
+    for ri_, r in enumerate(xrows[1:]):
+        d_ = str(r[7]) if r[7] else ''
+        defn[ri_] = ''.join(ch for ch in d_[:46] if is_cjk(ch))
+
+    def frag_below(g, b):
+        x0, y0, x1, y1 = b
+        H, W = g.shape
+        return g[y1+2:min(H, y1+140), max(0, x0-4):min(W, x1+4)]
+
+    def frag_leftcol(g, b, frame_top):
+        x0, y0, x1, y1 = b
+        cx = (x0 + x1) / 2
+        return g[frame_top+12:frame_top+150, max(0, int(cx-47-26)):int(cx-47+26)]
+
+    frag_read = {}
+    n_frag = 0
+    for v in versions:
+        g = cv2.imread(os.path.join(T00, 'pages', v['page'] + '.png'), cv2.IMREAD_GRAYSCALE)
+        ft = 330
+        for line in open(os.path.join(T00, 'page_stats.jsonl')):
+            dd = json.loads(line)
+            if dd.get('file') == v['page'] + '.png':
+                fr = dd.get('halves', [])
+                ft = (fr[0].get('frame') or [0, 330, 0, 0])[1] if fr else 330
+                break
+        for (b, bi, ef) in v['items']:
+            fb = frag_below(g, b)
+            img = fb
+            if (fb < 150).mean() < 0.02:
+                img = frag_leftcol(g, b, ft)
+            txt = ocr_frag(img)
+            if txt:
+                frag_read[(v['page'], bi)] = txt
+                n_frag += 1
+    print(f'注文读数: {n_frag}/{sum(len(v["items"]) for v in versions)}', flush=True)
+
+    # 指纹评分：band 内候选 × 释义头有序命中
+    def fingerprint(page, bi, blo, bhi):
+        f = frag_read.get((page, bi))
+        if not f or bhi - blo <= 1:
+            return None, 0.0
+        best_k, best_s, second = None, 0.0, 0.0
+        for k in range(blo, min(bhi, N)):
+            head = defn.get(seq[k]['i'], '')
+            if len(head) < 3:
+                continue
+            j = 0; hits = 0
+            for ch in f:
+                while j < len(head) and head[j] != ch:
+                    j += 1
+                if j < len(head):
+                    hits += 1; j += 1
+            s = hits / max(1, len(f))
+            if s > best_s:
+                second = best_s; best_s, best_k = s, k
+            elif s > second:
+                second = s
+        if best_s >= 0.6 and (len(f) >= 3 and best_s - second >= 0.2 or best_s >= 0.9):
+            return best_k, best_s
+        return None, best_s
 
     # ---- 全局观测线 ----
     obs = []
+    n_anchor = 0
     for vi, v in enumerate(versions):
         if bands[vi][1] <= bands[vi][0]:
             continue
         for (b, bi, ef) in v['items']:
             t6 = v6.get((v['page'], bi), '')
             t5 = v5.get((v['page'], bi), '')
+            blo, bhi = bands[vi][0], bands[vi][1]
+            ak, asc = fingerprint(v['page'], bi, blo, bhi)
             obs.append({'box': b, 'page': v['page'], 'half': v['half'], 'src_idx': bi,
-                        'ef': ef, 'blo': bands[vi][0], 'bhi': bands[vi][1],
+                        'ef': ef, 'blo': blo, 'bhi': bhi,
                         'c6': t6[:1] if t6 and is_cjk(t6[0]) else None,
-                        'c5': t5[:1] if t5 and is_cjk(t5[0]) else None})
+                        'c5': t5[:1] if t5 and is_cjk(t5[0]) else None,
+                        'anchor': ak, 'anchor_s': asc})
+            if ak is not None:
+                n_anchor += 1
     n = len(obs)
-    print(f'obs={n}', flush=True)
+    print(f'obs={n} 注文锚={n_anchor}', flush=True)
 
     chars = np.array([ord(e['char'][0]) for e in seq])
     seq_chars = [e['char'] for e in seq]
 
     # ---- 全局 DP：(n+1)×(N+1) ----
+    tvec = np.arange(N + 1, dtype=np.float64)
     DP = np.full((n + 1, N + 1), NEG, dtype=np.float64)
     DP[0] = 0.0   # 首框前起点自由（未采样条目不预罚）
-    tvec = np.arange(N + 1, dtype=np.float64)
     for i in range(n):
         o = obs[i]
         row = DP[i] + GAP_O                        # 跳框 i
-        # 跳条目（复利）：DP[i+1][j] = max_t<=j (row[t] + (j-t)*GAP_E)
-        ce = (np.maximum.accumulate(row - tvec * GAP_E) + tvec * GAP_E)
         sc = np.full(N + 1, NEG, dtype=np.float64)
         lo, hi = max(1, o['blo']), min(o['bhi'], N)   # 匹配不可能落在 j=0
         if hi > lo:
-            s = np.full(hi - lo, 0.5, dtype=np.float32)
+            s = np.full(hi - lo, 0.5, dtype=np.float64)
             for k in range(lo, hi):
                 if (o['c6'] and seq_chars[k] == o['c6']) or (o['c5'] and seq_chars[k] == o['c5']):
                     s[k - lo] = 4.0
             ext = chars[lo:hi] > 0xFFFF
             s[ext & (s < 0.5)] = 0.2
+            if o['anchor'] is not None and lo <= o['anchor'] < hi:
+                s[o['anchor'] - lo] = max(s[o['anchor'] - lo], 6.0)   # 注文指纹锚
             sc[lo:hi] = DP[i][lo - 1:hi - 1] + s   # 匹配 entry j 用 DP[i][j-1]
         sc[0] = NEG
-        # GAP_E=0 ⇒ 自由跳条目：DP[i+1][j] = running_max(max(row, sc))
+        # GAP_E=0 ⇒ 自由跳条目：DP[i+1][j] ≥ DP[i+1][j-1]，行内 running_max 传播匹配值
         DP[i + 1] = np.maximum.accumulate(np.maximum(row, sc))
     print('DP done', flush=True)
 
     # ---- 回溯 ----
     i, j = n, int(np.argmax(DP[n]))
-    print(f'backtrack start: i={i} j={j} DP[n][j]={DP[n][j]:.2f} DP[n].max={DP[n].max():.2f}', flush=True)
     pairs, fps, misses = [], [], []
     while i > 0:
         o = obs[i - 1]
@@ -233,9 +343,9 @@ def main():
         elif j > 0 and abs(DP[i][j] - (DP[i][j - 1] + GAP_E)) < eps:
             misses.append(seq[j - 1]); j -= 1
         else:
-            print(f'  break at i={i} j={j}: sc[j]={sc[j]:.3f} DP[i][j]={DP[i][j]:.3f} '
-                  f'DP[i-1][j]+GO={DP[i-1][j]+GAP_O:.3f} DP[i][j-1]+GE={DP[i][j-1]+GAP_E:.3f} '
-                  f'band=[{lo},{hi}]', flush=True)
+            print(f'  break i={i} j={j}: DP={DP[i][j]:.3f} sc[j]={sc[j]:.3f} '
+                  f'go={DP[i-1][j]+GAP_O:.3f} ge={DP[i][j-1]+GAP_E:.3f} band=[{lo},{hi}] '
+                  f'anchor={o["anchor"]}', flush=True)
             break
     pairs.reverse()
     pairs.reverse()
@@ -244,7 +354,8 @@ def main():
             'edge_flag': o['ef'], 'entry_pos': e['pos'], 'char': e['char'],
             'rad': e['rad'], 'stroke': e['stroke'], 'extB': ord(e['char'][0]) > 0xFFFF,
             'ocr_v6': v6.get((o['page'], o['src_idx']), ''),
-            'ocr_v5': v5.get((o['page'], o['src_idx']), '')}
+            'ocr_v5': v5.get((o['page'], o['src_idx']), ''),
+            'anchor': o['anchor'], 'anchor_s': o['anchor_s']}
            for o, e in pairs]
     json.dump({'pairs': out, 'n_obs': n, 'matched': len(pairs), 'fp': len(fps)},
               open(os.path.join(T2, 'dp_alignment3.json'), 'w'), ensure_ascii=False, indent=1)

@@ -174,6 +174,80 @@ def main():
                              'lks': lks if half == 'L' else []})
         print(f'{page}: L标签={lab["L"]["bu"]}{lks} R空白={blanks["R"]} L空白={blanks["L"]}')
 
+    # ---- 注文音切通道：字头下方（或左列顶）注文带 → 竖列 OCR → 常用字指纹 ----
+    from paddleocr import PaddleOCR
+    import warnings; warnings.filterwarnings("ignore")
+    import fitz
+    pdf_map = json.load(open(os.path.join(T2, 'pdf_map.json')))
+    docs = {}
+    def doc_of(idx):
+        if idx not in docs:
+            docs[idx] = fitz.open(os.path.join(ROOT, '康熙字典', pdf_map[idx]))
+        return docs[idx]
+    e6 = PaddleOCR(use_doc_orientation_classify=False, use_doc_unwarping=False,
+                   use_textline_orientation=False)
+    e5 = PaddleOCR(use_doc_orientation_classify=False, use_doc_unwarping=False,
+                   lang="ch", text_recognition_model_name="PP-OCRv5_server_rec")
+    def ocr_frag(img):
+        import tempfile
+        tp = os.path.join(T2, 'tmp', 'frag2.png')
+        cv2.imwrite(tp, img)
+        out = []
+        try:
+            res = e6.predict(tp)
+            if res:
+                j = res[0].json.get('res', res[0]) if hasattr(res[0], 'json') else res[0]
+                t = j.get('rec_texts', []); bx = j.get('rec_boxes', [])
+                for k, txt in enumerate(t):
+                    ytop = bx[k][1] if k < len(bx) and len(bx[k]) == 4 else 0
+                    out.append((float(ytop), str(txt)))
+        except Exception:
+            pass
+        out.sort()
+        s = ''.join(t for _, t in out)
+        return ''.join(ch for ch in s if is_cjk(ch))[:10]
+
+    import openpyxl, glob as _glob
+    wb = openpyxl.load_workbook(_glob.glob('data/ref/**/*.xls*', recursive=True)[0], read_only=True)
+    ws = wb.active
+    xrows = list(ws.iter_rows(values_only=True))
+    defn = {}
+    for ri_, r in enumerate(xrows[1:]):
+        d_ = str(r[7]) if r[7] else ''
+        defn[ri_] = ''.join(ch for ch in d_[:46] if is_cjk(ch))
+
+    def frag_below(g, b):
+        x0, y0, x1, y1 = b
+        H, W = g.shape
+        return g[y1+2:min(H, y1+140), max(0, x0-4):min(W, x1+4)]
+
+    def frag_leftcol(g, b, frame_top):
+        x0, y0, x1, y1 = b
+        cx = (x0 + x1) / 2
+        return g[frame_top+12:frame_top+150, max(0, int(cx-47-26)):int(cx-47+26)]
+
+    frag_read = {}
+    n_frag = 0
+    for v in versions:
+        g = cv2.imread(os.path.join(T00, 'pages', v['page'] + '.png'), cv2.IMREAD_GRAYSCALE)
+        ft = 330
+        for line in open(os.path.join(T00, 'page_stats.jsonl')):
+            dd = json.loads(line)
+            if dd.get('file') == v['page'] + '.png':
+                fr = dd.get('halves', [])
+                ft = (fr[0].get('frame') or [0, 330, 0, 0])[1] if fr else 330
+                break
+        for (b, bi, ef) in v['items']:
+            fb = frag_below(g, b)
+            img = fb
+            if (fb < 150).mean() < 0.02:
+                img = frag_leftcol(g, b, ft)
+            txt = ocr_frag(img)
+            if txt:
+                frag_read[(v['page'], bi)] = txt
+                n_frag += 1
+    print(f'注文读数: {n_frag}/{sum(len(v["items"]) for v in versions)}', flush=True)
+
     # ---- 窗口计算 + 顺序 DP ----
     out_all, vers_meta = [], []
     cur = 0
@@ -208,6 +282,33 @@ def main():
         hi = max(lo + 1, min(hi, len(seq)))
         exp = seq[lo:hi]
         obs = v['items']
+        # 注文指纹：band 内候选 × 释义头有序命中
+        for oi_, x in enumerate(obs):
+            b_, bi_, ef_ = x[0], x[1], x[2]
+            f = frag_read.get((v['page'], bi_))
+            best_k = None
+            if f and len(exp) > 1:
+                best_s, second = 0.0, 0.0
+                for k in range(len(exp)):
+                    head = defn.get(exp[k]['i'], '')
+                    if len(head) < 3:
+                        continue
+                    jj = 0; hits = 0
+                    for ch in f:
+                        while jj < len(head) and head[jj] != ch:
+                            jj += 1
+                        if jj < len(head):
+                            hits += 1; jj += 1
+                    s = hits / max(1, len(f))
+                    if s > best_s:
+                        second = best_s; best_s, best_k = s, k
+                    elif s > second:
+                        second = s
+                if not (best_s >= 0.6 and (len(f) >= 3 and best_s - second >= 0.2 or best_s >= 0.9)):
+                    best_k = None
+            obs[oi_] = (b_, bi_, ef_, best_k)
+        n_anchor = sum(1 for x in obs if x[3] is not None)
+        print(f'  注文锚 {n_anchor}/{len(obs)}', flush=True)
         # OCR 锚点
         def ocr_of(it):
             return (v6.get((page, it[1]), ''), v5.get((page, it[1]), ''))
@@ -248,6 +349,9 @@ def main():
                         score = 4.0
                     elif ord(e['char'][0]) > 0xFFFF:
                         score = 0.2
+                    anc = obs[i - 1][3] if len(obs[i - 1]) == 4 else None
+                    if anc is not None and exp[j - 1]['pos'] == exp[anc]['pos']:
+                        score = max(score, 6.0)   # 注文指纹锚
                     # 锚点矛盾惩罚：oi 有唯一锚 p，匹配 pos≠p → 减分
                     if i - 1 in aset and aset[i - 1] and e['pos'] not in aset[i - 1]:
                         score -= 3.0
@@ -278,12 +382,13 @@ def main():
               f'fp={len(fps)} miss={len(misses)} cur→{cur}')
         vers_meta.append({'page': page, 'half': half, 'win': [lo, hi],
                           'obs': n, 'matched': len(pairs), 'fp': len(fps), 'miss': len(misses)})
-        for (b, bi, ef), e in pairs:
+        for (b, bi, ef, ak), e in pairs:
             t6, t5 = ocr_of((b, bi, ef))
             out_all.append({'page': page, 'half': half, 'box': b, 'src_idx': bi,
                             'edge_flag': ef, 'entry_pos': e['pos'], 'char': e['char'],
                             'rad': e['rad'], 'stroke': e['stroke'],
                             'extB': ord(e['char'][0]) > 0xFFFF,
+                            'anchor': exp[ak]['pos'] if ak is not None else None,
                             'ocr_v6': t6, 'ocr_v5': t5})
     json.dump({'versions': vers_meta, 'pairs': out_all},
               open(os.path.join(T2, 'dp_alignment2.json'), 'w'), ensure_ascii=False, indent=1)
