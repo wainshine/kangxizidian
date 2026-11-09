@@ -251,3 +251,10 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
   - 确认集：`work/lead/confirmed_union6.json`（7,836 条，QA 后 7,807）
   - 字体：`font_build.py --mapping work/lead/mapping_verified_all6.jsonl --out work/font/build/KangXiKai-v1.1.ttf`
   - QA/打包：`font_qa.py`、`font_package.py --version 1.1.0`
+
+## 0p. v1.2.0（第二轮审计修复）（2026-11-09 07:49）
+
+- **v1.2**：`release/KangXiKai-v1.2.0/`（16 文件 + zip，SHA256SUMS 16 项校验通过，zip 自检 PASS）。
+- 修复：内部版本 1.2.0；随包 manifest/provenance-detail/qa-report/qa-stats/coverage-detail/QA.md/RELEASE-NOTES；覆盖口径拆分。
+- 披露：5,157 条可疑指派 + 150 个纯注文页嫌疑半版（`mapping-review-flags.jsonl`）；已知残留错误（同列 y 移位、纯注文页误指派）。
+- 复算：`font_build.py --mapping work/lead/mapping_verified_all6.jsonl --version 1.2.0`；`font_package.py --extra ...`。

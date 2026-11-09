@@ -349,6 +349,7 @@ def main():
     ap.add_argument("--limit", type=int, default=0, help="只处理前 N 个字（调试/压测）")
     ap.add_argument("--pages", default="", help="只处理这些页，逗号分隔，如 01_0110,08_0020")
     ap.add_argument("--progress-every", type=int, default=500, help="每 N 字打印一次进度")
+    ap.add_argument("--version", default=VERSION, help="字体内部版本号（name 表 / fontRevision）")
     args = ap.parse_args()
     if not (args.glyphs or args.mapping or args.manifest):
         raise SystemExit("one of --glyphs/--mapping/--manifest required")
@@ -381,12 +382,13 @@ def main():
     out = Path(args.out)
     if not out.is_absolute():
         out = ROOT / out
-    per_char = build_font(glyphs, out, source_date_epoch=args.source_date_epoch)
+    per_char = build_font(glyphs, out, version=args.version,
+                          source_date_epoch=args.source_date_epoch)
     digest = sha256(out)
     stats = {
         "font": str(out.relative_to(ROOT)) if out.is_relative_to(ROOT) else str(out),
         "file_bytes": out.stat().st_size,
-        "family": FAMILY, "style": STYLE, "version": VERSION, "upm": EM,
+        "family": FAMILY, "style": STYLE, "version": args.version, "upm": EM,
         "ascent": ASCENT, "descent": DESCENT,
         "n_glyphs": len(glyphs) + 1, "n_chars": len(glyphs),
         "sha256": digest,

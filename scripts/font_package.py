@@ -407,6 +407,8 @@ def main():
     ap.add_argument("--zip", action="store_true", default=True, help="生成 zip（默认开）")
     ap.add_argument("--no-zip", dest="zip", action="store_false")
     ap.add_argument("--skip-qa", action="store_true", help="跳过渲染/孔洞 QA（不建议）")
+    ap.add_argument("--extra", action="append", default=[],
+                    help="额外打进 release 的文件（可多次；在 SHA256SUMS 前复制）")
     args = ap.parse_args()
 
     font_path = Path(args.font)
@@ -497,6 +499,14 @@ def main():
             sp = ROOT / sp
         if sp.exists():
             shutil.copy2(sp, out / "specimen.png")
+    # ③b 额外文件（审计要求：manifest / QA 报告 / provenance 明细随包发布）
+    for extra in args.extra:
+        ep = Path(extra)
+        if not ep.is_absolute():
+            ep = ROOT / ep
+        if not ep.exists():
+            fail(f"extra 文件不存在: {ep}")
+        shutil.copy2(ep, out / ep.name)
     # ④ SHA256SUMS（最后重算 —— 顺序铁律）
     sums = write_sha256sums(out)
     # ⑤ zip（再自校验）

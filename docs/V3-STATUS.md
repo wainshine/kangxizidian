@@ -207,3 +207,10 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 - **渲染模板判别力**：正确标签 NCC 0.264 < 随机最高 0.336，rank-1 仅 23.3% → 不可用于验证/扩充。
 - **最终交付版本**：v1.1（`release/KangXiKai-v1.1.0/`，7,807 字，QA PASS，sha256 `7e0cc8a6…`），基本区覆盖 47.1%。
 - **全量 16,567 字不可达**：自动路线（序列对齐/OCR 挖字/注文指纹/渲染模板）均已系统试尽并饱和；需更强模型/更高分辨率重扫/人工标注。
+
+## 十九、v1.2.0：第二轮审计后的修复版（2026-11-09 07:49 实际产出）
+
+- **修复**：字体内部 Version 1.2.0（v1.1 遗留 0.1.0）；随包 `manifest.json` / `provenance-detail.json` / `qa-report.json` / `qa-stats.json` / `coverage-detail.json` / `QA.md` / `RELEASE-NOTES.md`；覆盖口径拆分（严格基本区 47.08%）。
+- **披露**：5,157 条可疑指派（3,929 weak + 1,552 碎片 + 41 无统计）、150 个纯注文页嫌疑半版，清单随包。
+- **v1.2**：7,807 字，QA PASS，zip 自检 PASS，sha256 `87249d3e…`；owner 9/11、demo 11/27（与 v1.1 一致）。
+- 新增 `docs/AUDIT-RESPONSE-2.md`。

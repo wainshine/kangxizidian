@@ -450,3 +450,18 @@ sha256 `7e0cc8a69315a2143f46ef54d089fefd7ee2483e7cf6170cce43cf67bb6d64c3`）；�
 这与之前「版心模板匹配失败」「注文指纹 top-1 0-4/20」共同说明：**剩余 8,760 字的识别在当前数据/模型下无自动解**。
 
 **归档**：`work/font/build/`, `docs/COUNTS.md` 已记录全部正负结果与复算命令。
+
+## 第三十节、第二轮对抗审计回应 + v1.2.0（版本/材料修复）  [实际时间 2026-11-09 07:49]
+
+审计为真项（复验一致）：release 完整、sha256 逐位、7 项 sums、7,807 cmap、provenance 全 real、9 个发布版本、owner 9/11。
+
+**本轮修复（v1.2.0）**：
+1. 字体内部版本：`font_build.py` 增加 `--version`，v1.2 内部 name = Version 1.2.0、fontRevision≈1.2（v1.1 遗留 0.1.0 已修）；
+2. 随包发布复算材料：`manifest.json`、`provenance-detail.json`、`qa-report.json`、`qa-stats.json`、`coverage-detail.json`、`QA.md`、`RELEASE-NOTES.md`；
+3. 覆盖口径：7,807 = 7,800 基本区 + 7 扩展A；严格基本区 = 47.08%（此前 47.1% 口径含扩展A）；
+4. 映射质量披露：全量扫描出 **5,157 条可疑指派**（3,929 低墨量合并注文框 + 1,552 页边碎片 + 41 无统计）、**150 个「全部指派均 weak」半版**（纯注文页嫌疑），清单随包 `mapping-review-flags.jsonl`；
+   字体 7,807 字均不依赖这些可疑指派（全部有 OCR 证据）。
+5. 文档：新增 `docs/AUDIT-RESPONSE-2.md`；`docs/QA.md` 语义写入发布包。
+
+**残留错误类型（已知、明示）**：① 同列 y 移位（怔）；② 纯注文页误指派（0007L 类）；③ owner 抽检 n=11 的统计局限。
+验证：owner 11 框 **9/11**（un变化）、demo 28 的 11/27；v1.2 字体 sha256 `87249d3e2879cf3d23910ba72217d1d593795c005b39a2b5953fc66e790acdd6`。
