@@ -235,3 +235,21 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 - **17,524 字形**，基本区∩目标 = 10,728/16,567 = **64.76%**；QA PASS、SHA256SUMS 19 项、zip PASS；sha256 `6a0d5c93…`。
 - 随包披露：same-box-conflicts(49框/98字)、dropped-noncanonical(238)、excluded-chars(107)、vlm-confirm-report、fp-validation。
 - 新增 `docs/AUDIT-RESPONSE-3.md`。
+
+## 二十三、v2.1.0：注文小字过滤 + 孔洞语义更正（2026-11-09 19:01）
+
+- owner 指出「刻本孔洞不封闭是工艺常态」→ QA 的 holes 指标降为诊断（docs/QA.md 更新），不再追逐孔洞数。
+- 新增字形质量闸：p90 笔画宽 ≥4.5 / 字头级尺寸 / small 来源剔除；261 替换 + 131 丢弃 + 62 QA 剔除。
+- **v2.1**：17,331 字形，基本区∩目标 10,550/16,567 = **63.68%**；QA PASS、SHA256SUMS 16 项、zip PASS；sha256 `645342fa…`。
+
+## 二十四、v2.1.1：边角料清理（2026-11-09 20:40）
+
+- 回应 owner 红圈：clean_ink 新增 v12b 规则（细/小/在主体 bbox 外的成分剔除），72/400 字形受影响、去除 0.92% 墨量，QA PASS。
+- 残余：与字身粘连的邻字笔画无法用连通域分离，留待像素级处理 + 人工复核清单。
+- v2.1.1：17,331 字形，基本区∩目标 63.68%，sha256 `58b53874…`，SHA256SUMS 16 项、zip PASS。
+
+## 二十五、v2.1.2：边角料清理有效版（2026-11-09 21:30）
+
+- 失败尝试记录：v12（626 render_bad）、v13（1125）、v12c（478）—— 均已回退，结论写入 COUNTS §36。
+- 有效方法：normalize 后 `prune_edge_contours`（外环 10% + 面积 <2% bbox 的小轮廓删除），QA PASS，120 抽样 24 字改善。
+- v2.1.2：17,331 字形，基本区∩目标 63.68%，sha256 `cd4e39a5…`，SHA256SUMS 16 项、zip PASS。

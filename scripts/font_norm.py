@@ -91,6 +91,12 @@ def clean_ink(ink: np.ndarray, min_area: int = 40,
     m = 8
     sx0, sy0, sx1, sy1 = sx0 - m, sy0 - m, sx1 + m, sy1 + m
 
+    # 字身主笔画宽度（用于 v12b 边角料过滤）
+    dt = cv2.distanceTransform(ink.astype(np.uint8), cv2.DIST_L2, 3)
+    main_dt = dt[lab == main]
+    stroke_w = float(np.median(main_dt)) * 2 if main_dt.size else 0.0
+    main_area = float(stats[main, AR])
+
     keep = np.zeros(n, bool)
     for i in range(1, n):
         x, y = stats[i, X], stats[i, Y]
@@ -107,6 +113,11 @@ def clean_ink(ink: np.ndarray, min_area: int = 40,
             continue          # 字身框外扩 25% 之外：邻字/栏线残片
         thin = min(ww, hh) <= thin_thr
         if thin and not (sx0 <= cx <= sx1 and sy0 <= cy <= sy1):
+            continue
+        # v12b：边角料（细、小、且不在主体 bbox 内）-> 丢
+        in_main_bbox = (mx <= x and x + ww <= mx + mw and my <= y and y + hh <= my + mh)
+        if (not in_main_bbox and area < max(min_area, 0.01 * main_area)
+                and stroke_w > 0 and min(ww, hh) <= 0.5 * stroke_w):
             continue
         if area < min_area:
             inside_main = (mx <= x and x + ww <= mx + mw and my <= y and y + hh <= my + mh)
@@ -206,6 +217,52 @@ def normalize(contours: list[dict], em: int = EM, long_side: float = INK_LONG_SI
 _DOC_CACHE: dict[str, object] = {}
 
 
+def prune_edge_contours(contours: list[dict], ring: float = 0.10,
+                       area_frac: float = 0.02) -> list[dict]:
+    """删除「完全落在字形 bbox 外环(ring)内」的小轮廓（邻字/栏线碎片）。
+
+    在 normalize 之后调用（EM 坐标）。孔洞在内部，不受影响；完整笔画面积大，也不受影响。
+    """
+    if len(contours) <= 1:
+        return contours
+
+    def pts(c):
+        out = [tuple(c["start"])]
+        for s in c["segs"]:
+            if s[0] == "L":
+                out.append((s[1], s[2]))
+            else:
+                out.extend([(s[1], s[2]), (s[3], s[4]), (s[5], s[6])])
+        return out
+
+    P = [pts(c) for c in contours]
+    xs = [p[0] for ps in P for p in ps]
+    ys = [p[1] for ps in P for p in ps]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    w, h = max(1e-6, x1 - x0), max(1e-6, y1 - y0)
+    total = w * h
+    mx, my = ring * w, ring * h
+
+    def area(ps):
+        a = 0.0
+        for i in range(len(ps)):
+            xa, ya = ps[i]
+            xb, yb = ps[(i + 1) % len(ps)]
+            a += xa * yb - xb * ya
+        return abs(a) / 2.0
+
+    keep = []
+    for c, ps in zip(contours, P):
+        cx0, cx1 = min(p[0] for p in ps), max(p[0] for p in ps)
+        cy0, cy1 = min(p[1] for p in ps), max(p[1] for p in ps)
+        in_ring = ((cx1 <= x0 + mx) or (cx0 >= x1 - mx)
+                   or (cy1 <= y0 + my) or (cy0 >= y1 - my))
+        if in_ring and area(ps) < area_frac * total:
+            continue
+        keep.append(c)
+    return keep or contours
+
+
 def _open_pdf(pdf: str):
     """按 PDF 缓存 fitz.Document（16k 字构建时避免反复 open 14GB 文档）。"""
     import fitz
@@ -241,6 +298,7 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
     if not contours_px:
         return {"ok": False, "reason": "potrace returned no contour", "ink_px": n_ink}
     contours, info = normalize(contours_px, long_side=long_side)
+    contours = prune_edge_contours(contours)
     n_segs = sum(len(c["segs"]) for c in contours)
     if n_segs < 4:
         return {"ok": False, "reason": f"degenerate contour ({n_segs} segs)", "ink_px": n_ink}
