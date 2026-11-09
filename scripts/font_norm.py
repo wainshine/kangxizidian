@@ -41,10 +41,10 @@ MIN_INK_AREA_RATIO = 0.02
 # --------------------------------------------------------------------------- #
 # 位图处理
 # --------------------------------------------------------------------------- #
-def binarize(gray: np.ndarray, thr_offset: int = -10) -> np.ndarray:
-    """Otsu 二值化（刻本），v2.2：不做 medianBlur、阈值下移（去墨晕、保刀刻棱角）。"""
+def binarize(gray: np.ndarray, thr_offset: int = -5) -> np.ndarray:
+    """Otsu 二值化（刻本），v2.3：轻度中值去噪 + 阈值下移 5（去墨晕，保笔画直顺）。"""
     import cv2
-    g = gray
+    g = cv2.medianBlur(gray, 3)
     thr, _ = cv2.threshold(g, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     thr = min(max(int(thr) + thr_offset, 60), 210)
     return g < thr
@@ -130,8 +130,83 @@ def clean_ink(ink: np.ndarray, min_area: int = 40,
     return keep[lab]
 
 
-def trace(ink: np.ndarray, turdsize: int = 2, alphamax: float = 0.5,
-          opttol: float = 0.1) -> list[dict]:
+def clean_cluster(ink: np.ndarray, dist: float = 20.0, margin: int = 4,
+                  min_area: int = 30, box: tuple | None = None) -> np.ndarray:
+    """主体联通簇裁切 v2.3：主成分 + 距其 bbox <= dist 的成分 = 字形簇；
+    取簇 bbox（外扩 margin）作为字形 cell，簇外墨迹（邻字/注文/栏线）整体剔除。
+    可修掉「注文块被当字身」「邻字斜笔穿框」等切分错误，并避免碎片撑大 bbox 导致字形变小。
+    """
+    import cv2
+    n, lab, stats, cent = cv2.connectedComponentsWithStats(ink.astype(np.uint8), 8)
+    if n <= 1:
+        return ink
+    X, Y, W, H, A = 0, 1, 2, 3, 4
+    h, w = ink.shape
+    # 主体选择：优先「包含 crop 中心（=映射框中心）」且面积够大的成分，
+    # 避免把邻字/注文块/栏线误当字身（v2.3b，修 tiny 字形）
+    # 主体选择 v2.3c：排除「细长贴边成分（栏线/邻字滑笔）」，在剩余成分中取面积最大者；
+    # 若全部过细，再退回面积最大者，避免把细线当字身导致字形变窄。
+    cand = []
+    for i in range(1, n):
+        x, y, ww, hh, a = (stats[i, X], stats[i, Y], stats[i, W], stats[i, H], float(stats[i, A]))
+        if min(ww, hh) < 12 or a < 50:
+            continue
+        if max(ww, hh) / max(1, min(ww, hh)) > 6:   # 细长成分（栏线/滑笔）不作主体
+            continue
+        cand.append((a, i))
+    if cand:
+        main = max(cand)[1]
+    else:
+        main = 1 + int(np.argmax(stats[1:, A]))
+
+    def bdist(i, j):
+        xi, yi, wi, hi = stats[i, X], stats[i, Y], stats[i, W], stats[i, H]
+        xj, yj, wj, hj = stats[j, X], stats[j, Y], stats[j, W], stats[j, H]
+        dx = max(xj - (xi + wi), xi - (xj + wj), 0)
+        dy = max(yj - (yi + hi), yi - (yj + hj), 0)
+        return (dx * dx + dy * dy) ** 0.5
+
+    incl = [main]
+    for i in range(1, n):
+        if i == main or stats[i, A] < min_area:
+            continue
+        x, y, ww, hh = stats[i, X], stats[i, Y], stats[i, W], stats[i, H]
+        in_box = False
+        if box is not None:
+            bx0, by0, bx1, by1 = box
+            ccx, ccy = cent[i]
+            in_box = (bx0 <= ccx <= bx1) and (by0 <= ccy <= by1)
+        if in_box or bdist(i, main) <= dist:
+            incl.append(i)
+    keep = np.isin(lab, incl)
+    # safety valve：簇 bbox 若明显小于字身框（丢偏旁/被细线主导），退回「字身框内墨迹」
+    if box is not None:
+        bx0, by0, bx1, by1 = box
+        cx0 = min(stats[i, X] for i in incl)
+        cy0 = min(stats[i, Y] for i in incl)
+        cx1 = max(stats[i, X] + stats[i, W] for i in incl)
+        cy1 = max(stats[i, Y] + stats[i, H] for i in incl)
+        cw, chh = cx1 - cx0, cy1 - cy0
+        bw, bh = max(1, bx1 - bx0), max(1, by1 - by0)
+        if cw < 0.55 * bw or chh < 0.55 * bh:
+            out = np.zeros_like(ink)
+            yy0, yy1 = max(0, by0 - margin), min(h, by1 + margin)
+            xx0, xx1 = max(0, bx0 - margin), min(w, bx1 + margin)
+            out[yy0:yy1, xx0:xx1] = ink[yy0:yy1, xx0:xx1]
+            return out
+    x0 = min(stats[i, X] for i in incl)
+    y0 = min(stats[i, Y] for i in incl)
+    x1 = max(stats[i, X] + stats[i, W] for i in incl)
+    y1 = max(stats[i, Y] + stats[i, H] for i in incl)
+    out = np.zeros_like(ink)
+    yy0, yy1 = max(0, y0 - margin), min(h, y1 + margin)
+    xx0, xx1 = max(0, x0 - margin), min(w, x1 + margin)
+    out[yy0:yy1, xx0:xx1] = ink[yy0:yy1, xx0:xx1] & keep[yy0:yy1, xx0:xx1]
+    return out
+
+
+def trace(ink: np.ndarray, turdsize: int = 3, alphamax: float = 0.8,
+          opttol: float = 0.2) -> list[dict]:
     """potrace 矢量化（位图 y 向下，像素坐标）。返回 [{start:[x,y], segs:[...]}]。"""
     import potrace
     try:
@@ -294,6 +369,7 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    center: tuple[int, int, int, int] | None = None) -> dict:
     """灰度图 -> 归一化轮廓（font_norm 主链路）。center=crop 内字身框像素坐标。"""
     ink = binarize(gray)
+    ink = clean_cluster(ink, box=center)
     ink = clean_ink(ink, center=center)
     n_ink = int(ink.sum())
     if n_ink < MIN_INK_PX or n_ink < MIN_INK_AREA_RATIO * gray.size:

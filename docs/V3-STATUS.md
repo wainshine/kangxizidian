@@ -259,3 +259,9 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 - 回应 owner「笔画风格丢失/模糊」：去 medianBlur、阈值 −10、potrace alphamax 0.5/opttol 0.1、墨点小孔过滤；保留外环边角料清理。
 - 对照图 `fidelity-compare-v22.png`；17,283 字形，基本区∩目标 10,526 = 63.54%；QA PASS、zip PASS；sha256 `e51debcff…`。
 - 代价：48 字（基本区 24）因断笔超限 QA 剔除；PDF 原生分辨率即 300dpi（3773×3283），细节上限已达成。
+
+## 二十七、v2.3.0：验证驱动修复（2026-11-10 01:08）
+
+- 流程：小样本字体目检 → 全量构建 → QA → 样张/120 字抽查 → 打包（不再盲目全量）。
+- 修复：主体联通簇裁切（切分错误/X 伪笔/边角料）、主体排除细长成分（字形变窄）、safety valve（偏旁丢失）、中度平滑（狗啃锯齿）。
+- v2.3.0：17,282 字形；基本区∩目标 10,525 = 63.53%；QA PASS、SHA256SUMS 15 项、zip PASS；sha256 `ce58a29a…`。

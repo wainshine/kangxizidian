@@ -294,3 +294,10 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 - 保真矢量化：无 medianBlur、阈值 −10、potrace alphamax 0.5/opttol 0.1、墨点小孔过滤；保留边角料清理。
 - v2.2.0：17,283 字形，基本区∩目标 63.54%，QA PASS，sha256 `e51debcff…`；对照图 fidelity-compare-v22.png。
 - 残余：印刷墨点仍可能个别残留；48 字因断笔超限剔除（清单随包）。
+
+## 0w. v2.3.0（2026-11-10 01:08）
+
+- 验证驱动流程：小样本(32-128字)目检→全量→QA→样张/120字抽查→打包。
+- 修复切分错误（簇裁切）、字形变窄（排除细长主体）、偏旁丢失（safety valve）、狗啃锯齿（中度平滑）。
+- v2.3.0：17,282 字形，基本区∩目标 63.53%，QA PASS，sha256 `ce58a29a…`。
+- 已知：个别映射标签错误（奴→戰）、残余边缘碎片、基线轻微不一致。
