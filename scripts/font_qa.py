@@ -160,6 +160,22 @@ def main():
 
     # 4) 硬闸
     problems = []
+    # 同框多标签检查（审计 P0-1）：manifest 带 page/half/box 时，同一 crop 不得对应两个码位
+    conflicts = []
+    try:
+        recs = [r for r in (manifest.get("chars") or {}).values()
+                if isinstance(r, dict) and r.get("page") and r.get("box")]
+        bybox = {}
+        for r in recs:
+            key = (r["page"], r.get("half", "R"), tuple(r["box"]))
+            bybox.setdefault(key, []).append(r["char"])
+        conflicts = [{"page": k[0], "half": k[1], "box": list(k[2]), "chars": sorted(v)}
+                     for k, v in bybox.items() if len(set(v)) > 1]
+    except Exception:
+        conflicts = []
+    report["same_box_conflicts"] = conflicts
+    if conflicts:
+        problems.append(f"same-crop multi-char {len(conflicts)}")
     if missing:
         problems.append(f"missing tables {missing}")
     if not report["cmap_equals_manifest"]:

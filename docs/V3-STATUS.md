@@ -228,3 +228,10 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 - **验证**：验证集 top-1 精度 97%；人工目检 A/B 各 24/24 正确。
 - **v2.0**：20,611 字形（`release/KangXiKai-v2.0.0/`，QA PASS，zip PASS，sha256 `410c4847…`）；**基本区覆盖 70.51%**（11,681/16,567）。
 - 剩余 4,886 基本区字：待「同半版多框联合对齐」与映射反向修正。
+
+## 二十二、v2.0.1：第三轮审计修复版（2026-11-09 18:05 实际产出）
+
+- 修复 P0-1（同框双标→0）、P0-2（238 非字头字剔除）、P0-3（管线脚本化）；P1 精度口径更正为 85-88%（原 97% 作废）。
+- **17,524 字形**，基本区∩目标 = 10,728/16,567 = **64.76%**；QA PASS、SHA256SUMS 19 项、zip PASS；sha256 `6a0d5c93…`。
+- 随包披露：same-box-conflicts(49框/98字)、dropped-noncanonical(238)、excluded-chars(107)、vlm-confirm-report、fp-validation。
+- 新增 `docs/AUDIT-RESPONSE-3.md`。

@@ -264,3 +264,9 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 - **v2.0**：20,611 字形，基本区 11,681/16,567 = **70.51%**（`release/KangXiKai-v2.0.0/`，sha256 `410c4847…`，QA/打包 PASS）。
 - 新方法：VLM 注文指纹（`scripts/lead_vlm_fp_full.py`，Qwen3-VL-2B MPS，32,788 条/5.4h）→ `work/lead/vlm_fp_scored.json` → A/B 类过滤 → `work/lead/confirmed_union7.json`。
 - 剩余 4,886 字：同半版多框联合对齐 + 映射修正；或换更强 VLM/GPU 提速。
+
+## 0r. v2.0.1（第三轮审计修复）（2026-11-09 18:05）
+
+- 修复：同框双标（114→0）、238 非字头字剔除、生产管线脚本化（`lead_vlm_confirm.py`/`font_qa_filter.py`/`lead_fp_validate.py`）、精度口径更正（85-88%，原 97% 作废）、QA 剔除清单披露。
+- v2.0.1：17,524 字形，基本区∩目标 10,728/16,567 = 64.76%；QA/打包 PASS；sha256 `6a0d5c93…`。
+- 中间置信带（score 0.3-0.4 / margin 0.05-0.1，约 3,200 条）待人工目检后可在 v2.1 补回。

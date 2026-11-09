@@ -187,7 +187,8 @@ def build_font(glyphs: dict[str, list], out_path: Path, copyright_text: str = CO
                 usWinAscent=ASCENT, usWinDescent=-DESCENT, sxHeight=500, sCapHeight=700,
                 usWeightClass=400, usWidthClass=5, fsType=0,
                 achVendID="KXKF", fsSelection=64,
-                ulUnicodeRange1=1 | (1 << 28), ulCodePageRange1=(1 << 18) | (1 << 20))
+                ulUnicodeRange1=1, ulUnicodeRange2=(1 << 27) | (1 << 28) | (1 << 29),
+                ulCodePageRange1=(1 << 18) | (1 << 20))
     fb.setupPost(keepGlyphNames=False)
     fb.setupMaxp()
     fb.font["head"].macStyle = 0
@@ -257,7 +258,8 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                 skipped.append({"page": page, "half": half, "char": ch,
                                 "reason": f"重复字（已用 {src[ch]['page']}）"})
                 continue
-            ck = f"{page}{half}_{ch}_{box[0]}_{box[1]}".replace("/", "_")
+            ck = (f"{page}{half}_{ch}_"
+                  f"{box[0]}_{box[1]}_{box[2]}_{box[3]}").replace("/", "_")
             cpath = cache_dir / f"{ck}.json"
             if use_cache and cpath.exists():
                 rec = json.loads(cpath.read_text())
@@ -350,6 +352,7 @@ def main():
     ap.add_argument("--pages", default="", help="只处理这些页，逗号分隔，如 01_0110,08_0020")
     ap.add_argument("--progress-every", type=int, default=500, help="每 N 字打印一次进度")
     ap.add_argument("--version", default=VERSION, help="字体内部版本号（name 表 / fontRevision）")
+    ap.add_argument("--no-cache", action="store_true", default=False, help="禁用字形缓存")
     args = ap.parse_args()
     if not (args.glyphs or args.mapping or args.manifest):
         raise SystemExit("one of --glyphs/--mapping/--manifest required")
