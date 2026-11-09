@@ -288,3 +288,9 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 - 边角料清理：normalize 后外环小轮廓过滤（prune_edge_contours），QA PASS，抽样 24/120 改善；
 - 粘连型碎片未解决（需像素级/人工）；box 偏紧字（後）字身不完整属映射质量；
 - v2.1.2：17,331 字形，基本区∩目标 63.68%，sha256 `cd4e39a5…`。
+
+## 0v. v2.2.0（2026-11-09 23:02）
+
+- 保真矢量化：无 medianBlur、阈值 −10、potrace alphamax 0.5/opttol 0.1、墨点小孔过滤；保留边角料清理。
+- v2.2.0：17,283 字形，基本区∩目标 63.54%，QA PASS，sha256 `e51debcff…`；对照图 fidelity-compare-v22.png。
+- 残余：印刷墨点仍可能个别残留；48 字因断笔超限剔除（清单随包）。

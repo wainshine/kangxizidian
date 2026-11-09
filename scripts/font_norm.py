@@ -41,12 +41,12 @@ MIN_INK_AREA_RATIO = 0.02
 # --------------------------------------------------------------------------- #
 # 位图处理
 # --------------------------------------------------------------------------- #
-def binarize(gray: np.ndarray) -> np.ndarray:
-    """Otsu 二值化（刻本：字黑底白），返回 bool ink mask。"""
+def binarize(gray: np.ndarray, thr_offset: int = -10) -> np.ndarray:
+    """Otsu 二值化（刻本），v2.2：不做 medianBlur、阈值下移（去墨晕、保刀刻棱角）。"""
     import cv2
-    g = cv2.medianBlur(gray, 3)
+    g = gray
     thr, _ = cv2.threshold(g, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    thr = min(max(int(thr), 100), 210)
+    thr = min(max(int(thr) + thr_offset, 60), 210)
     return g < thr
 
 
@@ -130,8 +130,8 @@ def clean_ink(ink: np.ndarray, min_area: int = 40,
     return keep[lab]
 
 
-def trace(ink: np.ndarray, turdsize: int = 2, alphamax: float = 1.0,
-          opttol: float = 0.25) -> list[dict]:
+def trace(ink: np.ndarray, turdsize: int = 2, alphamax: float = 0.5,
+          opttol: float = 0.1) -> list[dict]:
     """potrace 矢量化（位图 y 向下，像素坐标）。返回 [{start:[x,y], segs:[...]}]。"""
     import potrace
     try:
@@ -255,9 +255,13 @@ def prune_edge_contours(contours: list[dict], ring: float = 0.10,
     for c, ps in zip(contours, P):
         cx0, cx1 = min(p[0] for p in ps), max(p[0] for p in ps)
         cy0, cy1 = min(p[1] for p in ps), max(p[1] for p in ps)
+        a = area(ps)
         in_ring = ((cx1 <= x0 + mx) or (cx0 >= x1 - mx)
                    or (cy1 <= y0 + my) or (cy0 >= y1 - my))
-        if in_ring and area(ps) < area_frac * total:
+        if in_ring and a < area_frac * total:
+            continue
+        # 墨点噪声：极小的「孔」轮廓（<0.4% 字形面积）-> 丢（真实字腔远大于此）
+        if a < 0.004 * total:
             continue
         keep.append(c)
     return keep or contours
