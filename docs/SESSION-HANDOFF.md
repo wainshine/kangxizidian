@@ -258,3 +258,9 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 - 修复：内部版本 1.2.0；随包 manifest/provenance-detail/qa-report/qa-stats/coverage-detail/QA.md/RELEASE-NOTES；覆盖口径拆分。
 - 披露：5,157 条可疑指派 + 150 个纯注文页嫌疑半版（`mapping-review-flags.jsonl`）；已知残留错误（同列 y 移位、纯注文页误指派）。
 - 复算：`font_build.py --mapping work/lead/mapping_verified_all6.jsonl --version 1.2.0`；`font_package.py --extra ...`。
+
+## 0q. v2.0.0 状态（2026-11-09 15:36）
+
+- **v2.0**：20,611 字形，基本区 11,681/16,567 = **70.51%**（`release/KangXiKai-v2.0.0/`，sha256 `410c4847…`，QA/打包 PASS）。
+- 新方法：VLM 注文指纹（`scripts/lead_vlm_fp_full.py`，Qwen3-VL-2B MPS，32,788 条/5.4h）→ `work/lead/vlm_fp_scored.json` → A/B 类过滤 → `work/lead/confirmed_union7.json`。
+- 剩余 4,886 字：同半版多框联合对齐 + 映射修正；或换更强 VLM/GPU 提速。

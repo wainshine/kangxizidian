@@ -214,3 +214,17 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 - **披露**：5,157 条可疑指派（3,929 weak + 1,552 碎片 + 41 无统计）、150 个纯注文页嫌疑半版，清单随包。
 - **v1.2**：7,807 字，QA PASS，zip 自检 PASS，sha256 `87249d3e…`；owner 9/11、demo 11/27（与 v1.1 一致）。
 - 新增 `docs/AUDIT-RESPONSE-2.md`。
+
+## 二十、繁体 OCR 方案调研（2026-11-09 调研）
+
+- 本机 10 个 PaddleOCR 模型无偏基准：v5_server 69% 最佳；专用繁体 cht 模型仅 14%（木刻楷体不适用）。
+- 8 模型集成在 600 个未确认字候选上仅新增 4 字 → 生僻字瓶颈不在 OCR 引擎。
+- 外部候选：Qianfan-OCR、AnandaSky（古籍 VLM，非商业）、HunyuanOCR、PaddleOCR-VL、Tesseract chi_tra_vert、云 OCR、600dpi 重扫。
+- 详见 `docs/OCR-OPTIONS.md`（含复算命令）。
+
+## 二十一、v2.0.0：VLM 注文指纹突破（2026-11-09 15:36 实际产出）
+
+- **方法**：Qwen3-VL-2B（MPS）转写候选框下方注文条 → 与 kx_full 48,710 条注文 2-gram 匹配 → 音切开头 + score≥0.3 + margin≥0.05 三重过滤（A 类+5,047、B 类+7,897）。
+- **验证**：验证集 top-1 精度 97%；人工目检 A/B 各 24/24 正确。
+- **v2.0**：20,611 字形（`release/KangXiKai-v2.0.0/`，QA PASS，zip PASS，sha256 `410c4847…`）；**基本区覆盖 70.51%**（11,681/16,567）。
+- 剩余 4,886 基本区字：待「同半版多框联合对齐」与映射反向修正。

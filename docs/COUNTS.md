@@ -465,3 +465,39 @@ sha256 `7e0cc8a69315a2143f46ef54d089fefd7ee2483e7cf6170cce43cf67bb6d64c3`）；�
 
 **残留错误类型（已知、明示）**：① 同列 y 移位（怔）；② 纯注文页误指派（0007L 类）；③ owner 抽检 n=11 的统计局限。
 验证：owner 11 框 **9/11**（un变化）、demo 28 的 11/27；v1.2 字体 sha256 `87249d3e2879cf3d23910ba72217d1d593795c005b39a2b5953fc66e790acdd6`。
+
+## 第三十一节、繁体 OCR 方案调研与本机基准（回应 owner「找找支持繁体的 OCR 方案」）
+
+新增 `docs/OCR-OPTIONS.md`。要点：
+1. 本机可下载/加载 PaddleOCR 全系 10 个识别模型（需 `PADDLE_PDX_CACHE_HOME` 指向工作区，沙箱内 ~/.paddlex 不可写）。
+2. **无偏基准**（demo 目检 28 + owner 核实 11 = 29 唯一字，标签非 OCR 产生）：
+   v5_server **69%**、v6_medium/ v4_doc **66%**、v6_small 62%、v5_mobile 52%、SVTR 系 48%、v6_tiny 45%、v4_server 38%、
+   **专用繁体模型 chinese_cht_PP-OCRv3_mobile_rec 仅 14%**（对木刻楷体最差）。
+3. 集成：oracle union **86%**；两模型一致时精度 84-88%；但 600 个未确认字候选跑 8 模型集成只新增 4 字（0.7%）→ **生僻字不是换 OCR 能解决**。
+4. 外部方案（HF 不可达/需 key）：Qianfan-OCR（古籍案例）、AnandaSky（626M 古籍 VLM，非商业）、HunyuanOCR、PaddleOCR-VL、Tesseract chi_tra_vert、云 OCR、600dpi 重扫。
+5. 建议：优先「云 OCR/大模型 API 页级识别」路线；本机集成只能再挖几十~两百字。
+
+## 第三十二节、**VLM 注文指纹突破** + v2.0（20,611 字，基本区 70.51%）  [实际时间 2026-11-09 15:36]
+
+### 方法（新证据通道，绕开单字识别）
+1. 对 32,788 个「未确认条目」的候选框，裁取其下方 **注文竖排条**（300dpi，宽=框宽，高 900px）；
+2. 用 **Qwen3-VL-2B**（本地 MPS，0.59 秒/条，总计 5.4 小时）转写注文；
+3. 与 `kx_full.xlsx`（48,710 条完整注文）做 2-gram 匹配（窗口 ±60 条），记录 top1/top2/margin；
+4. **三重过滤**：①注文以音切标记开头（唐韻/廣韻/集韻/說文/玉篇/字彙/篇海/…）；②score2 ≥ 0.3；③margin ≥ 0.05；
+   - A 类：指纹与映射标签一致 → 新增 **5,047 字**；
+   - B 类：指纹判定为另一条目（映射错位被纠正）→ 新增 **7,897 字**。
+
+### 验证
+- 60 条已知正确字形的验证集：`score≥0.3 & margin≥0.05` 时 top-1 精度 **97%**（n=30）；
+- 人工目检：A 类 **24/24**、B 类 **24/24** 标签与字形一致（`vlmA_sample24.png`、`vlmB_sample24.png`）；
+- v2.0 QA：`font_qa.py` **PASS**（剔除 138 个 render_bad + 2 tiny 后重建）。
+
+### v2.0.0 发布
+- `release/KangXiKai-v2.0.0/`：**20,611 个真迹字形**（provenance 全 real；基本区 11,681 + 扩展A 2,232 + 其他）；
+- **基本区覆盖 11,681/16,567 = 70.51%**（v1.2 为 47.08%）；
+- sha256 `410c48473d0925f4ffd0eb53388527e4080acace7177578554f113b9e96a935c`；SHA256SUMS 16 项校验通过、zip 自检 PASS；
+- 随包：manifest、provenance-detail、qa-report/stats、coverage-detail、QA.md、RELEASE-NOTES-v20、映射可疑清单。
+
+### 下一步
+- 剩余基本区 4,886 字：继续用指纹法处理 B 类未过阈值的（~4,000 条 margin 不足的）——可尝试「同半版多框联合对齐」提 margin；
+- 映射质量：用指纹结果反向修正映射（B 类即证据），并可用 VLM 整页转写 + 注文对齐重排。
