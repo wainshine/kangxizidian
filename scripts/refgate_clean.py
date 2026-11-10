@@ -98,6 +98,8 @@ def main():
     suspects = {}
     for line in open(scan_path, encoding="utf-8"):
         r = json.loads(line)
+        if r.get("major"):
+            continue
         suspects[r["char"]] = [s["bbox"] for s in r["suspects"]]
     f = TTFont(font_path)
     glyf = f["glyf"]
@@ -112,6 +114,8 @@ def main():
         if not contours:
             continue
         keep, dropped = [], 0
+        dropped_px = 0
+        total_px = 0
         for pts in contours:
             cp = contour_pixels(pts)
             if cp is None:
@@ -129,13 +133,18 @@ def main():
                         inside += 1
                         break
             frac = inside / len(lx)
+            total_px += len(lx)
             if frac >= 0.5 and len(lx) <= 0.02 * SIZE * SIZE:
                 dropped += 1
+                dropped_px += len(lx)
             else:
                 keep.append(pts)
         if dropped == 0:
             continue
         if not keep:
+            continue
+        # 安全阀：删掉的墨量不超过字形总墨量 40%（否则说明判据失效，跳过）
+        if total_px > 0 and dropped_px > 0.40 * total_px:
             continue
         pen = TTGlyphPen(None)
         for pts in keep:

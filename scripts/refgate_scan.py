@@ -15,7 +15,7 @@ def job(items):
     for ch in chars:
         try:
             ours, ref = glyph_masks(font, ch)
-            sus = analyze(ours, ref)
+            sus = [] if ref is None else analyze(ours, ref)
         except Exception as e:
             sus = []
         if sus:
