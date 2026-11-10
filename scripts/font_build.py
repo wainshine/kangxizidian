@@ -260,7 +260,8 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                 skipped.append({"page": page, "half": half, "char": ch,
                                 "reason": f"重复字（已用 {src[ch]['page']}）"})
                 continue
-            if ch in override:
+            src_tag = str((r.get("assigned") and a.get("src")) or a.get("label_source") or "")
+            if ch in override and src_tag == "from_v201_glyph":
                 glyphs[ch] = override[ch]["contours"]
                 src[ch] = {"page": page, "half": half, "box": box, "cached": True,
                            "override": str(override[ch].get("source", ""))}

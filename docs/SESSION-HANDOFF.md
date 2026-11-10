@@ -318,3 +318,13 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 - 恢复 headword-only：剔除 397 注文小字；缺口 6,219 字 → GAN 补全目标（清单随包 v240-strict-report.json）。
 - v2.4.0：17,121 字形，基本区∩目标 62.46%，QA PASS，sha256 `1fba0ccb…`，17/17 SHA OK。
 - 二/王/永 等按标准剔除（非缺陷，属 GAN 目标）。
+
+## 1a. 自审计 + v2.4.1（2026-11-10 09:33）
+
+- 自审计报告 audit/AUDIT-SELF-v2.4.0.md：完整性/合规/可复现/数字 全通过；P1 README 披露缺口、P2 override 门禁与孔洞口径已修。
+- v2.4.1：字表不变（17,121；62.46%；GAN 目标 6,219），QA PASS，sha256 `e4598db0…`，18/18 SHA OK。
+
+## 1b. 审计归档 + v2.4.2（2026-11-10 09:44）
+
+- 审计文件统一放 audit/（命名规范见 audit/README.md）；docs 不再放审计文件；
+- v2.4.2：字体内容不变（17,121；62.46%；GAN 目标 6,219），QA PASS，18/18 SHA OK，sha256 `7e624d60…`，AUDIT-SELF-v2.4.0.md 随包。

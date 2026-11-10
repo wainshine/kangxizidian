@@ -485,10 +485,11 @@ def main():
     (out / "coverage.txt").write_text("".join(sorted(expected)), encoding="utf-8")
     tpl = Path(args.readme_template) if args.readme_template else None
     if tpl and tpl.exists():
-        readme = tpl.read_text(encoding="utf-8").format(
-            **{k: v for k, v in stats.items() if isinstance(v, (str, int))},
-            **{f"{k}": v for k, v in prov_counts.items()},
-            **{f"{k}_n": v for k, v in prov_counts.items()})
+        fmt = {k: v for k, v in stats.items() if isinstance(v, (str, int))}
+        for k, v in prov_counts.items():
+            fmt[k] = v
+            fmt[f"{k}_n"] = v
+        readme = tpl.read_text(encoding="utf-8").format(**fmt)
     else:
         readme = render_readme(stats, prov_counts, version, ttf_name, False)
     (out / "README.md").write_text(readme, encoding="utf-8")

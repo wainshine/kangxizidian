@@ -213,7 +213,7 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 - **修复**：字体内部 Version 1.2.0（v1.1 遗留 0.1.0）；随包 `manifest.json` / `provenance-detail.json` / `qa-report.json` / `qa-stats.json` / `coverage-detail.json` / `QA.md` / `RELEASE-NOTES.md`；覆盖口径拆分（严格基本区 47.08%）。
 - **披露**：5,157 条可疑指派（3,929 weak + 1,552 碎片 + 41 无统计）、150 个纯注文页嫌疑半版，清单随包。
 - **v1.2**：7,807 字，QA PASS，zip 自检 PASS，sha256 `87249d3e…`；owner 9/11、demo 11/27（与 v1.1 一致）。
-- 新增 `docs/AUDIT-RESPONSE-2.md`。
+- 新增 `audit/AUDIT-RESPONSE-2.md`。
 
 ## 二十、繁体 OCR 方案调研（2026-11-09 调研）
 
@@ -234,7 +234,7 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 - 修复 P0-1（同框双标→0）、P0-2（238 非字头字剔除）、P0-3（管线脚本化）；P1 精度口径更正为 85-88%（原 97% 作废）。
 - **17,524 字形**，基本区∩目标 = 10,728/16,567 = **64.76%**；QA PASS、SHA256SUMS 19 项、zip PASS；sha256 `6a0d5c93…`。
 - 随包披露：same-box-conflicts(49框/98字)、dropped-noncanonical(238)、excluded-chars(107)、vlm-confirm-report、fp-validation。
-- 新增 `docs/AUDIT-RESPONSE-3.md`。
+- 新增 `audit/AUDIT-RESPONSE-3.md`。
 
 ## 二十三、v2.1.0：注文小字过滤 + 孔洞语义更正（2026-11-09 19:01）
 
@@ -283,3 +283,13 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 - 剔除 397 个注文级小字（v2.3.x 回填引入）；字体只含字头级真迹；缺口 6,219 字列为 GAN 补全目标。
 - v2.4.0：17,121 字形；基本区∩目标 10,348 = 62.46%；QA PASS；sha256 `1fba0ccb…`；17 项 SHA 全过。
 - 二/王/永 等按标准剔除（原框注文级），属预期缺口。
+
+## 三十一、自审计 + v2.4.1（2026-11-10 09:33）
+
+- 自审计（audit/AUDIT-SELF-v2.4.0.md）：发布完整性/标准合规/可复现构建（逐字节一致）/数字一致性全部通过；发现 P1（README 披露缺口）+ P2（override 门禁、孔洞口径）。
+- v2.4.1：README 模板化（标准/敞口/GAN 计划）+ override 门禁；字表不变 17,121 / 62.46% / GAN 目标 6,219；QA PASS；sha256 `e4598db0…`；18 项 SHA 全过。
+
+## 三十二、审计归档规范 + v2.4.2（2026-11-10 09:44）
+
+- 审计文件统一入 `audit/`（README 约定命名/流程）；自审计报告移入 `audit/AUDIT-SELF-v2.4.0.md`，docs 引用同步；
+- v2.4.2：字表不变（17,121 / 62.46% / GAN 目标 6,219），QA PASS，18/18 SHA OK，sha256 `7e624d60…`，自审计随包。
