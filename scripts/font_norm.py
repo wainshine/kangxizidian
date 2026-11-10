@@ -430,7 +430,8 @@ def strip_border_lines(ink: np.ndarray, band: float = 0.18, min_len: float = 0.4
         dx = max(0, max(mx0, x) - min(mx1, x + ww))
         dy = max(0, max(my0, y) - min(my1, y + hh))
         isolated = (dx * dx + dy * dy) ** 0.5 > 4
-        rule_b = (long_dim >= 0.35 * crop_long and thick <= 0.06 * crop_long and isolated)
+        # B2：更宽松的「非边缘带」孤立线状残片（路 类，注文引用框/版框残段）
+        rule_b = (long_dim >= 0.25 * crop_long and thick <= 0.08 * crop_long and isolated)
         if rule_a or rule_b:
             out[lab == i] = 0
     return out.astype(ink.dtype)
