@@ -227,6 +227,8 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
     """
     import time as _time
     from font_norm import vectorize_box
+    override_path = ROOT / "work" / "lead" / "contours_override.json"
+    override = json.load(open(override_path)) if override_path.exists() else {}
     cache_dir = WORK / "build" / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     use_cache = "--no-cache" not in sys.argv
@@ -257,6 +259,12 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
             if ch in glyphs:
                 skipped.append({"page": page, "half": half, "char": ch,
                                 "reason": f"重复字（已用 {src[ch]['page']}）"})
+                continue
+            if ch in override:
+                glyphs[ch] = override[ch]["contours"]
+                src[ch] = {"page": page, "half": half, "box": box, "cached": True,
+                           "override": str(override[ch].get("source", ""))}
+                n_cached += 1
                 continue
             ck = (f"{page}{half}_{ch}_"
                   f"{box[0]}_{box[1]}_{box[2]}_{box[3]}").replace("/", "_")
