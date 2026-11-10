@@ -356,3 +356,8 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 
 - 回收 二/三/四/今/永（v245_verified.jsonl 证据）；17,126 字；缺口 6,214；62.49%。
 - 剩余：令/王 重定位、100 字 provenance 抽验（发布闸）、路/蹋 缺陷、PDF 来源。
+
+## 1g. 全量切框精修 + v2.4.6（2026-11-10 20:05）
+
+- 局部 Sauvola 精修 17,126 框；owner IoU≥0.8 4/10→8/10；QA PASS；v2.4.6 已打包（20/20 SHA OK）。
+- 待修：路（细线组件）、張/46 窄框（指纹确认）、時（错位）、令/王（重定位）、100 字抽验。
