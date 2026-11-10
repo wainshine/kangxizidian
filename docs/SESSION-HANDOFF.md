@@ -345,3 +345,9 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 - docs/19 + audit/9 全部校订（状态横幅/冲突修正/索引/核验台账）；DECISIONS D15-D18。
 - 自审计 audit/AUDIT-SELF-v2.4.2.md：全过（P2 models 体积已修）。
 - v2.4.3（patch）：17,121 字形，62.46%，QA PASS，20/20 SHA OK，sha256 `d0107b11…`。
+
+## 1e. 第五轮审计 + v2.4.4（2026-11-10 13:05）
+
+- 审计：6,219 清单缺失（真）、包内引用断链（真）、常用字缺 二/三/今/令（真、P0）；抗辩 237→~100 可回收（内容正确率 60-65%）。
+- v2.4.4：全量分桶清单 + 断链清零 + 双口径 + CI 区间 + stats/override/soft_flags；21/21 SHA OK；**明确不签收**。
+- 下一版：重定位回收（字头尺寸+音切开头+内容复核）→ 先救常用字；100 字 provenance 抽验（对外发布闸）。

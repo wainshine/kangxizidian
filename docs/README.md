@@ -5,9 +5,9 @@
 
 ## 现行口径速查（以 DECISIONS 为唯一权威）
 
-- 发布：`release/KangXiKai-v2.4.3/`（zip 同目录；字体内容与 v2.4.2 相同，v2.4.3 为文档/审计校订 patch）
+- 发布：`release/KangXiKai-v2.4.4/`（zip 同目录；**内部/技术预览，不对外签收**：常用字二/三/今/令 未恢复）
 - 字表：**17,121 字形，全部头级真迹**（headword-only，D15）；基本区∩16,567 = **10,348 = 62.46%**
-- 缺口：**6,219** 字 = GAN 补全目标（清单随包 `v242-strict-report.json`）
+- 缺口：**6,219**（分桶清单 `v244-gan-targets.json`：B 377 / B2 3 / E 5,839；B/E 不许直接进 GAN）
 - QA：PASS（render_bad/tiny/同框=0）；发布包 **20 项** SHA256SUMS 全过（21 文件）
 - 精度敞口：指纹来源字 ~84.6%（n=13，宽 CI）→ 约 1,400-1,500 字级风险（见 release `PROVENANCE.md`）
 - 版本语义/发布流程：D18 / D17；现行发布计划：`RELEASE-PLAN.md`；发布物：v2.4.3（sha256 `d0107b11…`）

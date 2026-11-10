@@ -470,9 +470,15 @@ def main():
         "file": ttf_name, "file_bytes": (out / ttf_name).stat().st_size,
         "sha256": sha256(out / ttf_name),
         **qa,
-        "charset_scope": {"target_cmap": 20992 + PUNCT_EXPECTED,
-                          "cjk_basic_block": [f"U+{BLOCK[0]:04X}", f"U+{BLOCK[1]:04X}"],
-                          "punct_expected": PUNCT_EXPECTED},
+        "charset_scope": {
+            # D15（headword-only）：不再承诺 20,992/21,034 cmap 覆盖；只发布真迹字表。
+            # legacy_target_cmap 仅留作历史对照（D3 旧口径，已作废）。
+            "actual_cmap": len(prov),
+            "legacy_target_cmap": 20992 + PUNCT_EXPECTED,
+            "cjk_basic_block": [f"U+{BLOCK[0]:04X}", f"U+{BLOCK[1]:04X}"],
+            "punct_expected": 0,
+            "note": "headword-only：不含标点/数字/空格；缺口见 v24x-strict-report/gan_targets",
+        },
         "provenance_counts": prov_counts,
         "real": prov_counts.get("real", 0),
         "non_real": sum(v for k, v in prov_counts.items() if k != "real"),

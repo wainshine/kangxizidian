@@ -220,7 +220,7 @@ def sha256(path: Path) -> str:
 
 
 def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
-                      progress_every: int = 500) -> tuple[dict, dict, list]:
+                      progress_every: int = 500, src_map: dict | None = None) -> tuple[dict, dict, list]:
     """全量 mapping：每行 {page, half, assigned:[{char, cand:{box}}]}，box=150dpi 页坐标。
 
     直接 PDF 300dpi 渲染 + 共用 norm/vectorize 链路；同字重复只取第一次。
@@ -229,6 +229,11 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
     from font_norm import vectorize_box
     override_path = ROOT / "work" / "lead" / "contours_override.json"
     override = json.load(open(override_path)) if override_path.exists() else {}
+    # override 门禁：mapping 的 assigned 不带 src，需从 union 字集取来源标签。
+    src_map = src_map or {}
+    if override and not src_map:
+        print("[font_build] WARN: 存在 contours_override，但未提供 --src-map；override 将不会生效",
+              file=sys.stderr)
     cache_dir = WORK / "build" / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     use_cache = "--no-cache" not in sys.argv
@@ -260,7 +265,7 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                 skipped.append({"page": page, "half": half, "char": ch,
                                 "reason": f"重复字（已用 {src[ch]['page']}）"})
                 continue
-            src_tag = str((r.get("assigned") and a.get("src")) or a.get("label_source") or "")
+            src_tag = str(a.get("label_source") or src_map.get(ch, ""))
             if ch in override and src_tag == "from_v201_glyph":
                 glyphs[ch] = override[ch]["contours"]
                 src[ch] = {"page": page, "half": half, "box": box, "cached": True,
@@ -362,6 +367,7 @@ def main():
     ap.add_argument("--progress-every", type=int, default=500, help="每 N 字打印一次进度")
     ap.add_argument("--version", default=VERSION, help="字体内部版本号（name 表 / fontRevision）")
     ap.add_argument("--no-cache", action="store_true", default=False, help="禁用字形缓存")
+    ap.add_argument("--src-map", default="", help="union JSON（char→label_source），供 override 门禁")
     args = ap.parse_args()
     if not (args.glyphs or args.mapping or args.manifest):
         raise SystemExit("one of --glyphs/--mapping/--manifest required")
@@ -375,9 +381,14 @@ def main():
     extra = {}
     if args.mapping:
         pages = {p.strip() for p in args.pages.split(",") if p.strip()} or None
+        src_map = {}
+        if args.src_map:
+            raw = json.load(open(args.src_map, encoding="utf-8"))
+            for _c, _r in raw.items():
+                src_map[_c] = str(_r.get("label_source", "")) if isinstance(_r, dict) else ""
         glyphs, src, extra["mapping"] = load_from_mapping(
             args.mapping, limit=args.limit, pages=pages,
-            progress_every=args.progress_every)
+            progress_every=args.progress_every, src_map=src_map)
     elif args.manifest:
         glyphs, src, extra["manifest"] = load_from_manifest_jsonl(args.manifest)
     else:

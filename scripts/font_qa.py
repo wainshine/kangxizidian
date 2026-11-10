@@ -46,6 +46,40 @@ def n_components(mask: np.ndarray) -> int:
     return int(sum(1 for i in range(1, n) if stats[i, cv2.CC_STAT_AREA] >= 4))
 
 
+def soft_flag(ch: str, mask: np.ndarray) -> dict:
+    """字形级软标志：细碎成分（细化率）/ 主体外挂残段（审计2 P1-3 路/蹋 类）。
+
+    指标：
+      - thin_comps：面积>=2%主成分、且最粗处 <0.5×主成分最粗处的成分数（蹋 类细丝）；
+      - frag_frac ：面积<5%主成分的碎片面积占比（碎屑）。
+    触发：thin_comps>=2 或 frag_frac>0.30。仅记录，不硬判。
+    """
+    import cv2
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(mask.astype(np.uint8), 8)
+    comps = []
+    for i in range(1, n):
+        area = int(stats[i, cv2.CC_STAT_AREA])
+        if area < 10:
+            continue
+        m = (lab == i).astype(np.uint8)
+        dt = cv2.distanceTransform(m, cv2.DIST_L2, 3)
+        comps.append((area, float(dt.max())))
+    if not comps:
+        return {"char": ch, "flags": []}
+    comps.sort(reverse=True)
+    main_area, main_dt = comps[0]
+    total = sum(c[0] for c in comps)
+    frag_area = sum(c[0] for c in comps[1:] if c[0] < 0.05 * main_area)
+    thin = sum(1 for area, d in comps[1:] if area >= 0.02 * main_area and d < 0.5 * main_dt)
+    flags = []
+    if thin >= 2:
+        flags.append(f"thin_comps={thin}")
+    if total and frag_area / total > 0.30:
+        flags.append(f"frag_frac={frag_area/total:.2f}")
+    return {"char": ch, "flags": flags, "n_comp": len(comps),
+            "thin_comps": thin, "frag_frac": round(frag_area / total, 3) if total else 0}
+
+
 def raster_glyph(ch: str, font_path: str, size: int, index: int | None = None,
                  top: float = 880.0) -> np.ndarray:
     from PIL import Image, ImageDraw, ImageFont
@@ -121,6 +155,7 @@ def main():
     ref_ok = Path(SONGTI).exists()
     render_bad = []
     hole_rows = []
+    soft_rows = []
     for ch in sorted(want):
         mask = raster_glyph(ch, str(font_path), args.font_size_check)
         ink = int(mask.sum())
@@ -131,6 +166,8 @@ def main():
         # 传统笔画多的楷体字符断笔成分常见（8-12 个并不罕见）；>14 才提示
         if ncomp > 14:
             render_bad.append({"char": ch, "reason": f"too many components ({ncomp})"})
+        # 字形级软标志（审计2 P1-3：路/蹋 类细碎/外挂残段；不硬判，进报告）
+        soft_rows.append(soft_flag(ch, mask))
         if ref_ok:
             try:
                 ref = raster_glyph(ch, SONGTI, args.font_size_check, index=7)
@@ -141,7 +178,8 @@ def main():
                 hole_rows.append((ch, ho, hb, ink))
     lost = [r for r in hole_rows if r[2] > 0 and r[1] == 0]
     fewer = [r for r in hole_rows if 0 < r[1] < r[2]]
-    report.update(render_bad=render_bad,
+    soft_flags = [r for r in soft_rows if r["flags"]]
+    report.update(render_bad=render_bad, soft_flags=soft_flags,
                   holes={"n": len(hole_rows), "lost": [r[0] for r in lost],
                          "fewer": [r[0] for r in fewer],
                          "rows": hole_rows[:400]})
@@ -197,6 +235,8 @@ def main():
               "missing_tables", "empty", "tiny", "out_of_em", "adv_bad",
               "fontRevision_ok", "head_created", "head_modified", "family_name",
               "ps_name", "render_bad", "holes")}
+    stats["soft_flags"] = {"n": len(report.get("soft_flags", [])),
+                           "chars": [r["char"] for r in report.get("soft_flags", [])][:200]}
     stats["holes"] = {"n": report["holes"]["n"], "lost": report["holes"]["lost"],
                       "fewer": report["holes"]["fewer"]}
     stats["problems"] = problems
