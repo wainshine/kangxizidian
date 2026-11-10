@@ -119,7 +119,8 @@ def ink_groups(gray, half_x):
                     used[j] = True; changed = True
             out.append(gi)
         groups = out
-    # 竖向堆叠合并（二/三/亖：同列、横画独立）
+    # 竖向堆叠合并（二/三/亖：同列、横画独立）——只对扁平横画生效，避免注文列被并成大块
+    groups = [c for c in groups]
     groups.sort(key=lambda c: (c[1], c[0]))
     merged = []
     used = [False] * len(groups)
@@ -135,8 +136,11 @@ def ink_groups(gray, half_x):
             ox = max(0, min(gi[0] + gi[2], gj[0] + gj[2]) - max(gi[0], gj[0]))
             if ox < 0.55 * min(gi[2], gj[2]):
                 continue
+            # 仅当两个成分都是扁平横画（h < 0.6*w）才做竖向堆叠合并
+            if not (gi[3] < 0.6 * gi[2] and gj[3] < 0.6 * gj[2]):
+                continue
             gap = max(gi[1], gj[1]) - min(gi[1] + gi[3], gj[1] + gj[3])
-            if gap <= 150:  # 75px@150（覆盖二/三横画间距）
+            if gap <= 90:
                 x0 = min(gi[0], gj[0]); y0 = min(gi[1], gj[1])
                 x1 = max(gi[0] + gi[2], gj[0] + gj[2]); y1 = max(gi[1] + gi[3], gj[1] + gj[3])
                 if (y1 - y0) <= 330 and (x1 - x0) <= 430:

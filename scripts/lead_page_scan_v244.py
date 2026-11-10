@@ -9,6 +9,17 @@ import argparse, collections, json, os, time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROMPT = "转写图中竖排文字（古籍注文），保持繁体字形，按自上而下顺序输出文字。"
+OPENERS = ("唐韻", "廣韻", "集韻", "正韻", "韻會", "說文", "玉篇", "增韻", "篇海", "字彙",
+           "龍龕", "釋名", "廣雅", "爾雅", "揚子", "五音", "類篇", "正字", "佩觿", "六書",
+           "干祿", "字林", "古今", "集注", "唐本", "蜀本")
+
+
+def opener_near_start(t, span=12):
+    t = (t or "").lstrip("【〔「『 　")
+    head = t[:span]
+    if "古文" in head:
+        return True
+    return any(head.startswith(o) or o in head[:6] for o in OPENERS)
 
 
 def grams(s, n=2):
@@ -86,7 +97,7 @@ def main():
                 for cd in h.get("cands", []):
                     bx = tuple(int(v) for v in cd["box"])
                     w, hh = cd["w"], cd["h"]
-                    if not (40 <= w <= 210 and 40 <= hh <= 210):
+                    if not (60 <= max(w, hh) <= 220 and min(w, hh) >= 24):
                         continue
                     if bx in seen:
                         continue
@@ -119,7 +130,8 @@ def main():
                 rec = {"char": ch, "page": page, "half": half, "box": list(bx),
                        "vlm": txt[:200], "top1": top1, "score1": round(s1, 3),
                        "top2": top2, "score2": round(s2, 3), "margin": round(margin, 3),
-                       "pass": bool(top1 == ch and s1 >= args.score_min and margin >= args.margin_min and len(txt) >= 4)}
+                       "pass": bool(top1 == ch and s1 >= args.score_min and margin >= args.margin_min
+                                 and len(txt) >= 4 and opener_near_start(txt, 12))}
                 if rec["pass"]:
                     if best is None or rec["score1"] > best["score1"]:
                         best = rec
