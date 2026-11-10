@@ -80,6 +80,20 @@ def soft_flag(ch: str, mask: np.ndarray) -> dict:
             "thin_comps": thin, "frag_frac": round(frag_area / total, 3) if total else 0}
 
 
+def n_line_like(mask: np.ndarray) -> int:
+    """细长直线状组件数（框线/栏线残片特征）：短边<=3px 且 长边>=40px（256px 渲染）。"""
+    import cv2
+    n, lab, st, _ = cv2.connectedComponentsWithStats(mask.astype(np.uint8), 8)
+    cnt = 0
+    for i in range(1, n):
+        w, h, a = st[i, cv2.CC_STAT_WIDTH], st[i, cv2.CC_STAT_HEIGHT], st[i, cv2.CC_STAT_AREA]
+        if a < 8:
+            continue
+        if min(w, h) <= 3 and max(w, h) >= 40:
+            cnt += 1
+    return cnt
+
+
 def raster_glyph(ch: str, font_path: str, size: int, index: int | None = None,
                  top: float = 880.0) -> np.ndarray:
     from PIL import Image, ImageDraw, ImageFont
@@ -163,9 +177,11 @@ def main():
             render_bad.append({"char": ch, "reason": f"ink too small at 256px ({ink})"})
             continue
         ncomp = n_components(mask)
-        # 传统笔画多的楷体字符断笔成分常见（8-12 个并不罕见）；>14 才提示
-        if ncomp > 14:
-            render_bad.append({"char": ch, "reason": f"too many components ({ncomp})"})
+        line_like = n_line_like(mask)
+        # 楷体复杂字合法分离笔画可达 20+；仅当「组件多且含细长直线状残片」或 极多(>24) 才判坏
+        if ncomp > 24 or (ncomp > 14 and line_like >= 1):
+            render_bad.append({"char": ch,
+                               "reason": f"components={ncomp}, line_like={line_like}"})
         # 字形级软标志（审计2 P1-3：路/蹋 类细碎/外挂残段；不硬判，进报告）
         soft_rows.append(soft_flag(ch, mask))
         if ref_ok:

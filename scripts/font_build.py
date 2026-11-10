@@ -272,7 +272,7 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                            "override": str(override[ch].get("source", ""))}
                 n_cached += 1
                 continue
-            ck = (f"{page}{half}_{ch}_"
+            ck = (f"v251_{page}{half}_{ch}_"
                   f"{box[0]}_{box[1]}_{box[2]}_{box[3]}").replace("/", "_")
             cpath = cache_dir / f"{ck}.json"
             if use_cache and cpath.exists():
@@ -409,6 +409,9 @@ def main():
                           source_date_epoch=args.source_date_epoch)
     digest = sha256(out)
     stats = {
+        "input_mapping": (str(Path(args.mapping).resolve().relative_to(ROOT)) if args.mapping else None),
+        "input_mapping_sha256": sha256(Path(args.mapping)) if args.mapping else None,
+        "input_manifest": (str(Path(args.manifest).resolve().relative_to(ROOT)) if args.manifest else None),
         "font": str(out.relative_to(ROOT)) if out.is_relative_to(ROOT) else str(out),
         "file_bytes": out.stat().st_size,
         "family": FAMILY, "style": STYLE, "version": args.version, "upm": EM,

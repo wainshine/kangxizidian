@@ -231,6 +231,31 @@ def trace(ink: np.ndarray, turdsize: int = 3, alphamax: float = 0.8,
     return contours
 
 
+def scale_contours(contours: list[dict], factor: float) -> list[dict]:
+    """把像素坐标轮廓整体缩放（用于超采样 tracing 还原到原分辨率）。"""
+    out = []
+    for c in contours:
+        segs = []
+        for s in c["segs"]:
+            if s[0] == "L":
+                segs.append(["L", s[1] * factor, s[2] * factor])
+            else:
+                segs.append(["C", s[1] * factor, s[2] * factor, s[3] * factor,
+                             s[4] * factor, s[5] * factor, s[6] * factor])
+        out.append({"start": [c["start"][0] * factor, c["start"][1] * factor], "segs": segs})
+    return out
+
+
+def trace_upscaled(ink: np.ndarray, factor: int = 2, turdsize: int = 3,
+                   alphamax: float = 0.8, opttol: float = 0.2) -> list[dict]:
+    """超采样 tracing（2x）以减少 potrace 像素方块口径导致的描迹偏移/肥瘦差。"""
+    import cv2
+    up = cv2.resize(ink.astype(np.uint8), None, fx=factor, fy=factor,
+                    interpolation=cv2.INTER_NEAREST).astype(bool)
+    cs = trace(up, turdsize=turdsize * factor * factor, alphamax=alphamax, opttol=opttol)
+    return scale_contours(cs, 1.0 / factor)
+
+
 def contour_points(c: dict) -> list[tuple[float, float]]:
     pts = [tuple(c["start"])]
     for s in c["segs"]:
@@ -331,12 +356,15 @@ def prune_edge_contours(contours: list[dict], ring: float = 0.10,
         cx0, cx1 = min(p[0] for p in ps), max(p[0] for p in ps)
         cy0, cy1 = min(p[1] for p in ps), max(p[1] for p in ps)
         a = area(ps)
+        cw, chh = cx1 - cx0, cy1 - cy0
+        thin = (min(cw, chh) < 0.035 * max(w, h)) and (max(cw, chh) > 0.10 * max(w, h))
         in_ring = ((cx1 <= x0 + mx) or (cx0 >= x1 - mx)
                    or (cy1 <= y0 + my) or (cy0 >= y1 - my))
-        if in_ring and a < area_frac * total:
+        # 只删「贴边且线状」的栏线/框线残片；不再删普通小轮廓（会误删笔画/偏旁）
+        if in_ring and thin and a < area_frac * total:
             continue
-        # 墨点噪声：极小的「孔」轮廓（<0.4% 字形面积）-> 丢（真实字腔远大于此）
-        if a < 0.004 * total:
+        # 墨点噪声：极小且极小的轮廓（<0.1% 面积且最长边<12 units）
+        if a < 0.001 * total and max(cw, chh) < 12:
             continue
         keep.append(c)
     return keep or contours
@@ -365,16 +393,74 @@ def render_pdf_crop(page_key: str, box: list, pad150: int = 6, dpi: int = 300) -
     return np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width).copy()
 
 
+def strip_border_lines(ink: np.ndarray, band: float = 0.18, min_len: float = 0.45,
+                       max_thick: float = 0.10) -> np.ndarray:
+    """移除「版面框线 / 注文引用框线」长直线组件。
+
+    两类判据（任一命中即删）：
+      A. 贴边带内：长边 > min_len×crop 长，厚度 < max_thick×crop；
+      B. 全 crop 范围：线状（长边 > 0.35×crop，厚度 < 0.06×crop）且**与主墨迹不连通**
+         （中心到主成分 bbox 的距离 > 4px）——例如 佇 旁边的竖版框线。
+    主成分（最大连通域）永不删除；不碰与字身相连的笔画。
+    """
+    import cv2
+    src = (ink > 0).astype(np.uint8)
+    h, w = src.shape
+    n, lab, st, _ = cv2.connectedComponentsWithStats(src, 8)
+    if n <= 1:
+        return ink
+    areas = [(st[i, cv2.CC_STAT_AREA], i) for i in range(1, n)]
+    main_i = max(areas)[1]
+    mx0, my0 = st[main_i, cv2.CC_STAT_LEFT], st[main_i, cv2.CC_STAT_TOP]
+    mx1 = mx0 + st[main_i, cv2.CC_STAT_WIDTH]
+    my1 = my0 + st[main_i, cv2.CC_STAT_HEIGHT]
+    out = src.copy()
+    bx0, by0 = int(band * w), int(band * h)
+    bx1, by1 = int((1 - band) * w), int((1 - band) * h)
+    crop_long = max(w, h)
+    for i in range(1, n):
+        if i == main_i:
+            continue
+        x, y, ww, hh, a = st[i]
+        cx, cy = x + ww / 2, y + hh / 2
+        long_dim = max(ww, hh); thick = min(ww, hh)
+        near_edge = cx < bx0 or cx > bx1 or cy < by0 or cy > by1
+        rule_a = near_edge and long_dim >= min_len * crop_long and thick <= max_thick * crop_long
+        # 到主成分 bbox 的距离
+        dx = max(0, max(mx0, x) - min(mx1, x + ww))
+        dy = max(0, max(my0, y) - min(my1, y + hh))
+        isolated = (dx * dx + dy * dy) ** 0.5 > 4
+        rule_b = (long_dim >= 0.35 * crop_long and thick <= 0.06 * crop_long and isolated)
+        if rule_a or rule_b:
+            out[lab == i] = 0
+    return out.astype(ink.dtype)
+
+
+def remove_specks(ink: np.ndarray, min_area: int = 14) -> np.ndarray:
+    """剔除纸面墨点噪声（连通域面积 < min_area @300dpi；真实笔画/偏旁远大于此）。"""
+    import cv2
+    src = (ink > 0).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(src, 8)
+    if n <= 1:
+        return ink
+    allow = np.zeros(n, dtype=bool)
+    allow[1:] = st[1:, cv2.CC_STAT_AREA] >= min_area
+    return allow[lab].astype(ink.dtype)
+
+
 def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    center: tuple[int, int, int, int] | None = None) -> dict:
     """灰度图 -> 归一化轮廓（font_norm 主链路）。center=crop 内字身框像素坐标。"""
     ink = binarize(gray)
+    ink = remove_specks(ink)
+    ink = strip_border_lines(ink)
     ink = clean_cluster(ink, box=center)
+
     ink = clean_ink(ink, center=center)
     n_ink = int(ink.sum())
     if n_ink < MIN_INK_PX or n_ink < MIN_INK_AREA_RATIO * gray.size:
         return {"ok": False, "reason": f"ink too small ({n_ink})", "ink_px": n_ink}
-    contours_px = trace(ink)
+    contours_px = trace_upscaled(ink, factor=2)
     if not contours_px:
         return {"ok": False, "reason": "potrace returned no contour", "ink_px": n_ink}
     contours, info = normalize(contours_px, long_side=long_side)
