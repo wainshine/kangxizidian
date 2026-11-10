@@ -1,3 +1,7 @@
+> **文档状态：历史记录（2026-11-08 接手诊断）**。⚠️ 本文件原写「与 PROMPT/SESSION-HANDOFF 冲突时本文件优先」，
+> 该优先级**已作废**：现行唯一权威口径是 `docs/DECISIONS.md`（见其头部声明），当前状态见 `docs/V3-STATUS.md` 与 `release/`。
+> 文中「阻塞 = 书眉未过门 / 检测计数 −12.7% 待对账」是接手当时状态，均已解决（字符级对齐 + 注文指纹 + 7,807→17,121 真迹发布）。
+
 # TAKEOVER · 2026-11-08 接手诊断与 v3 架构
 
 > **本会话执行结果见 `docs/V3-STATUS.md`；下一会话从 `docs/SESSION-HANDOFF.md` 开始。**
@@ -106,7 +110,7 @@ F. 出字 → 矢量化 → 组字体（复用 guangeti 脚本，venue 化 + 术
 | A 正典序+组表+书眉 | `seq` teammate | `scripts/seq_*.py`、`work/seq/`、`docs/CANONICAL-ORDER.md` | 部首序违反 <0.5%；20 页 owner 书眉 100% 对；组表可复算 |
 | B 候选切格 detector v2 | `detector` teammate | `scripts/t1_v2*.py`、`work/detect2/`、`docs/DETECTOR-V2.md` | 20 页 + 新增 30 页：字头 recall ≥99.5%，半页计数完全正确率 ≥90% |
 | C 字体构建链 | `font` teammate | `scripts/font_*.py`、`work/font/`、`docs/VENDORED.md`、`docs/FONT-BUILD.md` | 80+ 真迹字 TTF 可安装/可渲染/哈希可复现 |
-| D 映射求解+验收 | Lead | `scripts/seq_map.py`、`work/map/`、`docs/TAKEOVER.md` | 连续 ≥1 卷全量映射，书眉一致性 ≥95%；抽样人工核 ≤3% 错标 |
+| D 映射求解+验收 | Lead | `scripts/seq_order.py（当时名 seq_map.py）`、`work/map/`、`docs/TAKEOVER.md` | 连续 ≥1 卷全量映射，书眉一致性 ≥95%；抽样人工核 ≤3% 错标 |
 
 ## 4. 硬规则（沿用 PROMPT §6，补充）
 

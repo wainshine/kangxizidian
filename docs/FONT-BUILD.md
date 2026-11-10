@@ -1,3 +1,6 @@
+> **文档状态：部分过期（历史 demo 阶段 + 现行链路附录）**。§0–§8 描述 2026-11-08 的 **32 字 demo** 链路，其中 `clean_ink v12 / potrace(1.0) / VERSION 0.1.0` 等已被后续版本取代；**现行链路见文末 §12**。
+> 当前发布：v2.4.2，17,121 字形（headword-only），构建/QA/打包命令见 `docs/RELEASE-PLAN.md`。
+
 # FONT-BUILD · C 流字体构建链 v0（KangXi Kai）
 
 > 本文件是 C 流（字体构建）的实现与验收记录。**2026-11-08**，负责人：`font` teammate。
@@ -155,7 +158,7 @@ build #2  d9b9538afdd118eb90785c782cfa88ab65dc70db6ee05f630d5764dd64022f33  (清
 ```
 
 - **先体检**：`.venv/bin/python scripts/font_mapcheck.py --mapping <path>` —— 检查
-  行格式、`assigned` 结构、box 越界/长宽比、重复字、非基本区字；输出 `work/font/build/mapcheck.json`。
+  行格式、`assigned` 结构、box 越界/长宽比、重复字、非基本区字；输出 work/font/build/mapcheck.json（历史批次产物；如需重新生成请运行 scripts/font_mapcheck.py）。
 - 输入格式（每行一个半页；`box` = **150dpi 页坐标**，与 `gold50.json` 同口径）：
   ```jsonl
   {"page": "01_0110", "half": "R", "assigned": [{"char": "僨", "cand": {"box": [535,366,622,463]}}, {"char": "僬", "cand": {"box": [1085,744,1165,824]}}]}
@@ -320,3 +323,36 @@ glyphs = 33（32 + .notdef），cmap = 32 == manifest 字表（无假覆盖）
 2. cache 断点续跑 + 并行（按页分片、≤10 进程）。
 3. 全量构建后跑 `font_qa.py` + 抽样目检；`font_specimen.py` 出样张。
 4. v1 改进：base 字体引导归一化、框质量分级、轮廓平滑/自交检测、16k 字重一致性。
+
+
+---
+
+## 12. 现行构建链（v2.4.x，2026-11-10，以代码为准）
+
+> 本节与 §1–§11 冲突时以本节 + 代码为准。
+
+### 12.1 font_norm.py（矢量化）
+- **二值化**：`binarize()` = medianBlur(3) + Otsu，阈值下移 5（去墨晕）；不再用 v22 的无模糊/-10 参数；
+- **主体联通簇裁切** `clean_cluster()`：主成分（排除细长栏线） + 距主体 ≤20px 或落在映射框内的成分 = 字形簇；
+  簇外墨迹整体剔除；簇明显小于映射框（丢偏旁）时回退「映射框内墨迹」；
+- **清洗** `clean_ink()`（v11 规则）：贴边/细线/字身框外成分剔除，兜底；
+- **potrace**：`turdsize=3, alphamax=0.8, opttol=0.2`；**归一化**后 `prune_edge_contours()`：
+  删外环 10% 内的碎轮廓 + <0.4% 字形面积的微小「孔」（印刷墨点噪声）；
+- `vectorize_box()`：自适应 pad（6→18px@150dpi），裁切判定只认「团块状」成分（避免栏线误触）；
+- **contours_override.json 门禁**：仅当条目标记 `from_v201_glyph` 时才从 v2.0.1 轮廓复刻注入。
+
+### 12.2 font_build.py（组字体）
+- 新增 **`--version`**（name ID5/fontRevision 与版本一致）；`--no-cache` 显式；
+- 缓存 key = page+half+char+**完整 box**（v2.3.1 修）；
+- OS/2 unicode ranges 当前实现值 `range1=0x1 / range2=0x38000000`（待修工程项，见 RELEASE-PLAN §2 注）；
+- 构建实测：17,121 字单进程约 20-22 min（cache 冷启动）；同 mapping + 同 SOURCE_DATE_EPOCH 两次字节一致。
+
+### 12.3 font_qa.py（QA）
+- 硬闸：表齐全 / cmap==manifest / 空字形 / tiny(<60) / out-of-em / advance==UPM / fontRevision 一致 /
+  **render_bad（256px 连通域>14）** / **同框多字=FAIL**（审计 P0-1 引入）；
+- 孔洞（holes lost/fewer，对照系统宋体）**仅诊断不硬判**：刻本常见开放字腔（“日”中横不接右竖=1 腔），
+  与宋体不可直接比；语义见 release `QA.md`。
+
+### 12.4 现行发布数字（v2.4.3）
+- 17,121 字形；基本区∩16,567 = 10,348 = 62.46%；缺口 6,219（GAN 目标）；
+- QA PASS；SHA256SUMS 20 项全过（21 文件）；sha256 `d0107b11067dcebda6b6f356ee3018f4338a95f40f13555d1f732912ec868622`（v2.4.3；字体内容同 v2.4.2）。

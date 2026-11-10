@@ -1,3 +1,8 @@
+> **文档状态：历史设计文档（检测器 v2，2026-11-08）**。其中的检测思路仍被使用：
+> `t1_v2.py` 的冻结版（`scripts/lead_t1v2_frozen.py`）继续作为**候选生成器**（`lead_run_detect.py` → `work/lead/boxes300/`）；
+> 但「每半版计数」不再是验收项——现行是**字符级序列对齐**（`scripts/lead_char_align14.py`：8 证据通道 + 部界锚点 lead3）
+> 与 VLM 注文指纹（`scripts/lead_vlm_fp_full.py`）。本文数字（30 页评测）为当时状态，非现行指标。
+
 # DETECTOR-V2 · 字头候选检测器 v2 与半版计数金标
 
 > 工作流 B（docs/TAKEOVER.md §3）产物。脚本 `scripts/t1_v2.py`；评测 `work/detect2/eval_v2.py`；

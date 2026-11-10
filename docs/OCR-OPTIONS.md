@@ -1,3 +1,5 @@
+> **文档状态：历史调研（2026-11-09）+ 现行补充结论**（见文末「四、最终结论」：真正解法是 VLM 注文指纹，非换 OCR）。
+
 # 支持繁体的 OCR 方案调研 + 本机基准（2026-11-09）
 
 目标：为康熙字典内府本（木刻楷体、繁体、竖排）寻找比现有 PP-OCR 更强的识别方案，用于补齐基本区剩余 8,760 字。
@@ -54,3 +56,15 @@ PADDLE_PDX_CACHE_HOME=$PWD/work/paddlex_cache .venv/bin/python scripts/bench_ocr
 PADDLE_PDX_CACHE_HOME=$PWD/work/paddlex_cache .venv/bin/python scripts/lead_ocr_ensemble.py --limit 600
 ```
 数据：`work/lead/bench_unbiased.json`（各模型逐字预测）、`work/lead/ocr_ensemble_sample.jsonl`（集成样本）。
+
+
+---
+
+## 四、最终结论（2026-11-10 补记，取代上面的「建议」段）
+
+本文写作时的判断「生僻字不是换 OCR 能解决的」**只对一半**：
+- 单字 OCR（Paddle 全系 69%/66%、Qianfan 45%、专用繁体 cht 14%）确实读不出生僻字头；
+- 但真正的解法不是「更好的单字 OCR」，而是**VLM 注文指纹**：用 Qwen3-VL-2B 转写字头下方的注文竖排条，
+  再与 `kx_full` 的 48,710 条注文做 2-gram 匹配（音切开头 + score≥0.4 + margin≥0.1 过滤）。
+  该通道把 v1.x 的 7,807 字推进到 **17,121 字**（v2.4.2），验证集 top-1 84.6%（n=13，宽 CI）。
+- 当前缺口 6,219 字（基本区）留待 **GAN 补全**（D15/D18），不再依赖继续加 OCR 引擎。

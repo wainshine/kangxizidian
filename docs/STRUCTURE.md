@@ -1,3 +1,6 @@
+> **文档状态：现行（结构层数据）**。卷/部首/PDF13 分节与 `volume_radicals.json` 仍是现行数据；**§11 的部界锚点（bu_start_pages_seq）为历史**——现行锚点是 `scripts/lead_bu_dp3.py` 产出的 `work/lead/bu_start_pages_lead3.jsonl`（字符级对齐使用），不再是「Lead 正在重算」的状态。
+> 现行全链见 `docs/DATA.md §4` 与 `docs/RELEASE-PLAN.md`。
+
 # STRUCTURE · 卷/部首结构（A2b）
 
 > 复算：`.venv/bin/python scripts/volume_structure.py`（~5 s，纯本地数据）

@@ -1,3 +1,8 @@
+> **文档状态：任务书原文（2026-11-07，所有者提供，保留不改写）**。
+> ⚠️ 其中 §8 T4 留出、§9「覆盖率 20,992」、§4.1 缺字策略（GAN/ribbon/mapped 补 cmap）等**已被实测与决策修正**：
+> 现行标准 = headword-only（只收字头级真迹；缺口不补假覆盖，留待 GAN），见 `docs/DECISIONS.md` D15 与 `docs/COUNTS.md §四十一`。
+> 另：文中出现的 `scripts/05_select.py`、`06_norm.py`、`21_train_gan.py` 等是**上游 guangeti 工程**的脚本路径（本项目只移植了其中字体链部分），不在本仓库。
+
 # 交接提示词：康熙字典体（KangXi Kai）字体工程
 
 > ⚠️ **勘误（2026-11-08，以 docs/DECISIONS.md 为权威口径）**：

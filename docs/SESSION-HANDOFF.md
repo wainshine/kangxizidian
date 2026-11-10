@@ -1,3 +1,14 @@
+> **文档状态：编年记录（各节为写作当时的状态，不是现行口径）**。
+> **现行口径（2026-11-10）**：发布 = `release/KangXiKai-v2.4.3/`（17,121 字形，全部字头级真迹；基本区∩16,567 = 10,348 = 62.46%；
+> 缺口 6,219 = GAN 补全目标；QA PASS）；标准 = headword-only（`docs/DECISIONS.md` D15）；发布流程 = D17；版本号 = D18。
+> **已知过期/冲突条目索引**（本文历史节的读法）：
+> - 「47.1% / 7,807 字」（§二十八）= v1.1 阶段；「70.51% / 20,611」（§三十二）= v2.0 阶段；「64.74% / 17,518」（§三十七-三十八）= v2.3.2 阶段 —— 均已被 v2.4.0 的 headword-only 清理取代；
+> - 「回填 433 字 / 356 小字回填」（§三十九-§四十）= 已被 §四十一 与 D15 推翻（397 个小字已全部剔除）；
+> - 「cmap 20,992/21,034 覆盖承诺」（早期节、PROMPT）= 作废（D15 不补假覆盖）；
+> - 「书内页码=2×扫描页−11」（早期引用）= 作废（D14：葉码 = 扫描页 −5）；
+> - v2.3.0 的「QA PASS」表述与包内 qa-stats 矛盾（§四十已记录根因），现行以 `qa-stats` 的 `pass` 字段为准。
+> 检索建议：需要现行状态时只读每节末尾的「实际时间」+ 文末最新节，或直接看 `release/` 与 `docs/RELEASE-PLAN.md`。
+
 # SESSION-HANDOFF · 2026-11-08 接手会话后交接
 
 > **时间戳勘误（2026-11-08 23:05）**：本文早期标题中的日期/时刻是我写作时的估计值、不是事实；实际工作发生在 2026-11-08 17:00–23:05。以文件 mtime 与复算命令为准。
@@ -26,7 +37,7 @@ v3「结构性标注」架构已被实证打通到框级（0006-0009：11 条框
      - 集名卷**不用识别**：`work/lead/volume_sections.json` 卷界表直接给；葉码=册内扫描页−5（PDF01-12 实测）
   4. **只识别画数也能用**：画数字段 + 预测组（来自计数累计）比对即可做校验点（部名可选；部变化时预测也会跟着变）
 - 备选：只识别「畫」+ 数字（不识别部名），solver 用 `hua_only` 模式（bu=null → 只校验 bu_strokes 集合）
-- 输出格式（solver 已支持）：`work/seq/headers.jsonl`，每行
+- 输出格式（solver 已支持）：`work/seq/hdr_page_obs.jsonl`，每行
   `{"page":"01_0006","half":"L","ji":"子集上","bu":"一部","hua":[1,2],"leaf_no":1,"conf":0.9,"errors":[]}`
 
 ### P1 计数偏差三方对账（0.5 天，依赖 P0 可用）
@@ -35,14 +46,14 @@ v3「结构性标注」架构已被实证打通到框级（0006-0009：11 条框
 - 已知解释一部分：正典序重出/异体重复条目占 3.4-3.8%（子集 90/丑集 110/寅集 68 条）——需确认是否应计入。
 - 剩余 6-8% 必须判定：①检测漏计 ②正典序含未印条目 ③边界页归属
   - 做法：用 P0 headers 跑 `scripts/lead_solver2.py`，取首个 mismatch 窗口（≤2 页）→ 人工三方对账
-    （detector 候选 vs 人工目检 vs 正典序 kx 切片），结论写 `docs/COUNT-RECONCILE.md`
+    （detector 候选 vs 人工目检 vs 正典序 kx 切片），结论写 `docs/COUNTS.md`
   - 注意方向：计数偏差有正有负（子集上 6-41 页检测 246 vs 正典 176 = 超计 40%；全卷却是少计）→ 不能全局缩放
 
 ### P2 全量映射（依赖 P0+P1）
 ```bash
 .venv/bin/python scripts/lead_solver2.py \
   --canonical work/seq/canonical.jsonl --groups work/seq/groups.json \
-  --boxes-dir work/lead/boxes300 --headers work/seq/headers.jsonl \
+  --boxes-dir work/lead/boxes300 --headers work/seq/hdr_page_obs.jsonl \
   --roles work/lead/page_roles.jsonl --out work/map/full
 ```
 - 门：每卷 headers 一致性 ≥95%；卷末 consumed == 正典该卷累计；mismatch 窗口人工清完
@@ -328,3 +339,9 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 
 - 审计文件统一放 audit/（命名规范见 audit/README.md）；docs 不再放审计文件；
 - v2.4.2：字体内容不变（17,121；62.46%；GAN 目标 6,219），QA PASS，18/18 SHA OK，sha256 `7e624d60…`，AUDIT-SELF-v2.4.0.md 随包。
+
+## 1d. 文档/审计校订 + v2.4.3（2026-11-10 11:32）
+
+- docs/19 + audit/9 全部校订（状态横幅/冲突修正/索引/核验台账）；DECISIONS D15-D18。
+- 自审计 audit/AUDIT-SELF-v2.4.2.md：全过（P2 models 体积已修）。
+- v2.4.3（patch）：17,121 字形，62.46%，QA PASS，20/20 SHA OK，sha256 `d0107b11…`。

@@ -1,3 +1,7 @@
+> **文档状态：历史记录（2026-11-08 实验）**。该实验用于在「§3.1-3.4 / 字头分类器 / 放弃 DP」三分支中做选择；
+> 后续实际路线为**字符级序列对齐 + VLM 注文指纹**（`scripts/lead_char_align14.py`、`scripts/lead_vlm_fp_full.py`），
+> 本实验的「过滤器五闸」结论仅保留作版面事实参考。现行口径见 `docs/DECISIONS.md` 与 `docs/COUNTS.md`。
+
 # T2-EXP30 · §3.0 决定性实验报告（2026-11-08）
 
 > 任务：SESSION-HANDOFF §3.0——量出「字头专有过滤器」能让检出 precision 到多少，

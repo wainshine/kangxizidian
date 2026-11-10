@@ -1,8 +1,11 @@
+> **文档状态：现行（书眉数据层）**。书眉读数/解析是现行管线输入之一；本文旧「页码 = 2×扫描页−11」已按 D14 标注作废（PDF01–12 葉码 = 扫描页 − 5）。
+> 产物文件名更正：早期版写 `work/seq/headers_full_raw.jsonl（历史名 headers_raw.jsonl）` / `headers.jsonl`，实际落盘为 **`headers_full_raw.jsonl`**（全量原始读数）与 **`headers_01_02.jsonl` / `headers_13_probe.jsonl`** 等分册文件；`hdr_page_obs.jsonl` 为统一后的逐页观测。
+
 # HEADERS · 书眉读数（A2）
 
 > 脚本：`scripts/header_read.py`（单页读数，可跑 `--pdf/--pages/--eval-gold/--workers`）
-> \+ `scripts/header_resolve.py`（序列约束后处理）。产物：`work/seq/headers_raw.jsonl`
->（逐页原始读数）、`work/seq/headers.jsonl`（solver 口径最终版）、本文件的数字。
+> \+ `scripts/header_resolve.py`（序列约束后处理）。产物：`work/seq/headers_full_raw.jsonl`（逐页原始读数）、
+> `work/seq/hdr_page_obs.jsonl`（统一逐页观测）、本文件的数字。
 > 上游口径：`docs/TAKEOVER.md` §2.D/§5、`docs/DECISIONS.md` D14、`work/t2/margin_labels_full.json`
 >（owner 20 页真值）。
 
@@ -41,7 +44,7 @@
 
 ## 3. 产物与格式
 
-`work/seq/headers.jsonl`（每页一行；全量 3,869 页，R 半版不输出）：
+`work/seq/hdr_page_obs.jsonl`（每页一行；全量 3,869 页，R 半版不输出）：
 ```json
 {"page":"05_0017","half":"L","ji":"辰集上","bu":"日部","hua":[5,6],"hua_l":6,
  "leaf_no":12,"conf":0.93,"errors":[],"section":"zheng"}
@@ -50,7 +53,7 @@
 - `bu` 带「部」；`hua` 为 int 数组（1 或 2 个，语义见 §1.3/1.4）；`hua_l`=该页 L 半版组。
 - `leaf_no` = 叶码（01–12 由页−5 公式；13 由读数，可能 null）；`conf`=0–1；`errors`=诊断码
   （`no_ji`/`no_bu`/`ji_char_unread`/`rad_unread`/`suffix_unread`/`no_after` 等）。
-- `work/seq/headers_raw.jsonl` 另含逐页 cells（y0/y1/OCR text/score）与 `hua_basis`
+- `work/seq/headers_full_raw.jsonl（历史名 headers_raw.jsonl）` 另含逐页 cells（y0/y1/OCR text/score）与 `hua_basis`
   （读数来源），供复核。
 
 ## 4. 当前准确率（owner 20 页真值逐项对照）
@@ -101,10 +104,10 @@
 # owner 20 页自带对账
 .venv/bin/python scripts/header_read.py --eval-gold --out work/seq/headers_pilot_raw.jsonl
 # 全量（8 进程，约 10–15 分钟）
-.venv/bin/python scripts/header_read.py --workers 8 --out work/seq/headers_raw.jsonl
+.venv/bin/python scripts/header_read.py --workers 8 --out work/seq/headers_full_raw.jsonl（历史名 headers_raw.jsonl）
 # 序列约束 → solver 口径
-.venv/bin/python scripts/header_resolve.py --raw work/seq/headers_raw.jsonl \
-    --out work/seq/headers.jsonl --eval-gold
+.venv/bin/python scripts/header_resolve.py --raw work/seq/headers_full_raw.jsonl（历史名 headers_raw.jsonl） \
+    --out work/seq/hdr_page_obs.jsonl（历史名 headers.jsonl） --eval-gold
 ```
 
 依赖：`.venv`（paddleocr 3.7 / PP-OCRv5_server_rec 已缓存；fitz/opencv/numpy），不新增依赖；
@@ -116,10 +119,10 @@
 - 本轮 raw 实跑覆盖：**500 页 = PDF01 全 242 页 + PDF02 全 258 页**（其余 3,369 页未跑）。
   产物 `work/seq/headers_raw_partial.jsonl`（500 行）→ resolver 后 `work/seq/headers_partial.jsonl`
   （500 行，含非正文页 null 占位）+ `headers_lowconf.jsonl`（307 行低置信/含错误码）。
-- 全量命令已就绪：`.venv/bin/python scripts/header_read.py --workers 8 --out work/seq/headers_raw.jsonl`
+- 全量命令已就绪：`.venv/bin/python scripts/header_read.py --workers 8 --out work/seq/headers_full_raw.jsonl（历史名 headers_raw.jsonl）`
   预计 **10–15 分钟**（8 进程、约 1.2 s/页/进程）。本轮最后一次全量跑在合并阶段因 worker 返回
   None 的排序 bug 崩溃（已完成全部页面但未落盘）；**该 bug 已修**（None 过滤 + 每 worker 增量
-  写 `work/seq/parts/_part_NN.jsonl`，崩溃也不丢已完成页段）。
+  写 `work/seq/parts/`（历史中间分片目录），崩溃也不丢已完成页段）。
 - 本轮 partial 的 resolved 数字（raw 直读，未做全量序列修正）：
   ji 451/500（非正文页 null）、bu 376/500、hua 346/500、leaf 490/500；
   owner 页在 01–02 册内的 5 页对账：集名 5/5、部名 3/5、画数 2/4、叶码 3/3。

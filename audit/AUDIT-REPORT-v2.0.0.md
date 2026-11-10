@@ -1,3 +1,7 @@
+> **记录状态：外部审计报告原文（不改写）**。被审对象为 **v2.0.0**，文中数字/结论是**当时状态**；
+> 后续修复见 `AUDIT-RESPONSE-*.md` 与 `release/` 各版本；现行口径（headword-only / v2.4.2）见 `docs/DECISIONS.md` D15 与 `docs/README.md`。
+> 本报告中的路径可能已迁移（对照见 `audit/README.md` 路径提示）；个别结论的复核去向见 `audit/AUDIT-VERIFICATION-LOG.md`。
+
 # 代码审计报告：KangXiKai v2.0.0（VLM 注文指纹版）
 
 审计角色：代码审计 1 代（只发现问题与改进方案，不改代码）。
