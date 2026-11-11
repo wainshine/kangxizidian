@@ -12,7 +12,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def load_font():
-    return "release/KangXiKai-v2.4.15/KangXiKai-Regular-v2.4.15.ttf"
+    import argparse
+    return os.environ.get("OWNER_FONT", "release/KangXiKai-v2.4.17/KangXiKai-Regular-v2.4.17.ttf")
 
 
 def glyph_png(font_path, ch, size=160):
@@ -40,10 +41,12 @@ def crop_png(page, box, dpi=150, pad=6):
 
 def main():
     font = load_font()
-    man = json.load(open(os.path.join(ROOT, "work/lead/manifest-v2415.json"), encoding="utf-8"))
+    man_path = os.environ.get("OWNER_MANIFEST", "work/lead/manifest-v2417.json")
+    man = json.load(open(os.path.join(ROOT, man_path), encoding="utf-8"))
     chars = man["chars"]
     # 只抽基本区字（U+4E00–U+9FFF）：owner 可读、参考字体/PIL 渲染稳定
     basic = [c for c in sorted(chars) if 0x4E00 <= ord(c) <= 0x9FFF]
+    ver = os.environ.get("OWNER_VERSION", "v2417")
     random.seed(2026)
     sample = random.sample(basic, min(100, len(basic)))
     os.makedirs(os.path.join(ROOT, "work/review"), exist_ok=True)
@@ -59,7 +62,8 @@ def main():
             "img{display:block}</style></head><body>",
             "<h2>Owner provenance 核验表（100 字，v2.4.15）</h2>",
             "<p>每格：左=成品字形；中=原书同字墨迹裁片；下方为 编号/字/页码-框/来源标签。",
-            "请逐字确认：① 是该字的真迹墨迹（非注文、非 GAN、非拼接）；② 无框线/邻字残片；③ 无缺笔。</p>",
+            "请逐字确认：① 是该字的真迹墨迹（非注文、非 GAN、非拼接）；② 无框线/邻字残片；③ 无缺笔。",
+            "（中图 = 新版 2×2 格块切分后的原书墨迹区域；与成品字形应能一一对应。）</p>",
             "<table>"]
     for r in rows:
         g = glyph_png(font, r["char"])
@@ -70,10 +74,10 @@ def main():
         html.append("<tr>")
         html.append(f"<td><img src='data:image/png;base64,{d1}'></td>")
         html.append(f"<td><img src='data:image/png;base64,{d2}'></td>")
-        html.append(f"<td>#{r['no']}<br>{r['char']}<br>{r['page']} {r['half']}<br>box={r['box']}<br>{r['label_source']}</td>")
+        html.append(f"<td>#{r['no']}<br>{r['char']}<br>{r['page']} {r['half']}<br>框={r['box']}<br>{r['label_source']}</td>")
         html.append("</tr>")
     html.append("</table></body></html>")
-    out_html = os.path.join(ROOT, "work/review/owner-provenance-100.html")
+    out_html = os.path.join(ROOT, f"work/review/owner-provenance-100-{ver}.html")
     open(out_html, "w", encoding="utf-8").write("\n".join(html))
     # PNG 拼图（带编号）
     cols = 10
@@ -96,10 +100,14 @@ def main():
         S.paste(c, (x + 35, y + 142))
         d.text((x + 4, y + 258), f"{r['page']} {r['half']}", font=fnt, fill=0)
         d.text((x + 4, y + 278), f"{r['box']}", font=fnt, fill=0)
-    out_png = os.path.join(ROOT, "work/review/owner-provenance-100.png")
+    out_png = os.path.join(ROOT, f"work/review/owner-provenance-100-{ver}.png")
     S.save(out_png)
-    json.dump(rows, open(os.path.join(ROOT, "work/review/owner-provenance-100.json"), "w"),
+    json.dump(rows, open(os.path.join(ROOT, f"work/review/owner-provenance-100-{ver}.json"), "w"),
               ensure_ascii=False, indent=1)
+    with open(os.path.join(ROOT, f"work/review/owner-provenance-100-{ver}.tsv"), "w", encoding="utf-8") as f:
+        f.write("no\tchar\tpage\thalf\tbox\tlabel_source\n")
+        for r in rows:
+            f.write(f"{r['no']}\t{r['char']}\t{r['page']}\t{r['half']}\t{r['box']}\t{r['label_source']}\n")
     print(json.dumps({"html": out_html, "png": out_png, "n": len(rows)}))
 
 

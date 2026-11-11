@@ -484,6 +484,38 @@ def strip_straight_lines_swt(ink: np.ndarray, min_len_frac: float = 0.28,
     return out.astype(ink.dtype)
 
 
+
+def strip_edge_small_comps(ink: np.ndarray, box: tuple[float, float, float, float],
+                           band: float = 0.22, max_h_frac: float = 0.62,
+                           max_area_frac: float = 0.03) -> np.ndarray:
+    """删除「字框外带区域内的小组件」（邻字/注文/页码残片类污染的类级修复）。
+
+    依据版式：字头占 2×2 格块（box）；邻字/注文小字高度约为块高的 0.35–0.5，
+    出现在块的**外带**（靠 cell 边界）。删除判据：中心在外带内 且 高 < 0.62×块高
+    且 面积 < 3% 块内墨量。字形自身的孤立小笔画（点）靠近字心/主笔画，不受影响。
+    """
+    import cv2
+    x0, y0, x1, y1 = [float(v) for v in box]
+    bw, bh = max(1.0, x1 - x0), max(1.0, y1 - y0)
+    src = (ink > 0).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(src, 8)
+    if n <= 1:
+        return ink
+    total = int(src.sum())
+    out = src.copy()
+    bx0, by0 = x0 + band * bw, y0 + band * bh
+    bx1, by1 = x1 - band * bw, y1 - band * bh
+    for i in range(1, n):
+        x, y, ww, hh, a = [int(v) for v in st[i]]
+        cx, cy = x + ww / 2, y + hh / 2
+        in_band = cx < bx0 or cx > bx1 or cy < by0 or cy > by1
+        if not in_band:
+            continue
+        if hh < max_h_frac * bh and ww < 0.75 * bw and a < max_area_frac * total:
+            out[lab == i] = 0
+    return out.astype(ink.dtype)
+
+
 def main_cluster_bbox(ink: np.ndarray, area_frac: float = 0.22):
     """主簇 bbox：面积 >= area_frac×最大组件的所有组件并集（排除小碎片/邻墨）。"""
     import cv2
@@ -596,7 +628,8 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    center: tuple[int, int, int, int] | None = None,
                    char: str | None = None, enable_line_swt: bool = False,
                    enable_ref_filter: bool = False,
-                   normalize_main_cluster: bool = False) -> dict:
+                   normalize_main_cluster: bool = False,
+                   enable_edge_strip: bool = True) -> dict:
     """灰度图 -> 归一化轮廓（font_norm 主链路）。center=crop 内字身框像素坐标。"""
     ink = binarize(gray)
     ink = remove_specks(ink)
@@ -605,6 +638,8 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
         ink = strip_straight_lines_swt(ink)
     if enable_ref_filter and char:
         ink = apply_reference_filter(ink, char)
+    if center is not None and enable_edge_strip:
+        ink = strip_edge_small_comps(ink, center)
     ink = clean_cluster(ink, box=center)
 
     ink = clean_ink(ink, center=center)
@@ -633,7 +668,8 @@ def vectorize_crop(crop_path: Path, long_side: float = INK_LONG_SIDE,
 def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK_LONG_SIDE,
                   dpi: int = 300, char: str | None = None,
                   enable_line_swt: bool = False, enable_ref_filter: bool = False,
-                  normalize_main_cluster: bool = False) -> dict:
+                  normalize_main_cluster: bool = False,
+                  enable_edge_strip: bool = True) -> dict:
     """150dpi box -> 灰度 crop -> 归一化轮廓（自适应 pad）。
 
     先按小 pad（6px@150dpi）渲染；若最大连通域触 crop 边界（说明框偏紧、
@@ -663,7 +699,8 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
         res = vectorize_gray(gray, long_side=long_side, center=center, char=char,
                              enable_line_swt=enable_line_swt,
                              enable_ref_filter=enable_ref_filter,
-                             normalize_main_cluster=normalize_main_cluster)
+                             normalize_main_cluster=normalize_main_cluster,
+                             enable_edge_strip=enable_edge_strip)
         res["pad150"] = pad150
         res["clipped"] = bool(clipped)
         last = res
