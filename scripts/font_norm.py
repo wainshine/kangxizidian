@@ -30,6 +30,8 @@ PDF_MAP = json.load(open(ROOT / "work" / "t2" / "pdf_map.json"))
 DPI150_TO_PT = 72.0 / 150.0          # 150dpi 页面像素 -> PDF pt
 
 EM = 1000
+REF_FONT = "/System/Library/Fonts/Supplemental/Songti.ttc"
+REF_INDEX = 7
 ASCENT = 880
 DESCENT = -120
 INK_LONG_SIDE = 760.0     # 字面框最长边 -> font units
@@ -272,7 +274,8 @@ def contour_points(c: dict) -> list[tuple[float, float]]:
 # 归一化到 EM
 # --------------------------------------------------------------------------- #
 def normalize(contours: list[dict], em: int = EM, long_side: float = INK_LONG_SIDE,
-              cx: float = INK_CX, cy: float = INK_CY) -> tuple[list[dict], dict]:
+              cx: float = INK_CX, cy: float = INK_CY,
+              bbox_override: tuple[float, float, float, float] | None = None) -> tuple[list[dict], dict]:
     """像素坐标（y 向下）-> EM units（y 向上）：等比缩放 + 居中。
 
     v0 口径：所有字共用「最长边 760 units」的字面框（无 base 字体逐字光学校正，
@@ -284,6 +287,9 @@ def normalize(contours: list[dict], em: int = EM, long_side: float = INK_LONG_SI
             xs.append(x)
             ys.append(y)
     x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    if bbox_override is not None:
+        # 用主簇 bbox 做缩放/居中，避免小碎片/邻墨把整字拉偏、缩小
+        x0, y0, x1, y1 = (float(v) for v in bbox_override)
     w, h = max(1e-6, x1 - x0), max(1e-6, y1 - y0)
     scale = long_side / max(w, h)
     # 位图中心（像素，y 向下）-> 目标中心（EM，y 向上）
@@ -437,6 +443,64 @@ def strip_border_lines(ink: np.ndarray, band: float = 0.18, min_len: float = 0.4
     return out.astype(ink.dtype)
 
 
+
+def strip_straight_lines_swt(ink: np.ndarray, min_len_frac: float = 0.28,
+                             max_halfwidth: float = 4.6, dilate: int = 3) -> np.ndarray:
+    """删除「细长直线」像素（版框/栏线/引用框线）。
+
+    思路：距离变换半宽 <= max_halfwidth 的像素为「细线候选」；用 Hough 找长直线
+    （近轴、长度 > min_len_frac×crop），沿该线膨胀 dilate 后与细线候选求交 → 删除。
+    不碰粗笔画（半宽 > max_halfwidth 的笔画像素不受影响）。
+    """
+    import cv2
+    src = (ink > 0).astype(np.uint8)
+    h, w = src.shape
+    if h < 40 or w < 40:
+        return ink
+    dt = cv2.distanceTransform(src, cv2.DIST_L2, 5)
+    thin = dt <= max_halfwidth
+    lines = cv2.HoughLinesP(src * 255, 1, np.pi / 180, threshold=60,
+                            minLineLength=int(min_len_frac * max(h, w)), maxLineGap=14)
+    if lines is None:
+        return ink
+    erase = np.zeros_like(src)
+    arr = lines.reshape(-1, 4)
+    for xa, ya, xb, yb in arr[:24]:
+        L = float(np.hypot(xb - xa, yb - ya))
+        if L < min_len_frac * max(h, w):
+            continue
+        ang = abs(np.degrees(np.arctan2(yb - ya, xb - xa))) % 90
+        if min(ang, 90 - ang) > 10:
+            continue
+        ln = np.zeros_like(src)
+        cv2.line(ln, (int(xa), int(ya)), (int(xb), int(yb)), 1, 1)
+        ln = cv2.dilate(ln, np.ones((2 * dilate + 1, 2 * dilate + 1), np.uint8))
+        erase |= ln
+    kill = (erase > 0) & thin
+    if int(kill.sum()) == 0:
+        return ink
+    out = src.copy()
+    out[kill] = 0
+    return out.astype(ink.dtype)
+
+
+def main_cluster_bbox(ink: np.ndarray, area_frac: float = 0.22):
+    """主簇 bbox：面积 >= area_frac×最大组件的所有组件并集（排除小碎片/邻墨）。"""
+    import cv2
+    src = (ink > 0).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(src, 8)
+    if n <= 1:
+        return None
+    areas = [(int(st[i, cv2.CC_STAT_AREA]), i) for i in range(1, n)]
+    main_a = max(areas)[0]
+    xs0, ys0, xs1, ys1 = [], [], [], []
+    for a, i in areas:
+        if a >= area_frac * main_a:
+            x, y, ww, hh, _ = [int(v) for v in st[i]]
+            xs0.append(x); ys0.append(y); xs1.append(x + ww); ys1.append(y + hh)
+    return (min(xs0), min(ys0), max(xs1), max(ys1))
+
+
 def remove_specks(ink: np.ndarray, min_area: int = 14) -> np.ndarray:
     """剔除纸面墨点噪声（连通域面积 < min_area @300dpi；真实笔画/偏旁远大于此）。"""
     import cv2
@@ -449,22 +513,109 @@ def remove_specks(ink: np.ndarray, min_area: int = 14) -> np.ndarray:
     return allow[lab].astype(ink.dtype)
 
 
+
+_REF_HAS = None
+
+
+def _ref_has(ch: str) -> bool:
+    global _REF_HAS
+    if _REF_HAS is None:
+        try:
+            sys.path.insert(0, str(WORK / "_pylibs"))
+            from fontTools.ttLib import TTFont
+            _REF_HAS = TTFont(REF_FONT, fontNumber=REF_INDEX).getBestCmap()
+        except Exception:
+            _REF_HAS = {}
+    return ord(ch) in _REF_HAS
+
+
+def apply_reference_filter(ink: np.ndarray, ch: str, dilate: int = 25,
+                           cov_th: float = 0.20, max_drop_frac: float = 0.15) -> np.ndarray:
+    """像素级参考过滤（类级修复）：删掉「参考字体同字没有对应墨迹」的组件。
+
+    以参考字形按主组件配准（缩放+平移）后膨胀 15px 作为容差；覆盖率<0.35 且
+    面积<主组件 25% 的组件删除。覆盖率低但面积大者保留（安全阀）。
+    """
+    import cv2
+    if not ch or not _ref_has(ch):
+        return ink
+    from PIL import Image, ImageDraw, ImageFont
+    h, w = ink.shape
+    try:
+        f = ImageFont.truetype(REF_FONT, 256, index=REF_INDEX)
+    except Exception:
+        return ink
+    im = Image.new("L", (256, 256), 0)
+    ImageDraw.Draw(im).text((128, int(0.88 * 256)), ch, fill=255, font=f, anchor="ms")
+    ref = np.array(im) > 127
+    src = (ink > 0).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(src, 8)
+    if n <= 1:
+        return ink
+    comps = []
+    for i in range(1, n):
+        x, y, ww, hh, a = [int(v) for v in st[i]]
+        if a >= 12:
+            comps.append((a, i, x, y, ww, hh))
+    if not comps:
+        return ink
+    comps.sort(reverse=True)
+    _, mi, mx, my, mw, mh = comps[0]
+    rn, rlab, rst, _ = cv2.connectedComponentsWithStats(ref.astype(np.uint8), 8)
+    rcomps = [(int(rst[j, cv2.CC_STAT_AREA]), j) for j in range(1, rn) if rst[j, cv2.CC_STAT_AREA] >= 12]
+    if not rcomps:
+        return ink
+    rcomps.sort(reverse=True)
+    _, rj = rcomps[0]
+    rx, ry, rw, rh = (int(rst[rj, 0]), int(rst[rj, 1]), int(rst[rj, 2]), int(rst[rj, 3]))
+    c1 = (mx + mw / 2.0, my + mh / 2.0); c2 = (rx + rw / 2.0, ry + rh / 2.0)
+    l1 = float(max(mw, mh)); l2 = float(max(rw, rh))
+    s = l2 / max(1.0, l1)
+    M = np.array([[s, 0, c2[0] - s * c1[0]], [0, s, c2[1] - s * c1[1]]], np.float32)
+    ref_warp = cv2.warpAffine(ref.astype(np.uint8), M, (w, h), flags=cv2.INTER_NEAREST)
+    ref_d = cv2.dilate(ref_warp, np.ones((dilate, dilate), np.uint8)) > 0
+    out = src.copy()
+    total_area = sum(c[0] for c in comps)
+    dropped = 0
+    for a, i, x, y, ww, hh in comps:
+        comp = (lab == i)
+        if i == mi:
+            continue
+        cov = float((comp & ref_d).sum()) / max(1, a)
+        if cov >= cov_th or a >= 0.25 * comps[0][0]:
+            continue
+        # 安全阀：累计删除量不超过字形墨量 max_drop_frac
+        if dropped + a > max_drop_frac * total_area:
+            continue
+        out[comp] = 0
+        dropped += a
+    return out.astype(ink.dtype)
+
+
 def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
-                   center: tuple[int, int, int, int] | None = None) -> dict:
+                   center: tuple[int, int, int, int] | None = None,
+                   char: str | None = None, enable_line_swt: bool = False,
+                   enable_ref_filter: bool = False,
+                   normalize_main_cluster: bool = False) -> dict:
     """灰度图 -> 归一化轮廓（font_norm 主链路）。center=crop 内字身框像素坐标。"""
     ink = binarize(gray)
     ink = remove_specks(ink)
     ink = strip_border_lines(ink)
+    if enable_line_swt:
+        ink = strip_straight_lines_swt(ink)
+    if enable_ref_filter and char:
+        ink = apply_reference_filter(ink, char)
     ink = clean_cluster(ink, box=center)
 
     ink = clean_ink(ink, center=center)
+    main_bb = main_cluster_bbox(ink) if normalize_main_cluster else None
     n_ink = int(ink.sum())
     if n_ink < MIN_INK_PX or n_ink < MIN_INK_AREA_RATIO * gray.size:
         return {"ok": False, "reason": f"ink too small ({n_ink})", "ink_px": n_ink}
     contours_px = trace_upscaled(ink, factor=2)
     if not contours_px:
         return {"ok": False, "reason": "potrace returned no contour", "ink_px": n_ink}
-    contours, info = normalize(contours_px, long_side=long_side)
+    contours, info = normalize(contours_px, long_side=long_side, bbox_override=main_bb)
     contours = prune_edge_contours(contours)
     n_segs = sum(len(c["segs"]) for c in contours)
     if n_segs < 4:
@@ -480,7 +631,9 @@ def vectorize_crop(crop_path: Path, long_side: float = INK_LONG_SIDE,
 
 
 def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK_LONG_SIDE,
-                  dpi: int = 300) -> dict:
+                  dpi: int = 300, char: str | None = None,
+                  enable_line_swt: bool = False, enable_ref_filter: bool = False,
+                  normalize_main_cluster: bool = False) -> dict:
     """150dpi box -> 灰度 crop -> 归一化轮廓（自适应 pad）。
 
     先按小 pad（6px@150dpi）渲染；若最大连通域触 crop 边界（说明框偏紧、
@@ -507,7 +660,10 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
             clipped = True
         pad_px = pad150 * 2      # 300dpi
         center = (pad_px, pad_px, gray.shape[1] - pad_px, gray.shape[0] - pad_px)
-        res = vectorize_gray(gray, long_side=long_side, center=center)
+        res = vectorize_gray(gray, long_side=long_side, center=center, char=char,
+                             enable_line_swt=enable_line_swt,
+                             enable_ref_filter=enable_ref_filter,
+                             normalize_main_cluster=normalize_main_cluster)
         res["pad150"] = pad150
         res["clipped"] = bool(clipped)
         last = res

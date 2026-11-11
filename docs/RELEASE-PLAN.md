@@ -7,12 +7,14 @@
 
 ## 1. 当前版本线与发布物
 
-- **当前版本：v2.4.4**（内部/技术预览，不对外签收）（2026-11-10，`release/KangXiKai-v2.4.5/` + zip；17,126 字（新增 二/三/四/今/永），patch 为文档/审计校订）
-- 字表：**17,086 字形**（全部真迹，provenance 全 real）；基本区∩16,567 = **10,348 = 62.46%**；
-  缺口 **6,219** = GAN 补全目标（清单随包 `v242-strict-report.json`）
-- QA PASS / SHA256SUMS **20 项**全过（21 文件）/ zip 自检 PASS（发布目录已冻结）
+- **当前版本：v2.4.15**（内部/技术预览，不对外签收）（2026-11-11，`release/KangXiKai-v2.4.15/` + zip）
+- 字表：**17,029 字形**（全部真迹，provenance 全 real）；基本区∩16,567 = **10,288 = 62.10%**；
+  缺口 **6,279**（含 57 个隔离待重定位字，见 `v2415-quarantine` 系列清单）
+- QA PASS / SHA256SUMS 全过 / zip 自检 PASS（发布目录已冻结）
 - 版本语义（D18）：`minor` = 字表/字形整体更新；`patch` = 发布材料/流程/元数据修复。
-  历史版本线：v0.3 → v1.0 → v1.1 → v1.2 → v2.0 → v2.0.1 → v2.1.x → v2.2.0 → v2.3.x → v2.4.2 → **v2.4.3**。
+  历史版本线：v0.3 → … → v2.4.10（形状闸）→ v2.4.11（超采样 tracing）→ v2.4.13/14（参考结构闸 v1/v2）
+  → **v2.4.15**（边栏字隔离 + 碎片外科清理）。
+- **容量方针**：碎片/框线类污染按 D15「宁缺勿错」隔离，后续走**重定位重切**回收，不拿污染字形签收。
 
 ## 2. 字体元数据定稿（以 v2.4.2 发布物实测为准）
 
@@ -43,12 +45,12 @@
 # 构建 → QA → 打包（顺序铁律：SHA256SUMS 最后生成，打包后冻结）
 SOURCE_DATE_EPOCH=1792713600 .venv/bin/python scripts/font_build.py \
   --mapping work/lead/mapping_verified_all13.jsonl \
-  --out work/font/build/KangXiKai-v2.4.3.ttf --version 2.4.3
+  --out work/font/build/KangXiKai-vX.ttf --version vX
 .venv/bin/python scripts/font_qa.py --font work/font/build/KangXiKai-v2.4.3.ttf \
   --manifest work/font/build/manifest_v243.json --outdir work/font/build/qa_v243
 .venv/bin/python scripts/font_package.py --font work/font/build/KangXiKai-v2.4.3.ttf \
   --manifest work/font/build/manifest_v243.json --specimen work/font/build/specimen_v243.png \
-  --out release --version 2.4.3 \
+  --out release --version vX \
   --readme-template work/font/build/release_extras/README.tpl.md \
   --extra work/font/build/release_extras/manifest-v243.json \
   --extra work/font/build/release_extras/provenance-detail-v243.json \
