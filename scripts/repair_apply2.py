@@ -40,7 +40,7 @@ def analyze_comps(mask, total):
 def main():
     font_path, targets_path, out_path = sys.argv[1:4]
     targets = set(json.load(open(targets_path, encoding="utf-8")))
-    f = TTFont(font_path)
+    f = TTFont(font_path, recalcTimestamp=False)
     glyf = f["glyf"]; cmap = f.getBestCmap()
     stats = {"glyphs": 0, "dropped": {"line": 0, "frag": 0}}
     for ch in sorted(targets):

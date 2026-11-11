@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -30,7 +31,7 @@ PDF_MAP = json.load(open(ROOT / "work" / "t2" / "pdf_map.json"))
 DPI150_TO_PT = 72.0 / 150.0          # 150dpi 页面像素 -> PDF pt
 
 EM = 1000
-REF_FONT = "/System/Library/Fonts/Supplemental/Songti.ttc"
+REF_FONT = os.environ.get("REF_FONT_PATH", "/System/Library/Fonts/Supplemental/Songti.ttc")
 REF_INDEX = 7
 ASCENT = 880
 DESCENT = -120
@@ -604,8 +605,9 @@ def _ref_has(ch: str) -> bool:
             sys.path.insert(0, str(WORK / "_pylibs"))
             from fontTools.ttLib import TTFont
             _REF_HAS = TTFont(REF_FONT, fontNumber=REF_INDEX).getBestCmap()
-        except Exception:
-            _REF_HAS = {}
+        except Exception as e:
+            raise RuntimeError(f"参考字体不可用（REF_FONT={REF_FONT}）：{e}。"
+                               "请设置 REF_FONT_PATH 或安装字体；不允许静默跳过参考过滤。")
     return ord(ch) in _REF_HAS
 
 

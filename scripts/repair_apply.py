@@ -38,7 +38,7 @@ def contour_comp_map(contours):
 def main():
     old_path, new_path, man_path, out_path = sys.argv[1:5]
     cmap_chars = sorted(json.load(open(man_path, encoding="utf-8"))["chars"].keys())
-    old = TTFont(old_path); new = TTFont(new_path)
+    old = TTFont(old_path, recalcTimestamp=False); new = TTFont(new_path, recalcTimestamp=False)
     og, ng = old["glyf"], new["glyf"]
     ocm, ncm = old.getBestCmap(), new.getBestCmap()
     stats = {"restored_components": 0, "removed_lines": 0, "touched_glyphs": 0}

@@ -15,7 +15,7 @@ CX, CY = 500.0, 400.0
 
 
 def rescale(font_path, out_path):
-    f = TTFont(font_path)
+    f = TTFont(font_path, recalcTimestamp=False)
     gs = f.getGlyphSet()
     glyf = f["glyf"]
     changed = 0

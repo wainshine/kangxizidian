@@ -101,7 +101,7 @@ def main():
         if r.get("major"):
             continue
         suspects[r["char"]] = [s["bbox"] for s in r["suspects"]]
-    f = TTFont(font_path)
+    f = TTFont(font_path, recalcTimestamp=False)
     glyf = f["glyf"]
     cmap = f.getBestCmap()
     n_clean = 0
