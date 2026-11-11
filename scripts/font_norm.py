@@ -566,6 +566,20 @@ def strip_edge_fragments(ink: np.ndarray, box: tuple[float, float, float, float]
 
 
 
+def erase_rects(ink: np.ndarray, rects: list[tuple[int, int, int, int]] | None) -> np.ndarray:
+    """把指定矩形区域内的墨置零（用于清除版框线带：位置由页面级检测给出）。"""
+    if not rects:
+        return ink
+    out = ink.copy()
+    h, w = out.shape
+    for (x0, y0, x1, y1) in rects:
+        x0, y0 = max(0, int(x0)), max(0, int(y0))
+        x1, y1 = min(w, int(x1)), min(h, int(y1))
+        if x1 > x0 and y1 > y0:
+            out[y0:y1, x0:x1] = 0
+    return out
+
+
 def mask_to_block(ink: np.ndarray, rect: tuple[int, int, int, int] | None) -> np.ndarray:
     """只保留 2×2 格块内的墨迹（格块=源头正确边界；块外一律不属于本字）。"""
     if rect is None:
@@ -696,9 +710,14 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    enable_ref_filter: bool = False,
                    normalize_main_cluster: bool = False,
                    enable_edge_strip: bool = True,
-                   block_rect: tuple[int, int, int, int] | None = None) -> dict:
+                   block_rect: tuple[int, int, int, int] | None = None,
+                   erase_rects_list: list[tuple[int, int, int, int]] | None = None,
+                   frame_mask: "np.ndarray | None" = None) -> dict:
     """灰度图 -> 归一化轮廓（font_norm 主链路）。center=crop 内字身框像素坐标。"""
     ink = binarize(gray)
+    ink = erase_rects(ink, erase_rects_list)
+    if frame_mask is not None:
+        ink[frame_mask > 0] = 0
     ink = mask_to_block(ink, block_rect)
     ink = remove_specks(ink)
     ink = strip_border_lines(ink)
@@ -739,7 +758,9 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                   enable_line_swt: bool = False, enable_ref_filter: bool = False,
                   normalize_main_cluster: bool = False,
                   enable_edge_strip: bool = True,
-                  block150: tuple[float, float, float, float] | None = None) -> dict:
+                  block150: tuple[float, float, float, float] | None = None,
+                  erase150: list[tuple[int, int, int, int]] | None = None,
+                  frame_mask: "np.ndarray | None" = None) -> dict:
     """150dpi box -> 灰度 crop -> 归一化轮廓（自适应 pad）。block150=2×2 格块（150dpi）。
 
     先按小 pad（6px@150dpi）渲染；若最大连通域触 crop 边界（说明框偏紧、
@@ -767,17 +788,36 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
         pad_px = pad150 * 2      # 300dpi
         center = (pad_px, pad_px, gray.shape[1] - pad_px, gray.shape[0] - pad_px)
         block_rect = None
+        erase_rects_crop = None
+        if erase150:
+            ox0 = (box[0] - pad150) * 2.0
+            oy0 = (box[1] - pad150) * 2.0
+            erase_rects_crop = [(int(round(x0 * 2 - ox0)), int(round(y0 * 2 - oy0)),
+                                 int(round(x1 * 2 - ox0)), int(round(y1 * 2 - oy0)))
+                                for (x0, y0, x1, y1) in erase150]
         if block150 is not None:
             ox = (box[0] - pad150) * 2.0
             oy = (box[1] - pad150) * 2.0
             block_rect = (int(round(block150[0] * 2.0 - ox)), int(round(block150[1] * 2.0 - oy)),
                           int(round(block150[2] * 2.0 - ox)), int(round(block150[3] * 2.0 - oy)))
+        fm = None
+        if frame_mask is not None:
+            import numpy as _np
+            x0 = box[0] - pad150; y0 = box[1] - pad150
+            mh, mw = frame_mask.shape
+            sx0 = max(0, x0); sy0 = max(0, y0)
+            sx1 = min(mw, x0 + gray.shape[1] // 2); sy1 = min(mh, y0 + gray.shape[0] // 2)
+            if sx1 > sx0 and sy1 > sy0:
+                sub = frame_mask[sy0:sy1, sx0:sx1]
+                fm = cv2.resize(sub, (gray.shape[1], gray.shape[0]), interpolation=cv2.INTER_NEAREST)
         res = vectorize_gray(gray, long_side=long_side, center=center, char=char,
                              enable_line_swt=enable_line_swt,
                              enable_ref_filter=enable_ref_filter,
                              normalize_main_cluster=normalize_main_cluster,
                              enable_edge_strip=enable_edge_strip,
-                             block_rect=block_rect)
+                             block_rect=block_rect,
+                             erase_rects_list=erase_rects_crop,
+                             frame_mask=fm)
         res["pad150"] = pad150
         res["clipped"] = bool(clipped)
         last = res

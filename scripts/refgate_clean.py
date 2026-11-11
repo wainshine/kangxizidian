@@ -113,11 +113,15 @@ def main():
         contours = contour_to_points(glyph)
         if not contours:
             continue
+        # 预计算每条轮廓的像素数与总墨量
+        all_cp = [contour_pixels(p) for p in contours]
+        all_px = [(0 if cp is None else int(np.count_nonzero(cp[2]))) for cp in all_cp]
+        glyph_px = sum(all_px)
         keep, dropped = [], 0
         dropped_px = 0
         total_px = 0
-        for pts in contours:
-            cp = contour_pixels(pts)
+        for ci, pts in enumerate(contours):
+            cp = all_cp[ci]
             if cp is None:
                 keep.append(pts); continue
             cx0, cy0, local = cp
@@ -134,7 +138,7 @@ def main():
                         break
             frac = inside / len(lx)
             total_px += len(lx)
-            if frac >= 0.5 and len(lx) <= 0.02 * SIZE * SIZE:
+            if frac >= 0.5 and len(lx) <= 0.02 * SIZE * SIZE and all_px[ci] <= 0.06 * glyph_px:
                 dropped += 1
                 dropped_px += len(lx)
             else:

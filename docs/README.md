@@ -5,9 +5,9 @@
 
 ## 现行口径速查（以 DECISIONS 为唯一权威）
 
-- 发布：`release/KangXiKai-v2.5.0/`（zip 同目录；**v2.5.0 架构版**：从头重建 + 2×2 格块掩膜（块外丢弃/块内不删）；内容缺失闸 vs v2.4.21/v2.4.15 均 0；17,013 字；QA PASS；不签收）
-- 字表：**17,013 字形，全部头级真迹**（headword-only，D15；v2.5.0 格块掩膜）
-- 缺口：**6,292**（隔离清单随包 `residual-quarantine-v2422.json`）
+- 发布：`release/KangXiKai-v2.5.4/`（zip 同目录；几何体检：长宽比无系统性变形（仅 1 字 >1.75）；切偏筛查 825 字、修复 347 字（逐字校验）；内容缺失闸 vs v2.5.3=0；17,007 字；QA PASS；不签收）
+- 字表：**17,007 字形，全部头级真迹**（headword-only，D15；v2.5.1 版框擦除+格块掩膜）
+- 缺口：**6,298**（隔离清单随包 `residual-quarantine-v251.json`）
 - QA：PASS（render_bad/tiny/同框=0）；发布包 **20 项** SHA256SUMS 全过（21 文件）
 - 精度敞口：指纹来源字 ~84.6%（n=13，宽 CI）→ 约 1,400-1,500 字级风险（见 release `PROVENANCE.md`）
 - 版本语义/发布流程：D18 / D17；现行发布计划：`RELEASE-PLAN.md`；发布物：v2.4.3（sha256 `d0107b11…`）

@@ -219,144 +219,8 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
-                      progress_every: int = 500, src_map: dict | None = None) -> tuple[dict, dict, list]:
-    """全量 mapping：每行 {page, half, assigned:[{char, cand:{box}}]}，box=150dpi 页坐标。
-
-    直接 PDF 300dpi 渲染 + 共用 norm/vectorize 链路；同字重复只取第一次。
-    """
-    import time as _time
-    from font_norm import vectorize_box
-    override_path = ROOT / "work" / "lead" / "contours_override.json"
-    override = json.load(open(override_path)) if override_path.exists() else {}
-    # override 门禁：mapping 的 assigned 不带 src，需从 union 字集取来源标签。
-    src_map = src_map or {}
-    if override and not src_map:
-        print("[font_build] WARN: 存在 contours_override，但未提供 --src-map；override 将不会生效",
-              file=sys.stderr)
-    cache_dir = WORK / "build" / "cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    use_cache = "--no-cache" not in sys.argv
-    glyphs: dict[str, list] = {}
-    src: dict[str, dict] = {}
-    skipped = []
-    t0 = _time.time()
-    n_seen = n_cached = n_new = 0
-    for line in open(path):
-        line = line.strip()
-        if not line:
-            continue
-        r = json.loads(line)
-        page, half = r.get("page"), r.get("half", "")
-        if pages and page not in pages:
-            continue
-        for a in r.get("assigned", []):
-            ch = (a or {}).get("char")
-            cand = (a or {}).get("cand") or {}
-            box = cand.get("box") or (a or {}).get("box")
-            if not ch or not box:
-                skipped.append({"page": page, "half": half, "char": ch,
-                                "reason": "缺 char 或 box"})
-                continue
-            n_seen += 1
-            if limit and len(glyphs) >= limit:
-                break
-            if ch in glyphs:
-                skipped.append({"page": page, "half": half, "char": ch,
-                                "reason": f"重复字（已用 {src[ch]['page']}）"})
-                continue
-            src_tag = str(a.get("label_source") or src_map.get(ch, ""))
-            if ch in override and src_tag == "from_v201_glyph":
-                glyphs[ch] = override[ch]["contours"]
-                src[ch] = {"page": page, "half": half, "box": box, "cached": True,
-                           "override": str(override[ch].get("source", ""))}
-                n_cached += 1
-                continue
-            ck = (f"v310_{page}{half}_{ch}_"
-                  f"{box[0]}_{box[1]}_{box[2]}_{box[3]}").replace("/", "_")
-            cpath = cache_dir / f"{ck}.json"
-            if use_cache and cpath.exists():
-                rec = json.loads(cpath.read_text())
-                if rec.get("ok"):
-                    glyphs[ch] = rec["contours"]
-                    src[ch] = {**rec["src"], "cached": True}
-                    n_cached += 1
-                    continue
-            lat = get_page_lattice(page).get(half)
-            res = vectorize_box(page, box, enable_edge_strip=False,
-                                block150=block_for_box(lat, box))
-            if not res["ok"]:
-                skipped.append({"page": page, "half": half, "char": ch,
-                                "reason": res["reason"]})
-                continue
-            m = {"page": page, "half": half, "box": box, "key": f"{page}{half}",
-                 "label_source": "mapping", "verified_by": "",
-                 "n_contours": res["n_contours"], "n_segs": res["n_segs"],
-                 "ink_px": res["ink_px"], "pad150": res.get("pad150"),
-                 "clipped": res.get("clipped")}
-            glyphs[ch] = res["contours"]
-            src[ch] = m
-            n_new += 1
-            if use_cache:
-                cpath.write_text(json.dumps({"ok": True, "char": ch,
-                                             "contours": res["contours"], "src": m},
-                                            ensure_ascii=False))
-            if progress_every and n_new and n_new % progress_every == 0:
-                print(f"  vectorized {n_new} new glyphs (seen {n_seen}, "
-                      f"{1000*(_time.time()-t0)/n_seen:.1f} ms/char)", flush=True)
-        if limit and len(glyphs) >= limit:
-            break
-    dt = _time.time() - t0
-    return glyphs, src, [{"batches_seen": n_seen, "cached": n_cached, "new": n_new,
-                          "skipped": skipped, "seconds": round(dt, 2),
-                          "ms_per_char": round(1000 * dt / max(1, n_seen), 1)}]
-
-
-def load_from_manifest_jsonl(path: str) -> tuple[dict, dict, list]:
-    """{char, crop_png} 每行一个字的现成 crop。"""
-    from font_norm import vectorize_crop
-    glyphs, src, skipped = {}, {}, []
-    for line in open(path):
-        line = line.strip()
-        if not line:
-            continue
-        r = json.loads(line)
-        ch = r.get("char")
-        crop = r.get("crop_png") or r.get("crop")
-        if not ch or not crop:
-            skipped.append({"char": ch, "reason": "缺 char/crop_png"})
-            continue
-        if ch in glyphs:
-            skipped.append({"char": ch, "reason": "重复字"})
-            continue
-        p = Path(crop)
-        if not p.is_absolute():
-            p = ROOT / p
-        if not p.exists():
-            skipped.append({"char": ch, "reason": f"crop 不存在 {p}"})
-            continue
-        center = None
-        if r.get("crop_w") and r.get("crop_h"):
-            pad_px = int(round(r.get("pad150", 18) * r.get("scale", 2.0)))
-            center = (pad_px, pad_px, int(r["crop_w"]) - pad_px, int(r["crop_h"]) - pad_px)
-        res = vectorize_crop(p, center=center)
-        if not res["ok"]:
-            skipped.append({"char": ch, "reason": res["reason"]})
-            continue
-        glyphs[ch] = res["contours"]
-        src[ch] = {"key": r.get("key", ""), "page": r.get("page", ""),
-                   "box": r.get("box"), "crop": str(p.relative_to(ROOT))
-                   if p.is_relative_to(ROOT) else str(p),
-                   "label_source": r.get("label_source", ""),
-                   "verified_by": r.get("verified_by", ""),
-                   "n_contours": res["n_contours"], "n_segs": res["n_segs"],
-                   "ink_px": res["ink_px"]}
-    return glyphs, src, [{"skipped": skipped}]
-
-
-
 # ---------------------------------------------------------------------------
-# 2×2 格块（源头正确边界）：page lattice -> block for box（v2.4.22 起）
+# 页级预处理（格点 / 正文 bbox / 版框 mask）——make font 的「源头边界」基础设施
 # ---------------------------------------------------------------------------
 _LAT_CACHE = {}
 
@@ -376,8 +240,8 @@ def get_page_lattice(page_key: str) -> dict:
         lo, hi = int(w * 0.42), int(w * 0.58)
         gx = int(lo + np.argmin(col[lo:hi]))
         out = {}
+        n, lab, st, _ = cv2.connectedComponentsWithStats(ink, 8)
         for name, mask in (("L", lambda x, y: x < gx), ("R", lambda x, y: x >= gx)):
-            n, lab, st, _ = cv2.connectedComponentsWithStats(ink, 8)
             small = []
             for i in range(1, n):
                 x, y, ww, hh, a = [int(v) for v in st[i]]
@@ -388,10 +252,11 @@ def get_page_lattice(page_key: str) -> dict:
             if len(small) < 80:
                 out[name] = None
                 continue
-            h0 = float(np.median([s[2] for s in small]))
-            xs = np.array([s[0] for s in small]); ys = np.array([s[1] for s in small])
+            h0 = float(np.median([v[2] for v in small]))
+            xs = np.array([v[0] for v in small]); ys = np.array([v[1] for v in small])
             _, px, phx = fit_axis(xs, 0.9 * h0, 1.9 * h0)
             _, py, phy = fit_axis(ys, 0.85 * h0, 1.6 * h0)
+
             def refine(vals, pitch, phase):
                 lag = np.mod(vals - phase + pitch / 2, pitch) - pitch / 2
                 return phase + float(np.median(lag))
@@ -412,10 +277,208 @@ def block_for_box(lat, box):
     cy = (box[1] + box[3]) / 2.0
     c = int(round((cx - phx) / px - 0.5))
     r = int(round((cy - phy) / py - 0.5))
-    # 块外扩 3px@150（安全余量，避免相位误差切掉真实笔画；碎片多在格线外 >6px）
-    m = 3.0
+    m = 3.0  # 块外扩 3px@150 安全余量
     return (phx + (c - 0.5) * px - m, phy + (r - 0.5) * py - m,
             phx + (c + 1.5) * px + m, phy + (r + 1.5) * py + m)
+
+
+_TEXT_BBOX_CACHE = {}
+
+
+def get_page_text_bbox(page_key: str, inset: float = 5.0):
+    """正文墨迹 bbox 内缩（版框外沿≈bbox；内缩后不含框线）。"""
+    if page_key in _TEXT_BBOX_CACHE:
+        return _TEXT_BBOX_CACHE[page_key]
+    import numpy as np
+    from detect_blocks import page_gray, binarize
+    out = None
+    try:
+        g = page_gray(page_key[:2], int(page_key[3:]))
+        ink = binarize(g)
+        ys, xs = np.nonzero(ink)
+        if len(xs):
+            h, w = ink.shape
+            out = (max(0.0, xs.min() + inset), max(0.0, ys.min() + inset),
+                   min(float(w), xs.max() - inset), min(float(h), ys.max() - inset))
+    except Exception as e:
+        print("[bbox] FAIL", page_key, e, flush=True)
+    _TEXT_BBOX_CACHE[page_key] = out
+    return out
+
+
+_FRAME_MASK_CACHE = {}
+
+
+def get_page_frame_mask(page_key: str):
+    """页面版框线 mask（150dpi 页坐标，0/1）。
+
+    形态学开运算提取「连续长横线/长竖线」（框线连续；字是分离的不会形成连续长线）：
+      横线核长 0.35×页宽，竖线核长 0.45×页高；先闭运算补 1-2px 断裂；再膨胀 ±2px。
+    """
+    if page_key in _FRAME_MASK_CACHE:
+        return _FRAME_MASK_CACHE[page_key]
+    import numpy as np
+    import cv2
+    from detect_blocks import page_gray, binarize
+    mask = None
+    try:
+        g = page_gray(page_key[:2], int(page_key[3:]))
+        ink = binarize(g)
+        h, w = ink.shape
+        closed = cv2.morphologyEx(ink, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+        horiz = cv2.morphologyEx(closed, cv2.MORPH_OPEN,
+                                 np.ones((1, max(20, int(0.35 * w))), np.uint8))
+        vert = cv2.morphologyEx(closed, cv2.MORPH_OPEN,
+                                np.ones((max(20, int(0.45 * h)), 1), np.uint8))
+        lines = ((horiz > 0) | (vert > 0)).astype(np.uint8)
+        if int(lines.sum()) > 0:
+            lines = cv2.dilate(lines, np.ones((5, 5), np.uint8))
+        mask = lines
+    except Exception as e:
+        print("[frame] FAIL", page_key, e, flush=True)
+        mask = None
+    _FRAME_MASK_CACHE[page_key] = mask
+    return mask
+
+
+def _worker_page(args):
+    """单页任务：该页所有（cache-miss）字一次性矢量化，页级 lattice/frame mask 只算一次。"""
+    page, items = args
+    from font_norm import vectorize_box
+    out = []
+    try:
+        lat_all = get_page_lattice(page)
+        tbb = get_page_text_bbox(page)
+        fms = get_page_frame_mask(page)
+    except Exception as e:
+        return [(it["idx"], None, {"ok": False, "reason": f"page prepare: {e}"}) for it in items]
+    for it in items:
+        ch = it["char"]; half = it["half"]; box = it["box"]
+        try:
+            block = block_for_box(lat_all.get(half), box)
+            if block is not None and tbb is not None:
+                block = (max(block[0], tbb[0]), max(block[1], tbb[1]),
+                         min(block[2], tbb[2]), min(block[3], tbb[3]))
+            res = vectorize_box(page, box, enable_edge_strip=False,
+                                block150=block, frame_mask=fms)
+        except Exception as e:
+            res = {"ok": False, "reason": str(e)[:120]}
+        out.append((it["idx"], ch, res))
+    return out
+
+
+def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
+                      progress_every: int = 500, src_map: dict | None = None) -> tuple[dict, dict, list]:
+    """全量 mapping（并行版）：按页并行矢量化；缓存读写留在主进程。"""
+    import time as _time
+    from concurrent.futures import ProcessPoolExecutor
+    from font_norm import vectorize_box  # noqa: F401  (worker 内部也会 import)
+    override_path = ROOT / "work" / "lead" / "contours_override.json"
+    override = json.load(open(override_path)) if override_path.exists() else {}
+    src_map = src_map or {}
+    if override and not src_map:
+        print("[font_build] WARN: 存在 contours_override，但未提供 --src-map；override 将不会生效",
+              file=sys.stderr)
+    cache_dir = WORK / "build" / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    use_cache = "--no-cache" not in sys.argv
+    glyphs: dict[str, list] = {}
+    src: dict[str, dict] = {}
+    skipped = []
+    t0 = _time.time()
+
+    # 先按顺序展开 + 去重（重复字只取第一次），并做 cache 命中
+    items = []            # 待并行处理
+    idx = 0
+    seen = set()
+    n_seen = n_cached = 0
+    for line in open(path):
+        line = line.strip()
+        if not line:
+            continue
+        r = json.loads(line)
+        page, half = r.get("page"), r.get("half", "")
+        if pages and page not in pages:
+            continue
+        for a in r.get("assigned", []):
+            ch = (a or {}).get("char")
+            cand = (a or {}).get("cand") or {}
+            box = cand.get("box") or (a or {}).get("box")
+            if not ch or not box:
+                skipped.append({"page": page, "half": half, "char": ch, "reason": "缺 char 或 box"})
+                continue
+            if ch in seen:
+                skipped.append({"page": page, "half": half, "char": ch,
+                                "reason": f"重复字（已用 {src[ch]['page']})"})
+                continue
+            seen.add(ch)
+            if limit and len(seen) >= limit:
+                break
+            n_seen += 1
+            src_tag = str(a.get("label_source") or src_map.get(ch, ""))
+            if ch in override and src_tag == "from_v201_glyph":
+                glyphs[ch] = override[ch]["contours"]
+                src[ch] = {"page": page, "half": half, "box": box, "cached": True,
+                           "override": str(override[ch].get("source", ""))}
+                n_cached += 1
+                continue
+            ck = (f"v312_{page}{half}_{ch}_"
+                  f"{box[0]}_{box[1]}_{box[2]}_{box[3]}").replace("/", "_")
+            cpath = cache_dir / f"{ck}.json"
+            if use_cache and cpath.exists():
+                try:
+                    rec = json.loads(cpath.read_text())
+                except Exception:
+                    rec = {}
+                if rec.get("ok"):
+                    glyphs[ch] = rec["contours"]
+                    src[ch] = {**rec["src"], "cached": True}
+                    n_cached += 1
+                    continue
+            items.append({"idx": idx, "char": ch, "half": half, "box": box,
+                          "page": page, "cpath": str(cpath)})
+            idx += 1
+
+    # 按页分组并行
+    jobs = {}
+    for it in items:
+        jobs.setdefault(it["page"], []).append(it)
+    job_list = [(pg, its) for pg, its in jobs.items()]
+    print(f"[font_build] parallel: pages={len(job_list)} glyphs={len(items)} cached={n_cached}", flush=True)
+    results = {}
+    done = 0
+    max_workers = int(os.environ.get("FONT_BUILD_WORKERS", "8"))
+    with ProcessPoolExecutor(max_workers=max_workers) as ex:
+        for page_res in ex.map(_worker_page, job_list, chunksize=1):
+            for (i, ch, res) in page_res:
+                results[i] = res
+            done += 1
+            if done % 50 == 0:
+                print(f"  pages done {done}/{len(job_list)}  glyphs={len(results)}  "
+                      f"{1000*(_time.time()-t0)/max(1,len(results)):.1f} ms/glyph", flush=True)
+
+    n_new = 0
+    for it in items:
+        i = it["idx"]; ch = it["char"]; page = it["page"]; half = it["half"]; box = it["box"]
+        res = results.get(i) or {"ok": False, "reason": "missing result"}
+        if not res.get("ok"):
+            skipped.append({"page": page, "half": half, "char": ch, "reason": res.get("reason")})
+            continue
+        m = {"page": page, "half": half, "box": box, "key": f"{page}{half}",
+             "label_source": "mapping", "verified_by": "",
+             "n_contours": res["n_contours"], "n_segs": res["n_segs"],
+             "ink_px": res["ink_px"], "pad150": res.get("pad150"),
+             "clipped": res.get("clipped")}
+        glyphs[ch] = res["contours"]
+        src[ch] = m
+        n_new += 1
+        if use_cache:
+            Path(it["cpath"]).write_text(json.dumps({"ok": True, "char": ch,
+                                                             "contours": res["contours"], "src": m},
+                                                            ensure_ascii=False))
+    print(f"[font_build] vectorized {n_new} new glyphs in {_time.time()-t0:.1f}s "
+          f"(cached {n_cached}, skipped {len(skipped)})", flush=True)
+    return glyphs, src, skipped
 
 
 def main():
