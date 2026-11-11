@@ -17,6 +17,7 @@ def job(args):
     sys.path.insert(0, os.path.join(ROOT, "work", "font", "_pylibs"))
     from fidelity_eval import glyph_mask_from_font, register_iou
     out = []
+    n_ok = 0
     for ch in chars:
         try:
             a = glyph_mask_from_font(old_font, ch)
@@ -27,12 +28,13 @@ def job(args):
             ratio = ib / ia
             iou, _ = register_iou(b, a)
             # 内容缺损判定：明显掉墨且形状不符（高 IoU 的掉墨多为笔画粗细差异，非缺件）
+            n_ok += 1
             if ratio < 0.50 or (ratio < 0.80 and iou < 0.70):
                 out.append({"char": ch, "ink_old": ia, "ink_new": ib,
                             "ink_ratio": round(ratio, 3), "iou": round(iou, 3)})
-        except Exception:
-            pass
-    return out
+        except Exception as e:
+            out.append({"char": ch, "error": str(e)[:80]})
+    return n_ok, out
 
 
 def main():
@@ -42,11 +44,18 @@ def main():
     n = max(1, (len(chars) + 7) // 8)
     chunks = [(old_font, new_font, chars[i:i+n]) for i in range(0, len(chars), n)]
     rows = []
+    n_ok_total = 0
     with ProcessPoolExecutor(max_workers=8) as ex:
-        for res in ex.map(job, chunks):
+        for n_ok, res in ex.map(job, chunks):
+            n_ok_total += n_ok
             rows.extend(res)
-    rows.sort(key=lambda r: r["ink_ratio"])
+    rows.sort(key=lambda r: r.get("ink_ratio", 1.0))
     json.dump(rows, open(os.path.join(ROOT, out_path), "w"), ensure_ascii=False, indent=1)
+    if n_ok_total < 0.98 * len(chars):
+        print(json.dumps({"ERROR": "覆盖不足", "n_checked": n_ok_total, "n_expected": len(chars),
+                          "damaged": sum(1 for r in rows if "ink_ratio" in r)}, ensure_ascii=False))
+        sys.exit(2)
+    rows = [r for r in rows if "ink_ratio" in r]
     print(json.dumps({"n_checked": len(chars), "damaged": len(rows),
                       "lt50": sum(1 for r in rows if r["ink_ratio"] < 0.5),
                       "20_50": sum(1 for r in rows if 0.5 <= r["ink_ratio"] < 0.8),

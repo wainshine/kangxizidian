@@ -70,6 +70,19 @@ def worker(args):
     return out
 
 
+def per_char_gate(base, ch, contours):
+    """逐字校验：新字形相对原字形 墨量>=0.95 且 配准 IoU>=0.75 才接受。"""
+    import numpy as np
+    from fidelity_eval import glyph_mask_from_font, register_iou, glyph_mask_from_contours
+    a = glyph_mask_from_font(base, ch)
+    if int(a.sum()) == 0:
+        return False, 0.0, 0.0
+    b = glyph_mask_from_contours(contours)
+    ratio = int(b.sum()) / max(1, int(a.sum()))
+    iou, _ = register_iou(b, a)
+    return (ratio >= 0.95 and iou >= 0.75), round(ratio, 3), round(iou, 3)
+
+
 def main():
     base, man_path, scan_path, out_ttf = sys.argv[1:5]
     from fontTools.ttLib import TTFont
@@ -92,9 +105,14 @@ def main():
             results.extend(r)
     fonts = TTFont(base, recalcTimestamp=False)
     glyf = fonts["glyf"]; cmap = fonts.getBestCmap()
-    fixed = 0
+    fixed = rejected = 0
     for r in results:
-        ch = r["char"]; gname = cmap[ord(ch)]
+        ch = r["char"]
+        ok, ratio, iou = per_char_gate(base, ch, r["contours"])
+        if not ok:
+            rejected += 1
+            continue
+        gname = cmap[ord(ch)]
         tpen = TTGlyphPen(None); qpen = Cu2QuPen(tpen, max_err=1.0)
         for c, flip in orient_contours(r["contours"]):
             rec = RecordingPen()
@@ -109,7 +127,7 @@ def main():
         glyf[gname] = tpen.glyph()
         fixed += 1
     fonts.save(out_ttf)
-    print(json.dumps({"flagged": len(scan), "repaired": fixed}))
+    print(json.dumps({"flagged": len(scan), "repaired": fixed, "rejected_by_gate": rejected}))
 
 
 if __name__ == "__main__":
