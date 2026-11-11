@@ -565,6 +565,22 @@ def strip_edge_fragments(ink: np.ndarray, box: tuple[float, float, float, float]
     return out.astype(ink.dtype)
 
 
+
+def mask_to_block(ink: np.ndarray, rect: tuple[int, int, int, int] | None) -> np.ndarray:
+    """只保留 2×2 格块内的墨迹（格块=源头正确边界；块外一律不属于本字）。"""
+    if rect is None:
+        return ink
+    x0, y0, x1, y1 = [int(v) for v in rect]
+    out = np.zeros_like(ink)
+    h, w = ink.shape
+    x0, y0 = max(0, x0), max(0, y0)
+    x1, y1 = min(w, x1), min(h, y1)
+    if x1 > x0 and y1 > y0:
+        out[y0:y1, x0:x1] = ink[y0:y1, x0:x1]
+    return out
+
+
+
 def main_cluster_bbox(ink: np.ndarray, area_frac: float = 0.22):
     """主簇 bbox：面积 >= area_frac×最大组件的所有组件并集（排除小碎片/邻墨）。"""
     import cv2
@@ -679,9 +695,11 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    char: str | None = None, enable_line_swt: bool = False,
                    enable_ref_filter: bool = False,
                    normalize_main_cluster: bool = False,
-                   enable_edge_strip: bool = True) -> dict:
+                   enable_edge_strip: bool = True,
+                   block_rect: tuple[int, int, int, int] | None = None) -> dict:
     """灰度图 -> 归一化轮廓（font_norm 主链路）。center=crop 内字身框像素坐标。"""
     ink = binarize(gray)
+    ink = mask_to_block(ink, block_rect)
     ink = remove_specks(ink)
     ink = strip_border_lines(ink)
     if enable_line_swt:
@@ -720,8 +738,9 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                   dpi: int = 300, char: str | None = None,
                   enable_line_swt: bool = False, enable_ref_filter: bool = False,
                   normalize_main_cluster: bool = False,
-                  enable_edge_strip: bool = True) -> dict:
-    """150dpi box -> 灰度 crop -> 归一化轮廓（自适应 pad）。
+                  enable_edge_strip: bool = True,
+                  block150: tuple[float, float, float, float] | None = None) -> dict:
+    """150dpi box -> 灰度 crop -> 归一化轮廓（自适应 pad）。block150=2×2 格块（150dpi）。
 
     先按小 pad（6px@150dpi）渲染；若最大连通域触 crop 边界（说明框偏紧、
     字身被裁），自动加大 pad 重渲一次，避免丢字身笔画。
@@ -747,11 +766,18 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
             clipped = True
         pad_px = pad150 * 2      # 300dpi
         center = (pad_px, pad_px, gray.shape[1] - pad_px, gray.shape[0] - pad_px)
+        block_rect = None
+        if block150 is not None:
+            ox = (box[0] - pad150) * 2.0
+            oy = (box[1] - pad150) * 2.0
+            block_rect = (int(round(block150[0] * 2.0 - ox)), int(round(block150[1] * 2.0 - oy)),
+                          int(round(block150[2] * 2.0 - ox)), int(round(block150[3] * 2.0 - oy)))
         res = vectorize_gray(gray, long_side=long_side, center=center, char=char,
                              enable_line_swt=enable_line_swt,
                              enable_ref_filter=enable_ref_filter,
                              normalize_main_cluster=normalize_main_cluster,
-                             enable_edge_strip=enable_edge_strip)
+                             enable_edge_strip=enable_edge_strip,
+                             block_rect=block_rect)
         res["pad150"] = pad150
         res["clipped"] = bool(clipped)
         last = res

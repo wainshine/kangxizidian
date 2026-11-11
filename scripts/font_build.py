@@ -272,7 +272,7 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                            "override": str(override[ch].get("source", ""))}
                 n_cached += 1
                 continue
-            ck = (f"v300_{page}{half}_{ch}_"
+            ck = (f"v310_{page}{half}_{ch}_"
                   f"{box[0]}_{box[1]}_{box[2]}_{box[3]}").replace("/", "_")
             cpath = cache_dir / f"{ck}.json"
             if use_cache and cpath.exists():
@@ -282,7 +282,9 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                     src[ch] = {**rec["src"], "cached": True}
                     n_cached += 1
                     continue
-            res = vectorize_box(page, box, enable_edge_strip=False)
+            lat = get_page_lattice(page).get(half)
+            res = vectorize_box(page, box, enable_edge_strip=False,
+                                block150=block_for_box(lat, box))
             if not res["ok"]:
                 skipped.append({"page": page, "half": half, "char": ch,
                                 "reason": res["reason"]})
@@ -350,6 +352,70 @@ def load_from_manifest_jsonl(path: str) -> tuple[dict, dict, list]:
                    "n_contours": res["n_contours"], "n_segs": res["n_segs"],
                    "ink_px": res["ink_px"]}
     return glyphs, src, [{"skipped": skipped}]
+
+
+
+# ---------------------------------------------------------------------------
+# 2×2 格块（源头正确边界）：page lattice -> block for box（v2.4.22 起）
+# ---------------------------------------------------------------------------
+_LAT_CACHE = {}
+
+
+def get_page_lattice(page_key: str) -> dict:
+    """每页/半版拟合格点（节点=小字中心），返回 {half: (px,py,phx,phy)}。"""
+    if page_key in _LAT_CACHE:
+        return _LAT_CACHE[page_key]
+    import numpy as np
+    import cv2
+    from detect_blocks import page_gray, binarize, fit_axis
+    try:
+        g = page_gray(page_key[:2], int(page_key[3:]))
+        ink = binarize(g)
+        h, w = g.shape
+        col = ink.sum(axis=0).astype(np.float32)
+        lo, hi = int(w * 0.42), int(w * 0.58)
+        gx = int(lo + np.argmin(col[lo:hi]))
+        out = {}
+        for name, mask in (("L", lambda x, y: x < gx), ("R", lambda x, y: x >= gx)):
+            n, lab, st, _ = cv2.connectedComponentsWithStats(ink, 8)
+            small = []
+            for i in range(1, n):
+                x, y, ww, hh, a = [int(v) for v in st[i]]
+                if not mask(x + ww / 2, y + hh / 2):
+                    continue
+                if 24 <= hh <= 54 and 9 <= ww <= 60 and 40 <= a <= 1200:
+                    small.append((x + ww / 2, y + hh / 2, hh))
+            if len(small) < 80:
+                out[name] = None
+                continue
+            h0 = float(np.median([s[2] for s in small]))
+            xs = np.array([s[0] for s in small]); ys = np.array([s[1] for s in small])
+            _, px, phx = fit_axis(xs, 0.9 * h0, 1.9 * h0)
+            _, py, phy = fit_axis(ys, 0.85 * h0, 1.6 * h0)
+            def refine(vals, pitch, phase):
+                lag = np.mod(vals - phase + pitch / 2, pitch) - pitch / 2
+                return phase + float(np.median(lag))
+            out[name] = (float(px), float(py), refine(xs, px, phx), refine(ys, py, phy))
+        _LAT_CACHE[page_key] = out
+    except Exception as e:
+        print("[lattice] FAIL", page_key, e, flush=True)
+        _LAT_CACHE[page_key] = {}
+    return _LAT_CACHE[page_key]
+
+
+def block_for_box(lat, box):
+    """由字框中心求其 2×2 格块（150dpi）。节点=小字中心 => 块左上 = 节点 - 半格。"""
+    if not lat:
+        return None
+    px, py, phx, phy = lat
+    cx = (box[0] + box[2]) / 2.0
+    cy = (box[1] + box[3]) / 2.0
+    c = int(round((cx - phx) / px - 0.5))
+    r = int(round((cy - phy) / py - 0.5))
+    # 块外扩 3px@150（安全余量，避免相位误差切掉真实笔画；碎片多在格线外 >6px）
+    m = 3.0
+    return (phx + (c - 0.5) * px - m, phy + (r - 0.5) * py - m,
+            phx + (c + 1.5) * px + m, phy + (r + 1.5) * py + m)
 
 
 def main():
