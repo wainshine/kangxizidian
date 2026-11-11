@@ -437,7 +437,15 @@ def strip_border_lines(ink: np.ndarray, band: float = 0.18, min_len: float = 0.4
         dy = max(0, max(my0, y) - min(my1, y + hh))
         isolated = (dx * dx + dy * dy) ** 0.5 > 4
         # B2：更宽松的「非边缘带」孤立线状残片（路 类，注文引用框/版框残段）
-        rule_b = (long_dim >= 0.25 * crop_long and thick <= 0.08 * crop_long and isolated)
+        straight = False
+        if isolated and long_dim >= 0.25 * crop_long and thick <= 0.08 * crop_long:
+            ys2, xs2 = np.nonzero(lab == i)
+            if len(xs2) >= 2:
+                pts = np.column_stack([xs2, ys2]).astype(np.float32)
+                vx, vy, lx0, ly0 = cv2.fitLine(pts, cv2.DIST_L2, 0, 0.01, 0.01).ravel()
+                dev = np.abs((pts[:, 0] - lx0) * vy - (pts[:, 1] - ly0) * vx)
+                straight = float(dev.max()) <= 1.6
+        rule_b = straight
         if rule_a or rule_b:
             out[lab == i] = 0
     return out.astype(ink.dtype)
@@ -486,8 +494,9 @@ def strip_straight_lines_swt(ink: np.ndarray, min_len_frac: float = 0.28,
 
 
 def strip_edge_small_comps(ink: np.ndarray, box: tuple[float, float, float, float],
-                           band: float = 0.22, max_h_frac: float = 0.62,
-                           max_area_frac: float = 0.03) -> np.ndarray:
+                           band: float = 0.18,
+                           h_range: tuple[float, float] = (0.30, 0.62),
+                           w_range: tuple[float, float] = (0.16, 0.78)) -> np.ndarray:
     """删除「字框外带区域内的小组件」（邻字/注文/页码残片类污染的类级修复）。
 
     依据版式：字头占 2×2 格块（box）；邻字/注文小字高度约为块高的 0.35–0.5，
@@ -501,7 +510,6 @@ def strip_edge_small_comps(ink: np.ndarray, box: tuple[float, float, float, floa
     n, lab, st, _ = cv2.connectedComponentsWithStats(src, 8)
     if n <= 1:
         return ink
-    total = int(src.sum())
     out = src.copy()
     bx0, by0 = x0 + band * bw, y0 + band * bh
     bx1, by1 = x1 - band * bw, y1 - band * bh
@@ -511,7 +519,12 @@ def strip_edge_small_comps(ink: np.ndarray, box: tuple[float, float, float, floa
         in_band = cx < bx0 or cx > bx1 or cy < by0 or cy > by1
         if not in_band:
             continue
-        if hh < max_h_frac * bh and ww < 0.75 * bw and a < max_area_frac * total:
+        # 只删「注文小字尺寸」的组件：高度/宽度都在注文字号区间内
+        hf, wf = hh / bh, ww / bw
+        if h_range[0] <= hf <= h_range[1] and w_range[0] <= wf <= w_range[1]:
+            out[lab == i] = 0
+        elif min(ww, hh) <= 4 and max(ww, hh) >= 0.12 * bw and a < 400:
+            # 细直线残片（框线/栏线）：仅限很细且短、面积小的
             out[lab == i] = 0
     return out.astype(ink.dtype)
 
