@@ -46,7 +46,7 @@ def main():
         # 数字校验：出现 17,0xx 必须等于 n_chars
         for num in re.findall(r"1[0-9],[0-9]{3}", txt):
             nn = int(num.replace(",", ""))
-            if n_chars and nn not in (n_chars, basic, 16567, 20992, 17029, 17013):
+            if n_chars and nn not in (n_chars, basic, 16567, 20992):
                 errs.append(f"{name}: 可疑数字 {num}（当前字数 {n_chars}）")
         # 文件引用存在性：`.json/.png/.md` 文件名词
         for ref in re.findall(r"[A-Za-z0-9_.\-]+\.(?:jsonl|json|png|md)\b", txt):

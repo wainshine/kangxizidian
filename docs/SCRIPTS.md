@@ -17,7 +17,7 @@
 | 脚本总数（梳理前） | 190 |
 | 现行保留（`scripts/`） | **48** |
 | 归档（`scripts/_archive/`） | **142** |
-| 现行管线硬依赖闭包 | 26 个模块（其余为一次性/诊断/provenance） |
+| 现行管线硬依赖闭包 | ~24 个模块（其余为一次性/诊断/provenance）；49/49 import 自检通过（2026-11-12 修复归档断链后） |
 
 ---
 
@@ -65,11 +65,11 @@
 | 族 | 数量 | 原计划解决的问题 | 现状 | 结局 |
 |---|---|---|---|---|
 | `t00_/t0_` | 10 | 语料盘点、页渲染、版面参数实测（h0/列数/框带）、纠偏、50 框金标 | 版面参数已固化进 `font_build` 格点拟合；纠偏 A/B 后未采用（1 赚 2 亏 1 平）；金标演进为 owner 39 锚点 | **完成/收编** |
-| `t1_`/`lead_t1v2_frozen` 系 | 8 | 字头候选检测 + 每半版计数（映射的输入） | 映射已定稿（mapping23/32），不再跑检测；检测器「计数正确」目标未达（D9 门槛）后被结构对齐取代 | **封存**（历史路线） |
+| `t1_`/`lead_t1v2_frozen` 系 | 8 | 字头候选检测 + 每半版计数（映射的输入） | 映射已定稿（v2.5.6：基座 mapping32、发布 mapping33；注意旧文档写「mapping23」为漂移），不再跑检测；检测器「计数正确」目标未达（D9 门槛）后被结构对齐取代 | **封存**（历史路线） |
 | `t2_` | 9 | 双引擎 OCR + 书眉窗口对账 + 全局单调 DP 对齐 | 结论作废（基于错误阅读序）；可复用 OCR/图像工具 | **作废**（TAKEOVER §1.4） |
 | `bu_` | 4 | 214 部首页锚点（书眉部首 + 单调 DP） | 部界锚点后由 `lead_bu_dp3` 等替代，最终映射定稿后不再需要 | **完成** |
 | `lead_` | 68 | 映射求解全过程：OCR 锚点、漂移校正、δ、重定位、指纹确认、重出对、质量过滤、页面角色、圈注剔除… | **映射问题已解决**：canonical 42,302 → 17,029 框指派 → 17,007 字表；label_source 通道完整。历史版本仅作 provenance | **完成**（数据资产保留） |
-| `layout_/grid_` | 9 | 纯版面法大字检测（格点/笔画厚度/集成/并集） | `layout_thick_*` 产出 3,869 页独立候选（`work/lead/layout_big_boxes.jsonl`），**未进主链但可回收缺口**；`layout_lattice` 失败（boxes 全空） | **部分可用**（§8-1） |
+| `layout_/grid_` | 9 | 纯版面法大字检测（格点/笔画厚度/集成/并集） | `layout_thick_*` 产出 3,869 页独立候选（`work/lead/layout_big_boxes.jsonl`），**未进主链但可回收缺口**；`layout_lattice` 过检出+拟合退化（3,582/3,869 页有框、139,056 框、中位 79×72） | **部分可用**（§8-1） |
 | `repair_/missing_` | 5 | 旧修复链：三类缺陷扫描、边栏/碎片删除、边栏检索 | 被 `scan_missing_parts/repair_*` + `refgate_clean` 取代；旧链是 v2.4.15 时代的一次性修补 | **替代** |
 | `refgate/ref_` | 2 | 参考闸 v1、像素级参考过滤 `ref_filter_crop` | v1 无配准被 v2 取代；像素级过滤曾误删部件而停用（但值得复活，§8-2） | **部分**（§8-2） |
 | `vlm/bench/hw_ocr` | 4 | OCR/VLM 证据通道基准 | 指纹通道结论已固化（84.6%，n=13）；重定位可复用 | **归档待用** |
@@ -85,7 +85,7 @@
 | 原问题 | 结论 | 依据 |
 |---|---|---|
 | 字表从哪来（headword-only、真迹、无注文小字） | **已解决** | 17,007 字全真迹；D15 严格执行；空/注文混入由 100 字核验表 + refgate 管 |
-| 每页哪个框是哪个字（映射） | **已解决**（数据层） | canonical 42,302 + mapping23/32；label_source 完整；`lead_*` 全链为 provenance |
+| 每页哪个框是哪个字（映射） | **已解决**（数据层，但**生成命令未脚本化**） | canonical 42,302 + mapping32/33；label_source 完整；`lead_*` 全链为 provenance；mapping 生成是会话内联，仓库无脚本可复算（build_recipe 记录输入 sha 算部分缓解） |
 | 2×2 格块 = 字头、面积≈4 小字（切分源头） | **已解决**（架构层） | v2.5.0 起格块掩膜；v2.5.6 overlay 回写；重建轮廓差异 0 |
 | 去边栏/页框/邻字 | **基本解决** | 页级框线 mask + 块掩膜；残余碎片率 random120 ≈4–7%（待 §8-2 压低） |
 | 不误删字身部件（P0-1 类） | **已解决** | 内容缺失闸 0 + 缺件扫描修复 1,109 + 回写 overlay |
@@ -100,13 +100,17 @@
 
 `vectorize_gray` 主链**实际仍在执行**：`remove_specks → strip_border_lines → clean_cluster → clean_ink → trace_upscaled → normalize(全 ink bbox) → prune_edge_contours`。
 
-以下函数**默认关闭但代码仍在**，且正是 v2.4.16–19 P0（误删字身部件）的根因：
-- `strip_straight_lines_swt`（`enable_line_swt=False`）
-- `strip_edge_small_comps` / `strip_edge_fragments`（`enable_edge_strip=False`）
-- `apply_reference_filter`（`enable_ref_filter=False`，即 `ref_filter_crop` 的库版）
+以下函数正是 v2.4.16–19 P0（误删字身部件）的根因。**校准**：`enable_edge_strip` 的
+函数默认值原为 **True**（只有 `font_build` 调用点显式传 False）——「默认关闭」的说法不准确，
+这也是审计正确指出的风险：
+- `strip_straight_lines_swt`（`enable_line_swt`）
+- `strip_edge_small_comps` / `strip_edge_fragments`（`enable_edge_strip`）
+- `apply_reference_filter`（`enable_ref_filter`，即 `ref_filter_crop` 的库版）
 
-**建议（P0 清理）**：删除或以「硬失败」替代这些开关（`raise` 或参数拒绝），避免未来误开；
-同时把 `strip_border_lines` 与 `prune_edge_contours` 的保留原因写进 QA.md（它们仍在链上，与「无损」措辞需一致）。
+**已处置（2026-11-12）**：三者默认值改为 `False`，且 `vectorize_gray` 在任一开关为 True 时
+**直接 raise**（策略 D20：禁用「按尺寸/位置删组件」的清理；新用途必须先过内容闸+缺件扫描双回归再单独评审）。
+保留在链上的 `strip_border_lines` 与 `prune_edge_contours` 是「去长直线/去贴边轮廓」，
+但「无损清理链」措辞应改为事实描述（`strip_border_lines` 仍在运行）。
 
 ---
 
@@ -147,10 +151,15 @@
 - **为什么废弃过**：v2.4.14 在**多组件字**上配准错误 → 误删部件；但现在有 **块掩膜**（先归位）与 **参考支持率过滤**（scan_missing_parts 已验证有效：3,352→1,109，误报降 3 倍）。
 - **A/B**：在 300 字样本（含 owner 38 与 22 掉墨字）上跑「块掩膜 + 参考过滤」vs「块掩膜 only」，用 `class_eval` 标定阈值（阳性=owner 缺陷字，阴性=随机字）。
 - **验收**：阳性改善 ≥60%、阴性误删 ≤1%、内容闸 0；通过后作为 `--ref-filter` 可选开关，再考虑默认。
+- **与 §4 的关系（消解矛盾）**：§4 禁的是「无消融评测就默认开启」与危险的整字删除启发式；
+  本条的参考过滤是**候选复活方案**，必须先走 §7.2 的 A/B 与 `class_eval` 标定，通过后才重新打开开关
+  （届时通过显式参数启用，不恢复默认 True）。
 
 ### 7.3 `snap_box` 的参考评分选块 → 修切偏/切不全（立即 A/B）
 - **方法**：9 个候选块，评分 = 参考支持域覆盖 − λ×参考外多余墨 − μ×块外墨。
 - **现行**：`repair_offset` 只用「墨迹中心到块中心距离」评分，v2.5.4 结果 822 候选仅 347 通过（478 被逐字 gate 回退）——说明**评分信号不足**。
+- **依赖注记**：`snap_box` 及其依赖 `cell_grid_boxes` 已归档；A/B 前需从 `scripts/_archive/` 恢复这两个文件
+  （或把其格点拟合/评分函数提取进 `scripts/_lib/`）。
 - **A/B**：对 478 回退字 + 22 掉墨字重跑选块，用同一逐字 gate（墨量≥95%、IoU≥0.75）+ 内容闸。
 - **验收**：通过率从 42% 提到 ≥65%，且内容闸 0。
 
@@ -180,10 +189,22 @@
 1. **`detect_blocks.py`**：docstring 说「留边 ≥4%」，实现未设阈值（审计 V13 已指出）；其 `blocks_from_scratch` 主程序未采用。
 2. **`scan_missing_parts.py`**：参考支持检查是 **fail-open**（refgate import 失败 → 跳过过滤 → 误报放大 3,352）；应改 fail-closed。
 3. **「39/39 锚点墨迹落在格块内」** 这一历史结论不可全信：早期校验是在「块内取墨再判是否在块内」，属循环论证；`scan_offset` 实测 825 字偏移 >0.18 格、147 字 >0.35 格。锚点应重跑严格版（`validate_anchors3` 思路）后再作为回归基线。
-4. **`layout_lattice_boxes.jsonl`**：3,869 页 boxes 基本全空 → 格点法检测失败，勿引用该产物。
+4. **`layout_lattice_boxes.jsonl`**（本条曾写错，已校准）：实测 3,869 页中 **3,582 页有候选**（92.7%），
+   共 **139,056 框**（38.8/页），中位框 **79×72**（2×2 块预期 ~95×90）→ 真实问题是**过检出+格点拟合退化**
+   （密度超真值约 3 倍），不是「基本全空」。与 `layout_big_boxes`（4.2 框/页、稀疏高精度）失败模式相反，
+   两者都暂不可直接引用，但缺口回收评测时都应纳入对比。
 5. **`v245_gan_targets.json`**：D19 分桶清单存在但是旧口径（6,214 vs 当前 6,298），需用 `lead_gan_targets.py` 重生成并随包。
 
 ---
+
+## 8bis. 「重建差异=0」的口径校准（回应审计 P1）
+
+v2.5.6 重建 vs v2.5.5：**glyf 坐标点/轮廓 0 差异**（17,007 全检，逐字坐标数组完全一致）；
+但 **974 字 hmtx lsb（左旁距）不同**，幅度 1–55 units（抽样 㔌 +35）。原因：overlay 重建时
+`font_build` 用点集 xMin 重算 lsb，而 v2.5.5 的 lsb 是历史构建期留下的旧值。
+影响：advance 恒 1000、字符按坐标居中出现，视觉字形位置不变；但严格说「差异=0」应写成
+「**轮廓差异=0；974 字 lsb 由 overlay 重算**」。v2.5.7 起 overlay 生成脚本
+（`scripts/make_repair_overlay.py`）随仓库，可复算 overlay sha（实测 = 48c611ab…，1,602 字）。
 
 ## 9. 后续清理动作（按优先级）
 

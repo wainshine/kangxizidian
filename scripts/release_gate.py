@@ -22,7 +22,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "work", "font", "_pylibs"))
 
 
-def run(cmd, name, allow_fail=False):
+def run(cmd, name):
     r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
     ok = r.returncode == 0
     return {"step": name, "cmd": " ".join(cmd), "ok": ok,
@@ -39,8 +39,10 @@ def main():
     ap.add_argument("--pkg-dir", default=None)
     ap.add_argument("--tag", default=None)
     ap.add_argument("--out", default=None)
-    ap.add_argument("--skip-scan", action="store_true",
-                    help="跳过全库缺件扫描（耗时），默认跳过；发布候选版应加跑")
+    ap.add_argument("--quarantine", default=None,
+                    help="隔离清单 JSON（缺省自动找 work/lead/v*_residual.json）")
+    ap.add_argument("--scan", action="store_true",
+                    help="加跑全库缺件扫描（scan_missing_parts；耗时约 10 分钟，发布候选版应开）")
     args = ap.parse_args()
     v = args.version
     tag = args.tag or ("v" + v.replace(".", ""))
@@ -83,11 +85,34 @@ def main():
     steps.append({"step": "char_diff", "ok": not undeclared,
                   "detail": {"removed": removed, "added": added, "undeclared_removed": undeclared}})
 
-    # 4) 内容缺失闸
+    # 4) 内容缺失闸：既看退出码，也解析 JSON 的 damaged（双重保险）
     if args.prev:
         out_json = os.path.join("work", "lead", f"content-loss-gate-{tag}.json")
-        steps.append(run([sys.executable, "scripts/content_loss_gate.py", args.prev, args.font,
-                          args.manifest, out_json], "content_loss_gate"))
+        r = subprocess.run([sys.executable, "scripts/content_loss_gate.py", args.prev, args.font,
+                            args.manifest, out_json], cwd=ROOT, capture_output=True, text=True)
+        damaged = None
+        try:
+            rows = json.load(open(os.path.join(ROOT, out_json)))
+            damaged = len([x for x in rows if "ink_ratio" in x])
+        except Exception:
+            pass
+        steps.append({"step": "content_loss_gate", "ok": (r.returncode == 0 and damaged == 0),
+                      "detail": {"returncode": r.returncode, "damaged": damaged,
+                                 "tail": (r.stdout or "")[-300:]}})
+    # 4b) 全库缺件扫描（可选；发布候选版应开）
+    if args.scan:
+        out_scan = os.path.join("work", "lead", f"missing_scan_gate_{tag}.jsonl")
+        r = subprocess.run([sys.executable, "scripts/scan_missing_parts.py", args.font,
+                            args.manifest, out_scan], cwd=ROOT, capture_output=True, text=True)
+        flagged = None
+        try:
+            flagged = sum(1 for line in open(os.path.join(ROOT, out_scan))
+                          if json.loads(line).get("missing"))
+        except Exception:
+            pass
+        steps.append({"step": "scan_missing_parts", "ok": (r.returncode == 0),
+                      "detail": {"returncode": r.returncode, "flagged": flagged,
+                                 "tail": (r.stdout or "")[-200:]}})
     # 5) 文档校验
     if args.pkg_dir:
         steps.append(run([sys.executable, "scripts/check_release_docs.py",

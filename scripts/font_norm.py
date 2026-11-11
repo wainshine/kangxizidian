@@ -714,6 +714,11 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    erase_rects_list: list[tuple[int, int, int, int]] | None = None,
                    frame_mask: "np.ndarray | None" = None) -> dict:
     """灰度图 -> 归一化轮廓（font_norm 主链路）。center=crop 内字身框像素坐标。"""
+    if enable_edge_strip or enable_line_swt or enable_ref_filter:
+        # v2.4.16–19 P0 事故根因：这类「按尺寸/位置删组件」开关已禁用；
+        # 任何新用途必须先通过内容缺失闸 + 缺件扫描双回归，再单独评审开启。
+        raise RuntimeError("destructive cleaning options are disabled by policy (D20); "
+                           "use block mask/frame mask instead")
     ink = binarize(gray)
     ink = erase_rects(ink, erase_rects_list)
     if frame_mask is not None:
@@ -757,7 +762,7 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                   dpi: int = 300, char: str | None = None,
                   enable_line_swt: bool = False, enable_ref_filter: bool = False,
                   normalize_main_cluster: bool = False,
-                  enable_edge_strip: bool = True,
+                  enable_edge_strip: bool = False,   # 危险：默认关
                   block150: tuple[float, float, float, float] | None = None,
                   erase150: list[tuple[int, int, int, int]] | None = None,
                   frame_mask: "np.ndarray | None" = None) -> dict:

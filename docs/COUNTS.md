@@ -1028,3 +1028,28 @@ QA PASS；21 项 SHA 全过；不签收（残余碎片/框线、09–11/13 卷�
    内容缺失闸（覆盖率下限）→ 发布文档校验 → SHA256SUMS → zip 自检），v2.5.6 **7/7 全绿**；
 3. **字符集差集门禁**：removed 必须出现在隔离清单，否则 FAIL；v2.5.6 removed=0；
 4. v2.5.6 冻结：22 项 SHA 全过、zip PASS、DOC-CHECK PASS、字体内部 `Version 2.5.6` / 2.56。
+
+## 第七十节、门禁加固 + v2.5.7（回应两轮审计）  [实际时间 2026-11-12 07:05]
+
+两轮外部审计（GLM / DSH Pro）对「190 脚本梳理 + 归档 + v2.5.6」的 26 条声明，我方复核：
+**成立 17 / 部分成立 4 / 不成立 3**（抗辩全文 `audit/AUDIT-REBUTTAL-v2.6-SCRIPTS.md`）。
+
+**不成立/口径错误（我方反驳）**：
+1. GLM「3,352 里有少量 prepare 失败行」→ 实测 3,352 行 error 行 = **0**（全是参考过滤前误报）；
+2. DSH「974 字轮廓点不同（≤2 单位）」→ 实测 **17,007 字 glyf 坐标差异 = 0**；974 是 **hmtx lsb** 差异
+   （1–55 units，overlay 重算 lsb 所致），已把文档口径改为「轮廓 0 / lsb 重算」；
+3. DSH「name5=2.55/2.56」口径小纠（name5 是 Version 2.5.5/2.5.6，2.55/2.56 是 fontRevision）。
+
+**成立并已修（每项都有复现验证）**：
+- 内容缺失闸恒 exit 0（门禁装饰）→ damaged>0 → **exit 3**（实测 v2.4.19 vs v2.4.15 exit 3）+ release_gate JSON 双判；
+- release_gate 缺独立缺件扫描 → 新增 `--scan`（v2.5.7 实测 PASS）+ `--quarantine` 传参；
+- `enable_edge_strip` 默认 True（危险）→ 默认 False + 任一破坏性开关 True 时 `vectorize_gray` **raise**（D20）；
+- 归档断链（`lead_char_align14 → t1_count_v3`）→ 恢复共享库，**49/49 import 通过**；
+- overlay 提取器未入库 → 新增 `scripts/make_repair_overlay.py`，重生成 sha = `48c611ab…`（1,602 字，与记录一致）；
+- 文档白名单放行旧数字 → 移除；隔离清单补 仟/禦/絞（**9 字**）；SCRIPTS.md layout_lattice 统计与口径错误 → 校准。
+
+**挂账**：mapping 生成脚本化、overlay 溯源字段、`scan_missing_parts` fail-open、`detect_blocks` docstring、
+snap_box μ 项、审计台账、repair 校验落盘。
+
+**v2.5.7**：17,007 字；字形数据与 v2.5.6 相同（轮廓差异 0）；内容闸 0；字符集 diff 0；QA PASS；
+release_gate **8/8 全绿**（含独立缺件扫描）；23 项 SHA 全过；不签收。

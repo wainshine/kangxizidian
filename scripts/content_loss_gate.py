@@ -60,6 +60,10 @@ def main():
                       "lt50": sum(1 for r in rows if r["ink_ratio"] < 0.5),
                       "20_50": sum(1 for r in rows if 0.5 <= r["ink_ratio"] < 0.8),
                       "sample": rows[:15]}, ensure_ascii=False))
+    # 退出码 = 门禁牙齿：damaged 超阈值即非零（LEGACY: 默认 0，任何缺损都不放行）
+    max_damaged = int(os.environ.get("CONTENT_LOSS_MAX_DAMAGED", "0"))
+    if len(rows) > max_damaged:
+        sys.exit(3)
 
 
 if __name__ == "__main__":

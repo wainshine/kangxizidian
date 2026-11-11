@@ -15,7 +15,7 @@
 任何全量重建都会静默回滚这些修复。
 
 **方案**：
-1. 新增 `work/lead/repair_ledger.jsonl`：每次修复落 `{char, page, half, old_box, new_box, contours_sha256, script, version}`；
+1. 新增 `work/lead/repair_ledger.jsonl`：每次修复落 `{char, page, half, old_box, new_box, contours_sha256, script, version}`（实际交付的 overlay 只有 char/endPts/points；v2.6.0 补 page/box/script/version 溯源字段）；
 2. 历史修复可重建：从 `missing_scan_v252b.jsonl`（1,109 候选）与 `offset_scan_v253.jsonl`（825 候选）
    重跑两套 repair 脚本的**候选构造逻辑**（不写 TTF），把「通过逐字 gate 的子集」的 contours 落 ledger；
    与现 TTF 逐字比对 sha 校验 ledger 完整性（期望差异=0）；
@@ -70,7 +70,7 @@ check_release_docs → font_package（SHA 最后）→ zip 自检
 
 ### 2.1 隔离字重定位（法/刃 等 6 + 历史 57）
 - 每字：候选块（3×3）→ VLM/指纹确认 → 双闸（内容 + 缺件）→ 回收；
-- **验收**：常用字（法/刃/刃/榍/紆/総/荹）回收 ≥4/6；回收字 100% 过双闸。
+- **验收**：常用字（法/刃/榍/紆/総/荹）回收 ≥4/6；回收字 100% 过双闸。
 
 ### 2.2 09–11 卷、13 补遗锚点
 - 自动拟合 + 每卷抽验 20 页（目检格块包含率）；

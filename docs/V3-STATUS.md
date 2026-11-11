@@ -414,3 +414,8 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 ## 五十八、修复回写 + 发布门禁 + v2.5.6（2026-11-12 00:45）
 
 - repair_overlay 1,602 字轮廓固化；重建 glyf 轮廓差异=0；release_gate 7/7 全绿；17,007 字；不签收。
+
+## 五十九、门禁加固 + v2.5.7（2026-11-12 07:05）
+
+- 两轮审计 26 条声明：成立 17 / 部分 4 / 不成立 3（抗辩 audit/AUDIT-REBUTTAL-v2.6-SCRIPTS.md）；
+- 内容闸 exit 3、release_gate --scan、危险开关默认关+raise、归档断链修复 49/49、overlay 脚本入库；8/8 门禁全绿；不签收。
