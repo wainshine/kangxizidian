@@ -140,9 +140,28 @@ def build_font(glyphs: dict[str, list], out_path: Path, copyright_text: str = CO
     metrics = {".notdef": (EM, 40)}
 
     per_char = {}
+    from fontTools.ttLib.tables._g_l_y_f import Glyph as _Glyph
     for ch in chars:
         gname = f"uni{ord(ch):04X}"
         contours = glyphs[ch]
+        if isinstance(contours, dict) and "__overlay__" in contours:
+            rec = contours["__overlay__"]
+            g = _Glyph()
+            g.numberOfContours = len(rec["endPts"])
+            from fontTools.ttLib.tables._g_l_y_f import GlyphCoordinates
+            g.coordinates = GlyphCoordinates([(int(p[0]), int(p[1])) for p in rec["points"]])
+            g.flags = bytearray(int(p[2]) for p in rec["points"])
+            g.endPtsOfContours = [int(e) for e in rec["endPts"]]
+            from fontTools.ttLib.tables.ttProgram import Program as _Program
+            g.program = _Program()
+            glyf[gname] = g
+            xs = [int(p[0]) for p in rec["points"]]
+            ys = [int(p[1]) for p in rec["points"]]
+            xmin = min(xs) if xs else 0
+            metrics[gname] = (EM, xmin)
+            per_char[ch] = {"n_contours": g.numberOfContours,
+                            "bbox": [min(xs), min(ys), max(xs), max(ys)] if xs else [0, 0, 0, 0]}
+            continue
         tpen = TTGlyphPen(None)
         qpen = Cu2QuPen(tpen, max_err=1.0)
         xmin = ymin = 10 ** 9
@@ -368,7 +387,8 @@ def _worker_page(args):
 
 
 def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
-                      progress_every: int = 500, src_map: dict | None = None) -> tuple[dict, dict, list]:
+                      progress_every: int = 500, src_map: dict | None = None,
+                      repair_overlay: str | None = None) -> tuple[dict, dict, list]:
     """全量 mapping（并行版）：按页并行矢量化；缓存读写留在主进程。"""
     import time as _time
     from concurrent.futures import ProcessPoolExecutor
@@ -385,6 +405,12 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
     glyphs: dict[str, list] = {}
     src: dict[str, dict] = {}
     skipped = []
+    overlay = {}
+    if repair_overlay:
+        for line in open(repair_overlay, encoding="utf-8"):
+            rec = json.loads(line)
+            overlay[rec["char"]] = rec
+        print(f"[font_build] repair overlay: {len(overlay)} glyphs", flush=True)
     t0 = _time.time()
 
     # 先按顺序展开 + 去重（重复字只取第一次），并做 cache 命中
@@ -415,6 +441,12 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
             if limit and len(seen) >= limit:
                 break
             n_seen += 1
+            if ch in overlay:
+                glyphs[ch] = {"__overlay__": overlay[ch]}
+                src[ch] = {"page": page, "half": half, "box": box,
+                           "label_source": "repair_overlay", "cached": True}
+                n_cached += 1
+                continue
             src_tag = str(a.get("label_source") or src_map.get(ch, ""))
             if ch in override and src_tag == "from_v201_glyph":
                 glyphs[ch] = override[ch]["contours"]
@@ -497,6 +529,8 @@ def main():
     ap.add_argument("--version", default=VERSION, help="字体内部版本号（name 表 / fontRevision）")
     ap.add_argument("--no-cache", action="store_true", default=False, help="禁用字形缓存")
     ap.add_argument("--src-map", default="", help="union JSON（char→label_source），供 override 门禁")
+    ap.add_argument("--repair-overlay", default="",
+                    help="修复 overlay JSONL（char/endPts/points），优先于缓存使用")
     args = ap.parse_args()
     if not (args.glyphs or args.mapping or args.manifest):
         raise SystemExit("one of --glyphs/--mapping/--manifest required")
@@ -517,7 +551,8 @@ def main():
                 src_map[_c] = str(_r.get("label_source", "")) if isinstance(_r, dict) else ""
         glyphs, src, extra["mapping"] = load_from_mapping(
             args.mapping, limit=args.limit, pages=pages,
-            progress_every=args.progress_every, src_map=src_map)
+            progress_every=args.progress_every, src_map=src_map,
+            repair_overlay=args.repair_overlay or None)
     elif args.manifest:
         glyphs, src, extra["manifest"] = load_from_manifest_jsonl(args.manifest)
     else:

@@ -5,12 +5,13 @@
 
 ## 现行口径速查（以 DECISIONS 为唯一权威）
 
-- 发布：`release/KangXiKai-v2.5.5/`（zip 同目录；审计 P0 修复：字体内部版本盖章 2.5.5、QA/PROVENANCE/README 重写 + 发布文档机器校验；17,007 字；QA PASS；不签收）
+- 发布：`release/KangXiKai-v2.5.6/`（zip 同目录；**修复回写 + 发布门禁**：`repair_overlay-v256.jsonl` 固定 1,602 修复字轮廓，重建 glyf 轮廓差异=0；`release_gate.py` 7/7 全绿；17,007 字；不签收）
+- 代码清单/旧方法评估：`docs/SCRIPTS.md`（190→48 现行 + 142 归档，含「旧方法是否更优」A/B 清单）
 - 字表：**17,007 字形，全部头级真迹**（headword-only，D15；v2.5.1 版框擦除+格块掩膜）
 - 缺口：**6,298**；隔离 6 字（刃/榍/法/紆/総/荹，**法/刃 常用字优先重定位**）
 - QA：PASS（render_bad/tiny/同框=0）；发布包 **20 项** SHA256SUMS 全过（21 文件）
 - 精度敞口：指纹来源字 ~84.6%（n=13，宽 CI）→ 约 1,400-1,500 字级风险（见 release `PROVENANCE.md`）
-- 版本语义/发布流程：D18 / D17；现行发布计划：`RELEASE-PLAN.md`；发布物：v2.5.5（sha256 见 `release/KangXiKai-v2.5.5/stats.json`）
+- 版本语义/发布流程：D18 / D17；现行发布计划：`RELEASE-PLAN.md`；发布物：v2.5.6（sha256 见 `release/KangXiKai-v2.5.6/stats.json`）
 
 ## 文档清单
 

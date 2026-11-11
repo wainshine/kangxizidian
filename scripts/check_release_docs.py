@@ -49,7 +49,7 @@ def main():
             if n_chars and nn not in (n_chars, basic, 16567, 20992, 17029, 17013):
                 errs.append(f"{name}: 可疑数字 {num}（当前字数 {n_chars}）")
         # 文件引用存在性：`.json/.png/.md` 文件名词
-        for ref in re.findall(r"[A-Za-z0-9_.\-]+\.(?:json|png|md)", txt):
+        for ref in re.findall(r"[A-Za-z0-9_.\-]+\.(?:jsonl|json|png|md)\b", txt):
             if ref in ("README.md", "PROVENANCE.md", "QA.md", "SHA256SUMS", "OFL.txt"):
                 continue
             if ref not in files:

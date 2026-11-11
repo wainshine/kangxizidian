@@ -410,3 +410,7 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 ## 五十七、审计 P0 修复 + v2.5.5（2026-11-12 00:25）
 
 - 版本盖章（stamp_version）+ 文档机器校验（check_release_docs）+ 内容闸覆盖率下限 + 切偏修复内置 gate；2 个审计 P0 修复；3 处审计表述反驳；17,007 字；QA PASS；不签收。
+
+## 五十八、修复回写 + 发布门禁 + v2.5.6（2026-11-12 00:45）
+
+- repair_overlay 1,602 字轮廓固化；重建 glyf 轮廓差异=0；release_gate 7/7 全绿；17,007 字；不签收。
