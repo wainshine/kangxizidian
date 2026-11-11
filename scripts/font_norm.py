@@ -529,6 +529,41 @@ def strip_edge_small_comps(ink: np.ndarray, box: tuple[float, float, float, floa
     return out.astype(ink.dtype)
 
 
+
+def strip_edge_fragments(ink: np.ndarray, box: tuple[float, float, float, float],
+                         band: float = 0.06, max_area_frac: float = 0.009,
+                         min_area: int = 80) -> np.ndarray:
+    """删除「块边缘带内的小碎片」（邻字笔画尖端/点、框线残屑）。
+
+    判据：组件面积 < max(min_area, max_area_frac×块内墨量) 且（高<13%块高 或 宽<25%块宽）
+    且 bbox 与外带（block 外 6%）相交。字形自身的点面积更大、位置更靠内，不受影响。
+    """
+    import cv2
+    x0, y0, x1, y1 = [float(v) for v in box]
+    bw, bh = max(1.0, x1 - x0), max(1.0, y1 - y0)
+    src = (ink > 0).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(src, 8)
+    if n <= 1:
+        return ink
+    total = int(src.sum())
+    ref_a = max(min_area, max_area_frac * total)
+    out = src.copy()
+    bx0, by0 = x0 + band * bw, y0 + band * bh
+    bx1, by1 = x1 - band * bw, y1 - band * bh
+    for i in range(1, n):
+        x, y, ww, hh, a = [int(v) for v in st[i]]
+        if a >= ref_a:
+            continue
+        flat = (hh < 0.13 * bh) or (ww < 0.25 * bw)
+        if not flat:
+            continue
+        # bbox 与外带相交（贴 block 边）
+        touches = (x < bx0) or (x + ww > bx1) or (y < by0) or (y + hh > by1)
+        if touches:
+            out[lab == i] = 0
+    return out.astype(ink.dtype)
+
+
 def main_cluster_bbox(ink: np.ndarray, area_frac: float = 0.22):
     """主簇 bbox：面积 >= area_frac×最大组件的所有组件并集（排除小碎片/邻墨）。"""
     import cv2
@@ -653,6 +688,7 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
         ink = apply_reference_filter(ink, char)
     if center is not None and enable_edge_strip:
         ink = strip_edge_small_comps(ink, center)
+        ink = strip_edge_fragments(ink, center)
     ink = clean_cluster(ink, box=center)
 
     ink = clean_ink(ink, center=center)
