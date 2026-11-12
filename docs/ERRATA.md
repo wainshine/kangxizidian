@@ -234,3 +234,32 @@
   3. 再全量重建（strip 关）：**glyph_frame 0 PASS**；content（对 strip 版）**0 damaged**；font_qa PASS；
 - 采用：strip 默认关闭（`scripts/font_build.py` worker `strip_border=False`；env `FONT_STRIP_BORDER=1` 仅供复现历史 A/B），候选更新为 sha `f901c9d4…`（17,005 字）。
 - 新候选闸况：fast_gate **8/8 PASS**（content 34/35，余量 1，已披露）；全闸基线仍 8 PASS / 3 FAIL（缺件 1,153、源图框线 153、页几何严格）；全库扫描复测数字不变（missing 1,153 / frame 153）。
+
+
+## E30. content quad 扩张覆盖全部字头 box（BF-03，2026-11-13）
+
+- 问题：`page_geometry_gate.bad_boxes` = manifest box 四角经 quad.M 变换后越出 quad["box"]：
+  198@1px / **360@0** / max 8.803px；越界处字头可能被 clip mask 裁到。
+- 类级修法：新脚本 `scripts/expand_quads_to_cover_boxes.py` —— 对每个 (page,half) 把 quad["box"]
+  在旋转空间扩到覆盖该半版**全部 assigned box 四角**（只扩不缩，+0.5px 余量），写回
+  `work/lead/page_geometry.jsonl`（原文件留档 `page_geometry_v1.jsonl`，sha `42da3c0f…`）。
+  受影响 **5,695 个半版**，单边最大扩张 **9.303px**；报告 `work/lead/quad-expand-report.json`。
+- 结果（重建候选 sha `852f3193…`，17,005 字，全量 10m34s）：
+  - `bad_boxes` **198→0**（零容差 360→0，max overflow 8.803→**0.0**）；bad_blocks=0；
+  - content_loss_gate（上候选→本候选）**0 damaged**；vs v2.5.8 damaged **34→32**（两个原本被裁掉的字恢复）；
+  - font_qa PASS；glyph_frame **0**；`page_geometry_gate` 唯一 FAIL 只剩 **empty_assign_halves 1,173**（mapping 覆盖缺口，非几何）；
+  - 全库扫描随新字体重跑：缺件 1,153→**1,155**、源图框线 153→**158**（扩张后裁片含更多源墨，两数仍属已知债口径，方向已披露）。
+- 结论：BF-03 关闭；页几何残差只剩「有 quad 无 mapping 行」的 1,173 半版（需 CS3 重跑检测/映射，见 `work/lead/empty-assign-triage-v262.json`）。
+
+
+## E31. 内容闸 32 标记的归因：跨架构归一化差异（2026-11-13，CS3 分析）
+
+- 现象：`content_loss_gate`（v2.5.8 → v2.6.2 候选）32 damaged，多数字 `iou` 极低（0.08–0.4）。
+- 复核（`work/lead/content-aspect-analysis-v262.json`）：v2.5.8 旧架构按**格块/方形归一**，v2.6.2 按**源墨 bbox 归一**；
+  32 字中 **12 个** 旧字形长宽比相对源墨 bbox 偏差 >15%（愈 偏差 111%、閧 35.8%、藚 31.7%、公 23.7%…），
+  旧字形一律 ~1.0 方形 → 跨架构比较的 iou 失真。例：公 源墨 bbox 宽高比 1.322，旧 1.008；
+  新字形轮廓经反投影核对**与源墨迹完全重合**（`work/lead/content-triage-v262.json`）。
+- 结论：**内容闸 32 不是 32 个真实缺笔**；它度量的是架构差异。里程碑若沿用该闸，永远无法靠修字形归零。
+- 提案（D23，待 owner 确认）：内容判据改为「**源墨保真度**」= 字形投影与其自身 source ink（同 pre-cut 口径）
+  的配准 IoU；旧字体 delta 仅保留为回归告警（ratio 阈值），不再作里程碑硬条件。
+- 产物：`work/lead/content-triage-v262.json`、`work/lead/content-aspect-analysis-v262.json`。
