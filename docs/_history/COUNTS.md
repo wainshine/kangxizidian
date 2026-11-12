@@ -8,7 +8,7 @@
 > 早期节里的覆盖率分母（如 4,987/20,992）是**旧口径**；现行分母 = **16,567**（canonical 正集唯一基本区字），分子 = 真迹字数。
 > - 「书内页码=2×扫描页−11」（早期引用）= 作废（D14：葉码 = 扫描页 −5）；
 > - v2.3.0 的「QA PASS」表述与包内 qa-stats 矛盾（§四十已记录根因），现行以 `qa-stats` 的 `pass` 字段为准。
-> 检索建议：需要现行状态时只读每节末尾的「实际时间」+ 文末最新节，或直接看 `release/` 与 `docs/RELEASE-PLAN.md`。
+> 检索建议：需要现行状态时只读每节末尾的「实际时间」+ 文末最新节，或直接看 `release/` 与 `docs/_history/RELEASE-PLAN.md`。
 
 # 计数对账（分册表 + 归因）
 
@@ -461,7 +461,7 @@ sha256 `7e0cc8a69315a2143f46ef54d089fefd7ee2483e7cf6170cce43cf67bb6d64c3`）；�
 **结论**：木刻楷体与现代字体的字形差异远大于字间差异，**渲染模板无法用于验证/扩充**。
 这与之前「版心模板匹配失败」「注文指纹 top-1 0-4/20」共同说明：**剩余 8,760 字的识别在当前数据/模型下无自动解**。
 
-**归档**：`work/font/build/`, `docs/COUNTS.md` 已记录全部正负结果与复算命令。
+**归档**：`work/font/build/`, `docs/_history/COUNTS.md` 已记录全部正负结果与复算命令。
 
 ## 第三十节、第二轮对抗审计回应 + v1.2.0（版本/材料修复）  [实际时间 2026-11-09 07:49]
 
@@ -480,7 +480,7 @@ sha256 `7e0cc8a69315a2143f46ef54d089fefd7ee2483e7cf6170cce43cf67bb6d64c3`）；�
 
 ## 第三十一节、繁体 OCR 方案调研与本机基准（回应 owner「找找支持繁体的 OCR 方案」）
 
-新增 `docs/OCR-OPTIONS.md`。要点：
+新增 `docs/_history/OCR-OPTIONS.md`。要点：
 1. 本机可下载/加载 PaddleOCR 全系 10 个识别模型（需 `PADDLE_PDX_CACHE_HOME` 指向工作区，沙箱内 ~/.paddlex 不可写）。
 2. **无偏基准**（demo 目检 28 + owner 核实 11 = 29 唯一字，标签非 OCR 产生）：
    v5_server **69%**、v6_medium/ v4_doc **66%**、v6_small 62%、v5_mobile 52%、SVTR 系 48%、v6_tiny 45%、v4_server 38%、
@@ -1019,7 +1019,7 @@ QA PASS；21 项 SHA 全过；不签收（残余碎片/框线、09–11/13 卷�
 
 ## 第六十九节、修复回写 + 发布门禁 + v2.5.6  [实际时间 2026-11-12 00:45]
 
-按 `docs/PLAN-v2.6.md` 阶段 0 执行：
+按 `docs/_history/PLAN-v2.6.md` 阶段 0 执行：
 1. **修复回写**（审计 P1 高危项）：把 1,602 个修复字（1,109 缺部件 + 347 切偏 + owner 标记，去重）的
    **原始轮廓点**固化到 `repair_overlay-v256.jsonl`（sha256 48c611ab…）；`font_build` 新增 `--repair-overlay`；
    用 mapping33 + overlay 全量重建，与 v2.5.5 **glyf 级轮廓差异 = 0**（17,007 字全检）；

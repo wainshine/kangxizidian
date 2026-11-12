@@ -5,7 +5,7 @@
 
 # DETECTOR-V2 · 字头候选检测器 v2 与半版计数金标
 
-> 工作流 B（docs/TAKEOVER.md §3）产物。脚本 `scripts/t1_v2.py`；评测 `work/detect2/eval_v2.py`；
+> 工作流 B（docs/_history/TAKEOVER.md §3）产物。脚本 `scripts/t1_v2.py`；评测 `work/detect2/eval_v2.py`；
 > 数字口径见 §3，全部可由 §6 命令重算。**状态：v1（30 页 montage 已交 Lead 逐半版复核）。**
 
 ## 0. 一句话

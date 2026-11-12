@@ -7,11 +7,11 @@
 > - 「cmap 20,992/21,034 覆盖承诺」（早期节、PROMPT）= 作废（D15 不补假覆盖）；
 > - 「书内页码=2×扫描页−11」（早期引用）= 作废（D14：葉码 = 扫描页 −5）；
 > - v2.3.0 的「QA PASS」表述与包内 qa-stats 矛盾（§四十已记录根因），现行以 `qa-stats` 的 `pass` 字段为准。
-> 检索建议：需要现行状态时只读每节末尾的「实际时间」+ 文末最新节，或直接看 `release/` 与 `docs/RELEASE-PLAN.md`。
+> 检索建议：需要现行状态时只读每节末尾的「实际时间」+ 文末最新节，或直接看 `release/` 与 `docs/_history/RELEASE-PLAN.md`。
 
 # V3-STATUS · 接手会话成果与遗留
 
-> 本会话按 `docs/TAKEOVER.md` 的 v3 架构（结构性标注）推进。**先读 TAKEOVER.md**，本文件记录
+> 本会话按 `docs/_history/TAKEOVER.md` 的 v3 架构（结构性标注）推进。**先读 TAKEOVER.md**，本文件记录
 > 已落地的东西、实测数字、卡点与下一步。术语按 D1。旧文件不改，历史留痕。
 
 ## 1. 本会话结论（一句话）
@@ -25,16 +25,16 @@
 
 | 产物 | 路径 | 状态/数字 |
 |---|---|---|
-| 接手诊断 + v3 架构 | `docs/TAKEOVER.md` | 权威口径；含旧路线错因实证 |
+| 接手诊断 + v3 架构 | `docs/_history/TAKEOVER.md` | 权威口径；含旧路线错因实证 |
 | **demo TTF（可安装）** | `work/font/demo/KangXiKai-demo-v0.1.0.ttf` | 32 字真迹，UPM1000，OFL1.1，两次构建 sha256 同 |
 | demo 样张 / 对照 | `work/font/demo/specimen.png`、`work/font/qa/crop_vs_font.png` | Lead 目检通过 |
-| 字体构建链（dual CLI+断点续跑） | `scripts/font_norm.py`、`font_build.py`、`font_qa.py`；`docs/FONT-BUILD.md` | 23.6ms/字 + 5.3ms/字 |
+| 字体构建链（dual CLI+断点续跑） | `scripts/font_norm.py`、`font_build.py`、`font_qa.py`；`docs/_history/FONT-BUILD.md` | 23.6ms/字 + 5.3ms/字 |
 | 正典序原型（42,302 条/3,563 组） | `work/lead/canonical_proto.jsonl`、`groups_proto.json`；`scripts/lead_canonical_proto.py` | 一部/日部/乙部书序实证一致 |
 | 页角色表（全 3,869 页） | `work/lead/page_roles.jsonl`；`scripts/lead_page_roles.py` | body 3,528 / blank 162 / title_page 99 / cover 80 |
 | 卷界表（12 卷 × 上中下 + 補遺/備考） | `work/lead/volume_sections.json` | 每卷 3 段 body 页区间 |
 | 映射求解器 | `scripts/lead_solver2.py` | 候选→计数→书眉硬约束→±1 局部纠错→框级指派；0006-0009 demo 通过 |
 | 字形抽取器 | `scripts/lead_extract.py` | mapping→300dpi 裁切→`work/glyphs/` 索引；已验证 10 字 |
-| 检测器 v2 | `scripts/t1_v2.py`；`docs/DETECTOR-V2.md`；冻结副本 `scripts/lead_t1v2_frozen.py` | 候选召回 1.0、head 类召回 1.0、4 页 8 半版计数 exact=1.0 |
+| 检测器 v2 | `scripts/t1_v2.py`；`docs/_history/DETECTOR-V2.md`；冻结副本 `scripts/lead_t1v2_frozen.py` | 候选召回 1.0、head 类召回 1.0、4 页 8 半版计数 exact=1.0 |
 | 全量检测（12 卷 3,266 body 页） | `work/lead/boxes300/`（3,266 JSON / 234,346 候选）；`scripts/lead_run_detect.py` | **已完成**；150dpi 直渲染路径，0006-0009 八半版计数 exact；coords=150dpi 当量 |
 | 书眉读数（未过门） | `scripts/header_read.py`+`header_resolve.py`（seq）、`work/seq/headers_pilot*.jsonl`、`docs/HEADERS.md` | pilot 20 页：集名 19/20、部名 15/19、画数 11/18（未过门）；全量 raw 本轮未跑完（部分在 work/seq/parts/） |
 | 检测器 30 页评审图 | `work/detect2/montage_v1/`、`work/detect2/report.json` | 供下一会话复核 |
@@ -120,9 +120,9 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 
 ### 已完成
 - **卷/部首结构定死**（seq A2b）：`work/seq/volume_radicals.json` —— 36 卷部首清单/entries/页区间/页数/密度，214 部首恰好分完、entries 合计 = 42,302 = 正集；`docs/STRUCTURE.md` 记录关键约束（卷扉页跨页、正文从卷首页 L 半版起、14/36 卷末 L 留白、部间无扉页、03_0015 更正为宀部）。**正集正文半版 ≈ 6,479**。
-- **分册计数对账表**：`docs/COUNTS.md` —— 36 卷逐一对照（正典 vs 检测 strict）：合计 36,974/42,302 = **−12.6%**；最好 子集上 +0.4%、亥集下 −1.4%；最差 亥集中 −32.5%、卯集上 −28.5%、巳集上 −23.8%。
+- **分册计数对账表**：`docs/_history/COUNTS.md` —— 36 卷逐一对照（正典 vs 检测 strict）：合计 36,974/42,302 = **−12.6%**；最好 子集上 +0.4%、亥集下 −1.4%；最差 亥集中 −32.5%、卯集上 −28.5%、巳集上 −23.8%。
 - **归因取证**：01_0060/0085/0100/0115 人部页人工 truth（=7/17/18/13.5）证明**不是正典多计、不是漏框**，是**分类阈值把生僻字真字头压到 hw0.5-0.8**（12_0100 魚部同类证据）；且漏计与字形生僻度强相关。
-- **字体打包链完成**（font C2）：`scripts/font_package.py`（顺序铁律 + zip 自校验）、5k 合成 mapping 全量预演（86.8ms/字、失败 0、8 进程 16k≈3.5-5min）、`docs/RELEASE-PLAN.md`。
+- **字体打包链完成**（font C2）：`scripts/font_package.py`（顺序铁律 + zip 自校验）、5k 合成 mapping 全量预演（86.8ms/字、失败 0、8 进程 16k≈3.5-5min）、`docs/_history/RELEASE-PLAN.md`。
 - **书眉读数探索**（Lead）：PP-OCR 整行/单格、渲染模板匹配（v2/v3/v4）、真迹聚类（`scripts/lead_hdr_mine.py`）全部试过——**字体渲染模板对刻本楷体相关只有 0.2-0.5，不可用**；真迹聚类能分出干净簇但版心切格覆盖率仅 ~9 格/页。结论：书眉 OCR 暂缓，**改用「计数修复 + 36 卷硬校验」路线**。
 
 ### 当前唯一卡点
@@ -153,7 +153,7 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 | 全量 mapping | `work/map/bu_v5/` | ⚠️ 偏 ±0-11 条@owner 页，验收闸 FAIL |
 
 ### 唯一剩余问题与已验证的失败路线
-**部内逐页计数分布 ±1** 是唯一卡点。已定量验证不可行的路线（详见 `docs/COUNTS.md` §八~§十二、`docs/DETECTOR-V2.md` §8.3）：
+**部内逐页计数分布 ±1** 是唯一卡点。已定量验证不可行的路线（详见 `docs/_history/COUNTS.md` §八~§十二、`docs/_history/DETECTOR-V2.md` §8.3）：
 画数 OCR（65% 上限）、画数真迹模板重读（同字 NCC 0.08-0.40）、视觉重出对（max 0.66、召回 22%、DP 33%）、版心部首格图像相似度（日/曰 0.87 不可分）、字头 OCR δ 漂移校正（高置信 δ 仅 507 半版，校正后变差）、古文标签模板（0.25-0.59）。
 **剩余可行**：人工校准（每卷抽 5-10 页核数，性价比最高）、更高分辨率版面识别/活字级配准、接受漂移只出可验证子集。
 
@@ -231,7 +231,7 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 - 本机 10 个 PaddleOCR 模型无偏基准：v5_server 69% 最佳；专用繁体 cht 模型仅 14%（木刻楷体不适用）。
 - 8 模型集成在 600 个未确认字候选上仅新增 4 字 → 生僻字瓶颈不在 OCR 引擎。
 - 外部候选：Qianfan-OCR、AnandaSky（古籍 VLM，非商业）、HunyuanOCR、PaddleOCR-VL、Tesseract chi_tra_vert、云 OCR、600dpi 重扫。
-- 详见 `docs/OCR-OPTIONS.md`（含复算命令）。
+- 详见 `docs/_history/OCR-OPTIONS.md`（含复算命令）。
 
 ## 二十一、v2.0.0：VLM 注文指纹突破（2026-11-09 15:36 实际产出）
 

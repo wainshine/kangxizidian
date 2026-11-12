@@ -1,4 +1,4 @@
-> **文档状态：历史记录（T0 探测阶段，2026-11-07）**。现行口径以 `docs/DECISIONS.md` + `docs/COUNTS.md` 为准。
+> **文档状态：历史记录（T0 探测阶段，2026-11-07）**。现行口径以 `docs/DECISIONS.md` + `docs/_history/COUNTS.md` 为准。
 > 已知过期点：①「书内页码 = 2×扫描页 − 11」已被 D14 的**葉码**口径取代（PDF01–12 实测 葉码 = 扫描页 − 5）；
 > ② 检测/切格已由 t1_v2 候选生成 + 字符级序列对齐（lead_char_align14）取代；
 > ③ 「20,992 cmap 覆盖承诺」已被 v2.4 headword-only 标准取代（只收真迹，缺口留 GAN 补全）。
@@ -82,7 +82,7 @@ scripts/t0_measure.py, scripts/t0_gold.py
 **来源**：[vModou 兀雨墨斗](https://github.com/shanleiguang/vModou)（MIT，© 2025 ShanLeiGuang）——
 古籍刻本扫描图变形纠正工具。思路：辅助线限定搜索区 → 扫描版框四角顶点 → 拉正 → 裁黑边。
 本项目**未复制其代码**（Perl/交互式），按其思路用 Python 重实现为自动化流水线步骤，
-并在 `docs/VENDORED.md` 记录思想来源。
+并在 `docs/_history/VENDORED.md` 记录思想来源。
 
 **实现**（`scripts/t0_rectify.py`）：
 1. 版框顶/底 = 强横线（run≥30% 半页宽）按位置取首/末条（**不能按墨量**——页边黑带墨量更大，

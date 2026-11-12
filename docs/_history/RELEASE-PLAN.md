@@ -3,7 +3,7 @@
 > **文档状态：现行**。本文件已按当前代码（font_build / font_qa / font_package v2.4.x）重写；
 > 旧版「0.1.0 demo → 0.9 pre → 1.0.0 首发、cmap=21,034 承诺、punct_set.py 阻塞」方案**作废**，
 > 历史内容见文末「附录 A」。
-> 上游口径：`docs/DECISIONS.md`（D15 headword-only / D17 发布流程 / D18 版本号）+ `docs/COUNTS.md`。
+> 上游口径：`docs/DECISIONS.md`（D15 headword-only / D17 发布流程 / D18 版本号）+ `docs/_history/COUNTS.md`。
 
 ## 1. 当前版本线与发布物
 
@@ -91,7 +91,7 @@ stats 字段 + provenance 计数（含 `{k}_n` 后缀形式）。
 - [ ] 随包披露：manifest、provenance 明细、qa-report/stats、coverage、严格清单、抽查图；
 - [ ] 打包后 **release 目录冻结**：`shasum -a 256 -c SHA256SUMS` 全过且无 FAILED，zip 内自校验 PASS；
 - [ ] 自审计/外部审计材料已归档 `audit/`，如需随包从该目录复制；
-- [ ] 文档同步：`docs/COUNTS.md` 追加一节、`docs/V3-STATUS.md`/`docs/SESSION-HANDOFF.md` 更新、`audit/` 记录。
+- [ ] 文档同步：`docs/_history/COUNTS.md` 追加一节、`docs/_history/V3-STATUS.md`/`docs/_history/SESSION-HANDOFF.md` 更新、`audit/` 记录。
 
 ## 附录 A · 历史方案（已作废，保留留痕）
 

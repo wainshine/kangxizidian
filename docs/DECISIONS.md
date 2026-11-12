@@ -17,7 +17,7 @@ OFL 1.1，不得使用 LXGW 的 Reserved Font Name（霞鹜/霞鶩/落霞孤鹜/
 
 ## D3 · 覆盖边界（2026-11-07，T0.0 门判定后确立）⭐ ⚠️ **已被 D15 取代**（cmap 承诺作废）
 
-**T0.0 门判定：不过**（`docs/HEADWORD-COVERAGE.md`）。据此固定项目边界：
+**T0.0 门判定：不过**（`docs/_history/HEADWORD-COVERAGE.md`）。据此固定项目边界：
 
 ```
 real 真迹：约 17,000–18,600 个康熙字头（confidence: medium，T2 全书部首序对账后转实测值）
@@ -67,7 +67,7 @@ PROMPT §8 T4 的「按页 5%」作废。
 
 ## D8 · 页面形变纠偏（2026-11-07，所有者建议参考 vModou）
 
-采用 vModou（MIT）思路的自动化重实现（`scripts/t0_rectify.py`，未复制其代码）：
+采用 vModou（MIT）思路的自动化重实现（`scripts/_archive/t0_rectify.py`，未复制其代码）：
 强横线端点定四角 → 透视拉正 → 合理性检查失败即跳过。**几何拉正 8/8 成功 ≠ 检测收益**
 （1 赚 2 亏 1 平，重采样伤细笔画）；T1 对 orig/rect 做 A/B 择优，弯曲重的版优先 rect。
 
@@ -189,7 +189,7 @@ D11 的「标签真源 = 所有者终审」在 42,302 条尺度上**不可行**�
 实际发布的版本线为 v0.3 → v1.0 → v1.1 → v1.2 → v2.0 → v2.0.1 → v2.1.x → v2.2.0 → v2.3.x → v2.4.2 → **v2.4.3**（当前，文档/审计校订 patch）。
 - `minor` = 字表/字形整体更新；`patch` = 发布材料/流程/元数据修复（字形不变或同字表重构建）；
 - 版本号与内部 name 表一致（`--version` 参数），并写入 `stats.json` / `manifest`。
-- 详细发布过程见 `docs/RELEASE-PLAN.md`（已按现行流程重写）。
+- 详细发布过程见 `docs/_history/RELEASE-PLAN.md`（已按现行流程重写）。
 
 ---
 

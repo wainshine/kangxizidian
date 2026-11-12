@@ -1,10 +1,10 @@
 > **文档状态：部分过期（历史 demo 阶段 + 现行链路附录）**。§0–§8 描述 2026-11-08 的 **32 字 demo** 链路，其中 `clean_ink v12 / potrace(1.0) / VERSION 0.1.0` 等已被后续版本取代；**现行链路见文末 §12**。
-> 当前发布：v2.4.2，17,121 字形（headword-only），构建/QA/打包命令见 `docs/RELEASE-PLAN.md`。
+> 当前发布：v2.4.2，17,121 字形（headword-only），构建/QA/打包命令见 `docs/_history/RELEASE-PLAN.md`。
 
 # FONT-BUILD · C 流字体构建链 v0（KangXi Kai）
 
 > 本文件是 C 流（字体构建）的实现与验收记录。**2026-11-08**，负责人：`font` teammate。
-> 上游权威口径：`docs/TAKEOVER.md`（最高）、`docs/DECISIONS.md`（D2/D4/D11）。
+> 上游权威口径：`docs/_history/TAKEOVER.md`（最高）、`docs/DECISIONS.md`（D2/D4/D11）。
 > 本文件描述「标注产物 → 矢量化 → TTF」链路；产出的 v0 是**管线验证版 demo**，
 > 不是发布版（发布版等 Lead 的全量 mapping 接入，字量 ~16k）。
 
@@ -193,7 +193,7 @@ build #2  d9b9538afdd118eb90785c782cfa88ab65dc70db6ee05f630d5764dd64022f33  (清
 → 16k 预计 2–3 GB；cache 116 MB/5,000 字 → 16k ≈ 380 MB。
 组字体单进程 ~1.4 min。`concurrent ≤10 / cv2.setNumThreads(1)` 约束下完全可行。
 构建日志每 `--progress-every N` 字打印进度（默认 500），便于 16k 批跑监控。
-预演实测细节（含内存/断点续跑/失败率）见 `docs/RELEASE-PLAN.md` §6。
+预演实测细节（含内存/断点续跑/失败率）见 `docs/_history/RELEASE-PLAN.md` §6。
 
 > 压测产物（perf_test*.ttf）已删除；mapping 冷跑命令加 `--limit N --pages 01_0110`
 > 可先小样验证再全量。

@@ -8,6 +8,20 @@
 4) 返回原图坐标下的 content quad（旋转空间 box 的四角经逆变换回原图），裁切时按 quad 裁剪。
 半版 content box 覆盖到框线内侧（含外扩半格覆盖字头），但**不包含框线与页边黑带**。
 """
+
+# --- 并发守卫（AGENTS.md：≤10 workers / CPU≤2000%；先限线程再导入重库）---
+import os as _os
+for _k in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+           "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    _os.environ.setdefault(_k, "1")
+try:
+    import cv2 as _cv2
+    _cv2.setNumThreads(1)
+except Exception:
+    pass
+
+
+
 import math
 import numpy as np
 import cv2

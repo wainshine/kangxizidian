@@ -7,7 +7,7 @@
 > 复算：`.venv/bin/python scripts/seq_order.py`（纯本地数据，无 OCR；~20 s）
 > 产物：`work/seq/canonical.jsonl`、`groups.json`、`buqi.jsonl`、`beikao.jsonl`、
 > `outliers.json`、`seqorder_stats.json`。数字全部落盘见 `seqorder_stats.json`。
-> 上游权威口径：`docs/TAKEOVER.md` §1.1/§2.A/§2.B；本文件为其正式实现与实测数字。
+> 上游权威口径：`docs/_history/TAKEOVER.md` §1.1/§2.A/§2.B；本文件为其正式实现与实测数字。
 
 ## 1. 一句话
 

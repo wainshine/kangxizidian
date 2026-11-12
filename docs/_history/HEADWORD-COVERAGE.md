@@ -1,4 +1,4 @@
-> **文档状态：历史记录（不是现行口径）**。现行数据/标准以 `docs/DECISIONS.md`（唯一权威）+ `docs/COUNTS.md §四十一`（headword-only 标准）+ `release/KangXiKai-v2.4.2/RELEASE-NOTES-v242.md` 为准。
+> **文档状态：历史记录（不是现行口径）**。现行数据/标准以 `docs/DECISIONS.md`（唯一权威）+ `docs/_history/COUNTS.md §四十一`（headword-only 标准）+ `release/KangXiKai-v2.4.2/RELEASE-NOTES-v242.md` 为准。
 > 本文中的「cmap 20,992 承诺 / GAN/ribbon 补缺 / 抽样估计」等均为当时阶段口径，已被 headword-only 标准取代；实测数字：唯一字头∩基本区 = **16,567**（canonical 正集），当前发布 17,121 字形 / 覆盖 10,348（62.46%）/ 缺口 6,219 = GAN 补全目标。
 
 # T0.0 字头覆盖盘点（HEADWORD COVERAGE）
@@ -112,7 +112,7 @@ scripts/t00_{sample,render,detect,ocr,ocr_qc,report}.py
 
 ## 7. 遗留与下一步
 
-1. ~~T0 探测~~ ✅ 已完成（`docs/PROBE.md`，金标 60 框 owner-certified，T1 门双 PASS）。
+1. ~~T0 探测~~ ✅ 已完成（`docs/_history/PROBE.md`，金标 60 框 owner-certified，T1 门双 PASS）。
 2. T2 标定：部首目录页提取 214 个「部首→起始页码」锚点，标定书内页码 ↔ 扫描页 ↔ 条目序。
 3. OCR 双见证正式化：v6_medium + v5_server 冲突率 47.8% 太高，标签以**部首序单调对账**为准（guangeti C 线教训：整行 OCR 逐格分配错标 11.5%）。
 4. 数据集补洞：玄等部首自字；与《康熙字典》检字（PDF 00）交叉验证。

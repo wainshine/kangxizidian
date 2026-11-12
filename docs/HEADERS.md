@@ -1,12 +1,12 @@
-> **文档状态：现行（书眉数据层）**。书眉读数/解析是现行管线输入之一；本文旧「页码 = 2×扫描页−11」已按 D14 标注作废（PDF01–12 葉码 = 扫描页 − 5）。
+> **文档状态：数据层参考（非现行管线输入）**。书眉读数/解析用于历史校验（正典序/锚点），现行字体构建不依赖书眉；本文旧「页码 = 2×扫描页−11」已按 D14 标注作废（PDF01–12 葉码 = 扫描页 − 5）。
 > 产物文件名更正：早期版写 `work/seq/headers_full_raw.jsonl（历史名 headers_raw.jsonl）` / `headers.jsonl`，实际落盘为 **`headers_full_raw.jsonl`**（全量原始读数）与 **`headers_01_02.jsonl` / `headers_13_probe.jsonl`** 等分册文件；`hdr_page_obs.jsonl` 为统一后的逐页观测。
 
 # HEADERS · 书眉读数（A2）
 
 > 脚本：`scripts/header_read.py`（单页读数，可跑 `--pdf/--pages/--eval-gold/--workers`）
-> \+ `scripts/header_resolve.py`（序列约束后处理）。产物：`work/seq/headers_full_raw.jsonl`（逐页原始读数）、
+> \+ `scripts/_archive/header_resolve.py`（序列约束后处理）。产物：`work/seq/headers_full_raw.jsonl`（逐页原始读数）、
 > `work/seq/hdr_page_obs.jsonl`（统一逐页观测）、本文件的数字。
-> 上游口径：`docs/TAKEOVER.md` §2.D/§5、`docs/DECISIONS.md` D14、`work/t2/margin_labels_full.json`
+> 上游口径：`docs/_history/TAKEOVER.md` §2.D/§5、`docs/DECISIONS.md` D14、`work/t2/margin_labels_full.json`
 >（owner 20 页真值）。
 
 ## 1. 口径（owner 20 页实证标定）
@@ -106,7 +106,7 @@
 # 全量（8 进程，约 10–15 分钟）
 .venv/bin/python scripts/header_read.py --workers 8 --out work/seq/headers_full_raw.jsonl（历史名 headers_raw.jsonl）
 # 序列约束 → solver 口径
-.venv/bin/python scripts/header_resolve.py --raw work/seq/headers_full_raw.jsonl（历史名 headers_raw.jsonl） \
+.venv/bin/python scripts/_archive/header_resolve.py --raw work/seq/headers_full_raw.jsonl（历史名 headers_raw.jsonl） \
     --out work/seq/hdr_page_obs.jsonl（历史名 headers.jsonl） --eval-gold
 ```
 

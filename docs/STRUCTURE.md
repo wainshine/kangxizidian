@@ -1,5 +1,5 @@
 > **文档状态：现行（结构层数据）**。卷/部首/PDF13 分节与 `volume_radicals.json` 仍是现行数据；**§11 的部界锚点（bu_start_pages_seq）为历史**——现行锚点是 `scripts/lead_bu_dp3.py` 产出的 `work/lead/bu_start_pages_lead3.jsonl`（字符级对齐使用），不再是「Lead 正在重算」的状态。
-> 现行全链见 `docs/DATA.md §4` 与 `docs/RELEASE-PLAN.md`。
+> 现行全链见 `docs/DATA.md §4` 与 `docs/_history/RELEASE-PLAN.md`。
 
 # STRUCTURE · 卷/部首结构（A2b）
 
@@ -149,7 +149,7 @@
   （`radical_templates/montage_214.png`），绝大部分字形与标注一致；重抽修复了旧版在
   子集上等卷的顺序错位。
 - **index.json**：旧版 173 个（按卷部首序直接对齐，部分卷有错位风险，保留兼容）。
-- 复算脚本：`scripts/radical_templates.py`（v1）、`scripts/templates_v2.py`（v2）。
+- 复算脚本：`scripts/radical_templates.py`（v1）、`scripts/_archive/templates_v2.py`（v2）。
 
 ### 11.2 部首页候选与锚点
 - **`work/seq/bu_home_candidates.jsonl`**（2001 行，高召回）：每行 = 该页检测到「X部」小标签

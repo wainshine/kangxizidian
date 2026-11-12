@@ -1,7 +1,7 @@
 # 版本历史（v0.3 → v2.6.1）——每版改了什么、是探索还是修补
 
 > 用途：回答「每个版本改了什么？哪些是全新探索，哪些只是挑图修补？」
-> 数据来源：`docs/COUNTS.md` 章节记录（逐版）、`audit/RELEASE-HISTORY.jsonl`（52 版元数据）、`audit/_history/`（审计记录）。
+> 数据来源：`docs/_history/COUNTS.md` 章节记录（逐版）、`audit/RELEASE-HISTORY.jsonl`（52 版元数据）、`audit/_history/`（审计记录）。
 > 记录规则：从 2026-11-12 起，每出一个候选/正式版，必须在本表追加一行（见 `docs/WORKFLOW.md` §10）。
 
 ## 图例

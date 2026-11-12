@@ -31,7 +31,7 @@
 
 | 项 | 约定 |
 |---|---|
-| 扫描件 | `康熙字典/康熙字典.NN.*.pdf`（12 卷，3,869 页）；`work/t2/pdf_map.json`：卷号 `01..13` → 文件名 |
+| 扫描件 | `康熙字典/康熙字典.NN.*.pdf`（**14 个 PDF：00 总目/检字 + 01–12 正文 + 13 补遗/备考**，3,869 页）；`work/t2/pdf_map.json`：卷号 `01..13` → 文件名 |
 | 页 key | `NN_PPPP`（如 `02_0074`） |
 | 一页 = 跨页 | 左/右半版 `L`/`R`；gutter 由列投影取 42–58% 区间最小值定位 |
 | 坐标 dpi | **150dpi 坐标系**（lattice/box/manifest 全部用它）；渲染裁片用 **300dpi**（`dpi_scale=2.0`） |
@@ -44,7 +44,7 @@
 
 ```
 12 PDF (3869 页)
-   │  S0 页面角色（body 页 3,266 / 卷首 / 目录 / 牌记 …）      scripts/lead_page_roles.py, t1 detector(冻结)
+   │  S0 页面角色（body 页 3,266 / 卷首 / 目录 / 牌记 …）      scripts/_archive/lead_page_roles.py（已归档，产物 work/lead/page_roles.jsonl）, t1 detector(冻结)
    ▼
 S1 页级几何 G（每页一次，缓存）                                  scripts/build_page_geometry.py
    lattice: 小字格点 (px,py,phx,phy)（每半版）                  → work/lead/page_geometry.jsonl

@@ -15,7 +15,7 @@
 
 > **时间戳勘误（2026-11-08 23:05）**：本文早期标题中的日期/时刻是我写作时的估计值、不是事实；实际工作发生在 2026-11-08 17:00–23:05。以文件 mtime 与复算命令为准。
 
-> **新会话第一步：读本文件 → `docs/TAKEOVER.md`（诊断+v3架构）→ `docs/V3-STATUS.md`（成果/卡点/数字）。
+> **新会话第一步：读本文件 → `docs/_history/TAKEOVER.md`（诊断+v3架构）→ `docs/_history/V3-STATUS.md`（成果/卡点/数字）。
 > 本文件取代 2026-11-08 晚 GLM 版交接；旧 T2 路线（DP 对齐 + 所有者逐页读数）已作废。**
 
 ## 1. 一句话状态
@@ -48,7 +48,7 @@ v3「结构性标注」架构已被实证打通到框级（0006-0009：11 条框
 - 已知解释一部分：正典序重出/异体重复条目占 3.4-3.8%（子集 90/丑集 110/寅集 68 条）——需确认是否应计入。
 - 剩余 6-8% 必须判定：①检测漏计 ②正典序含未印条目 ③边界页归属
   - 做法：用 P0 headers 跑 `scripts/lead_solver2.py`，取首个 mismatch 窗口（≤2 页）→ 人工三方对账
-    （detector 候选 vs 人工目检 vs 正典序 kx 切片），结论写 `docs/COUNTS.md`
+    （detector 候选 vs 人工目检 vs 正典序 kx 切片），结论写 `docs/_history/COUNTS.md`
   - 注意方向：计数偏差有正有负（子集上 6-41 页检测 246 vs 正典 176 = 超计 40%；全卷却是少计）→ 不能全局缩放
 
 ### P2 全量映射（依赖 P0+P1）
@@ -71,7 +71,7 @@ v3「结构性标注」架构已被实证打通到框级（0006-0009：11 条框
 - 缺 4,201 个基本区码位：mapped_traditional（~2,175 经 Unihan kTraditionalVariant）+ ribbon 回落 + 披露；
   補遺/備考 6,406 条、GAN 后置（D3/D4 口径不变）
 
-## 3. 本会话交付（详见 docs/V3-STATUS.md §2）
+## 3. 本会话交付（详见 docs/_history/V3-STATUS.md §2）
 
 demo 字体 `work/font/demo/KangXiKai-demo-v0.1.0.ttf`（32 字，sha256 两次一致）；
 正典序 `work/seq/canonical.jsonl`（seq 正式版）/ `work/lead/canonical_proto.jsonl`（Lead 原型）；
@@ -107,8 +107,8 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 
 **新增资产**
 - `work/seq/volume_radicals.json`：36 卷部首清单/entries/body_pages/evidence（214 部首全分完，42,302 对齐）。**36 卷 entries 就是硬校验点**。
-- `docs/COUNTS.md`：逐卷计数对账表（−12.6% 总差、逐卷分布、归因、修复方向）。
-- `scripts/font_package.py` + `docs/RELEASE-PLAN.md`：全量发版链就绪（5k 字预演 86.8ms/字、失败 0、8 进程 16k≈3.5-5min）。
+- `docs/_history/COUNTS.md`：逐卷计数对账表（−12.6% 总差、逐卷分布、归因、修复方向）。
+- `scripts/font_package.py` + `docs/_history/RELEASE-PLAN.md`：全量发版链就绪（5k 字预演 86.8ms/字、失败 0、8 进程 16k≈3.5-5min）。
 - `scripts/lead_hdr_mine.py`：书眉真迹模板挖掘原型（聚类能出干净簇，但切格覆盖率低）。
 - `work/lead/mont2/`：候选裁框复核 montage（含人部 4 页 truth 用图）。
 
@@ -158,7 +158,7 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 **一句话**：整条流水线除「部内逐页计数分布」外全部打通并验证；全量字体差最后一关：把 counts_v5 的部内分布误差从 ±0-11 压到 ±1。
 
 **下会话从这里开始**
-1. 读 `docs/V3-STATUS.md` §9（资产清单 + 已证伪路线）、`docs/COUNTS.md` §八~§十二（计数/锚点/实验全记录）、`docs/DETECTOR-V2.md` §8（终章）。
+1. 读 `docs/_history/V3-STATUS.md` §9（资产清单 + 已证伪路线）、`docs/_history/COUNTS.md` §八~§十二（计数/锚点/实验全记录）、`docs/_history/DETECTOR-V2.md` §8（终章）。
 2. 直接可用：`work/lead/counts_v5.jsonl`（计数）+ `work/lead/bu_start_pages_lead2.jsonl`（214 部界）+ `work/map/bu_v5/mapping.jsonl`（当前最佳映射）。
 3. 唯一任务：**部内计数校准**。推荐人工校准流程（最实际）：
    - 每卷抽 5-10 页（优先选 owner 已验证页附近 + 部边界附近），人工核该页字头数（用 `scripts/lead_mont_cands.py` 出候选裁框拼图，10 分钟/页）；

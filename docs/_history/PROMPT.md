@@ -1,7 +1,12 @@
 > **文档状态：任务书原文（2026-11-07，所有者提供，保留不改写）**。
 > ⚠️ 其中 §8 T4 留出、§9「覆盖率 20,992」、§4.1 缺字策略（GAN/ribbon/mapped 补 cmap）等**已被实测与决策修正**：
-> 现行标准 = headword-only（只收字头级真迹；缺口不补假覆盖，留待 GAN），见 `docs/DECISIONS.md` D15 与 `docs/COUNTS.md §四十一`。
+> 现行标准 = headword-only（只收字头级真迹；缺口不补假覆盖，留待 GAN），见 `docs/DECISIONS.md` D15 与 `docs/_history/COUNTS.md §四十一`。
 > 另：文中出现的 `scripts/05_select.py`、`06_norm.py`、`21_train_gan.py` 等是**上游 guangeti 工程**的脚本路径（本项目只移植了其中字体链部分），不在本仓库。
+
+> **重要：本文是来自馆阁体项目的任务书模板原文（保留不改写）**。
+> 里面的脚本名（05_select/13_qa/...）和承诺（cmap 20,992 全覆盖等）属于**模板/历史**，不是本项目现行口径。
+> 本项目现行要求见 `docs/DECISIONS.md`、`docs/PIPELINE.md`；字表口径 = headword-only（D15）。
+> 历史/考古价值为主，新会话不必先读本文。
 
 # 交接提示词：康熙字典体（KangXi Kai）字体工程
 
@@ -10,8 +15,8 @@
 >    注文小字（列距 ~47px、无栏线）、字头大字跨列内嵌、字头比 2.08，以 **DECISIONS D7** 为准；
 > ② §0/§9 的「覆盖 20,992」「20992/20992」是 **cmap 覆盖**而非真迹数——真迹上限
 >    ≈17-18.6k（T0.0 门判定，**DECISIONS D3**），缺口按 §4.1 策略；
-> ③ T0/T1 已收口（`docs/PROBE.md` §8），T2 进行中——当前状态与操作清单见
->    **`docs/SESSION-HANDOFF.md`**（新会话从那里开始）。
+> ③ T0/T1 已收口（`docs/_history/PROBE.md` §8），T2 进行中——当前状态与操作清单见
+>    **`docs/_history/SESSION-HANDOFF.md`**（新会话从那里开始）。
 
 
 > 你在 `/Users/wainshine/newAI/kangxizidian` 开工。这是一个**新项目**，但可以大量借鉴已完成的项目
@@ -107,7 +112,7 @@
 3. 抽样中 unique Unicode 数、其中落在 U+4E00–9FFF 的比例
 4. 与《通用规范汉字表》/ Unihan 的 kRSUnicode 对账：基本区哪些字没有字头
 5. 统计重复字头、无法映射字头（异体/古字/俗字）
-6. 输出 docs/HEADWORD-COVERAGE.md
+6. 输出 docs/_history/HEADWORD-COVERAGE.md
 ```
 
 **门（写死）**：
@@ -247,7 +252,7 @@ docs/DATA.md 必须包含：
 1. 渲染 3 页（部首页、正文页、补遗页）到 300 dpi
 2. 量：单列宽度、字头高度/注文高度比、每列字数、页边距
 3. 人工标 50 个字头框（不许用 OCR 结果当标准）→ 得到切格 IoU 基线
-4. 写 docs/PROBE.md：版面参数 + 50 框 IoU + 结论
+4. 写 docs/_history/PROBE.md：版面参数 + 50 框 IoU + 结论
 ```
 
 **T1 切格原型（1 天，只做 20 页）**
@@ -295,7 +300,7 @@ zi2zi-GAN：单实例 + 5 层 PatchGAN + hinge + 增强，80 轮
 | 孔洞 | `holes lost` 记录在案，不高于上一版 |
 | 包自校验 | zip 内 `SHA256SUMS` 全部通过 |
 | 视觉 | `style-*.png` 四行（真迹/GAN/回退/文楷）并排无明显断层 |
-| 字头覆盖 | `docs/HEADWORD-COVERAGE.md` 的 unique 基本区覆盖数，与实际 chosen 数一致 |
+| 字头覆盖 | `docs/_history/HEADWORD-COVERAGE.md` 的 unique 基本区覆盖数，与实际 chosen 数一致 |
 | 大字检测 | precision / recall ≥0.95（分层抽样，含小字密集页负样本） |
 | OCR 错标率 | 分层抽 ≥300 字头人工核，错标 ≤3% |
 | 缺失字 | 清单 + 处理方式（GAN/ribbon/繁体映射）齐全，README 已披露 |
@@ -308,7 +313,7 @@ zi2zi-GAN：单实例 + 5 层 PatchGAN + hinge + 增强，80 轮
 不要写代码。先做两件事：
 
 1. 读 `guangeti/docs/PROJECT_STATE.md` 与 `EXPERIMENTS.md` 的失败案例（E24/E26/E28/E36/E37）；
-2. 跑 T0 探测，产出 `docs/PROBE.md`，把版面参数与 50 框基线写下来。
+2. 跑 T0 探测，产出 `docs/_history/PROBE.md`，把版面参数与 50 框基线写下来。
 
 **在 `PROBE.md` 出来之前，不许切格、不许训练、不许承诺字量。**
 
@@ -330,11 +335,11 @@ zi2zi-GAN：单实例 + 5 层 PatchGAN + hinge + 增强，80 轮
 kangxizidian/
 ├── scripts/          从 guangeti 复制的脚本（逐个改，不 import guangeti）
 ├── data/base/        训练输入骨架字体（霞鹜文楷，OFL）
-├── docs/VENDORED.md  记录每个文件的来源 commit 与改动点
+├── docs/_history/VENDORED.md  记录每个文件的来源 commit 与改动点
 └── work/             数据（gitignore）
 ```
 
-**`docs/VENDORED.md` 必须记**：文件路径、来源 commit（`git -C ../guangeti rev-parse --short HEAD`）、
+**`docs/_history/VENDORED.md` 必须记**：文件路径、来源 commit（`git -C ../guangeti rev-parse --short HEAD`）、
 复制日期、改了什么。以后 guangeti 修 bug（例如 `recalcTimestamp`、`SHA256SUMS` 顺序），
 照着 diff 移植，不要自动同步。
 

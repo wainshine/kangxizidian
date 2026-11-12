@@ -6,8 +6,22 @@
   - 只映射 manifest 里真实存在的字（不做假覆盖、不 fill）
   - font.recalcTimestamp = False + 固定 SOURCE_DATE_EPOCH => 两次构建字节一致
 """
+
+
+
 from __future__ import annotations
 
+
+# --- 并发守卫（AGENTS.md：≤10 workers / CPU≤2000%；先限线程再导入重库）---
+import os as _os
+for _k in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+           "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    _os.environ.setdefault(_k, "1")
+try:
+    import cv2 as _cv2
+    _cv2.setNumThreads(1)
+except Exception:
+    pass
 import argparse
 import hashlib
 import json

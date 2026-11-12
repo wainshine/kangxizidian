@@ -1,4 +1,4 @@
-> **文档状态：部分过期（复制记录 + 现行差异说明）**。表中「本项目改动」列为 2026-11-08 初版；后续 font_norm/font_build/font_qa/font_package 均有演进（v2.3-v2.4：cluster 裁切、--version、同框硬闸、--extra/--readme-template 等），**以代码与 `docs/FONT-BUILD.md §12` 为准**。
+> **文档状态：部分过期（复制记录 + 现行差异说明）**。表中「本项目改动」列为 2026-11-08 初版；后续 font_norm/font_build/font_qa/font_package 均有演进（v2.3-v2.4：cluster 裁切、--version、同框硬闸、--extra/--readme-template 等），**以代码与 `docs/_history/FONT-BUILD.md §12` 为准**。
 
 # 从 guangeti 复制的代码清单
 
@@ -46,7 +46,7 @@ C 流（字体构建链 v0）**已复制/移植** 3 个上游脚本的逻辑（�
 
 | 来源 | 许可 | 用在哪 | 记录 |
 |---|---|---|---|
-| [vModou 兀雨墨斗](https://github.com/shanleiguang/vModou)（shanleiguang，2025） | MIT | 版面纠偏思路：版框四角顶点 → 拉正。本项目用 Python 重实现为自动化步骤（强横线端点定角 + 透视变换），未复制其 Perl 代码 | `scripts/t0_rectify.py`，2026-11-07；效果见 `docs/PROBE.md` §7 |
+| [vModou 兀雨墨斗](https://github.com/shanleiguang/vModou)（shanleiguang，2025） | MIT | 版面纠偏思路：版框四角顶点 → 拉正。本项目用 Python 重实现为自动化步骤（强横线端点定角 + 透视变换），未复制其 Perl 代码 | `scripts/t0_rectify.py`，2026-11-07；效果见 `docs/_history/PROBE.md` §7 |
 
 **复制命令示例**（T3/T4 开工时执行）
 
