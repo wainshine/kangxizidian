@@ -712,7 +712,8 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    enable_edge_strip: bool = False,   # 危险：默认关（D20）
                    block_rect: tuple[int, int, int, int] | None = None,
                    erase_rects_list: list[tuple[int, int, int, int]] | None = None,
-                   frame_mask: "np.ndarray | None" = None) -> dict:
+                   frame_mask: "np.ndarray | None" = None,
+                   clip_mask: "np.ndarray | None" = None) -> dict:
     """灰度图 -> 归一化轮廓（font_norm 主链路）。center=crop 内字身框像素坐标。"""
     if enable_edge_strip or enable_line_swt or enable_ref_filter:
         # v2.4.16–19 P0 事故根因：这类「按尺寸/位置删组件」开关已禁用；
@@ -720,6 +721,8 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
         raise RuntimeError("destructive cleaning options are disabled by policy (D20); "
                            "use block mask/frame mask instead")
     ink = binarize(gray)
+    if clip_mask is not None:
+        ink[~clip_mask] = False
     ink = erase_rects(ink, erase_rects_list)
     if frame_mask is not None:
         ink[frame_mask > 0] = 0
@@ -765,7 +768,8 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                   enable_edge_strip: bool = False,   # 危险：默认关
                   block150: tuple[float, float, float, float] | None = None,
                   erase150: list[tuple[int, int, int, int]] | None = None,
-                  frame_mask: "np.ndarray | None" = None) -> dict:
+                  frame_mask: "np.ndarray | None" = None,
+                  content_quad=None) -> dict:
     """150dpi box -> 灰度 crop -> 归一化轮廓（自适应 pad）。block150=2×2 格块（150dpi）。
 
     先按小 pad（6px@150dpi）渲染；若最大连通域触 crop 边界（说明框偏紧、
@@ -805,6 +809,11 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
             oy = (box[1] - pad150) * 2.0
             block_rect = (int(round(block150[0] * 2.0 - ox)), int(round(block150[1] * 2.0 - oy)),
                           int(round(block150[2] * 2.0 - ox)), int(round(block150[3] * 2.0 - oy)))
+        cm = None
+        if content_quad is not None:
+            import numpy as _np
+            from page_frames import clip_mask_page as _clip
+            cm = _clip(gray.shape, (box[0] - pad150, box[1] - pad150), content_quad, dpi_scale=2.0)
         fm = None
         if frame_mask is not None:
             import numpy as _np
@@ -822,7 +831,7 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                              enable_edge_strip=enable_edge_strip,
                              block_rect=block_rect,
                              erase_rects_list=erase_rects_crop,
-                             frame_mask=fm)
+                             frame_mask=fm, clip_mask=cm)
         res["pad150"] = pad150
         res["clipped"] = bool(clipped)
         last = res
