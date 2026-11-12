@@ -43,6 +43,8 @@ def main():
                     help="隔离清单 JSON（缺省自动找 work/lead/v*_residual.json）")
     ap.add_argument("--scan", action="store_true",
                     help="加跑全库缺件扫描（scan_missing_parts；耗时约 10 分钟，发布候选版应开）")
+    ap.add_argument("--content-max-damaged", type=int, default=0,
+                    help="内容缺失闸阈值（默认 0=严格；过程版本可给阈值并披露）")
     ap.add_argument("--frame-scan", action="store_true",
                     help="加跑框线逃逸闸（scan_frame_escape）")
     ap.add_argument("--frame-max-flagged", type=int, default=0,
@@ -120,9 +122,16 @@ def main():
             damaged = len([x for x in rows if "ink_ratio" in x])
         except Exception:
             pass
-        steps.append({"step": "content_loss_gate", "ok": (r.returncode == 0 and damaged == 0),
-                      "detail": {"returncode": r.returncode, "damaged": damaged,
-                                 "tail": (r.stdout or "")[-300:]}})
+        if args.content_max_damaged > 0:
+            ok_content = (damaged is not None and damaged <= args.content_max_damaged
+                          and r.returncode in (0, 3))
+            steps.append({"step": "content_loss_gate", "ok": ok_content,
+                          "detail": {"returncode": r.returncode, "damaged": damaged,
+                                     "threshold": args.content_max_damaged, "mode": "threshold"}})
+        else:
+            steps.append({"step": "content_loss_gate", "ok": (r.returncode == 0 and damaged == 0),
+                          "detail": {"returncode": r.returncode, "damaged": damaged,
+                                     "tail": (r.stdout or "")[-300:]}})
     # 4b) 全库缺件扫描（可选；发布候选版应开）
     if args.scan:
         out_scan = os.path.join("work", "lead", f"missing_scan_gate_{tag}.jsonl")
@@ -187,7 +196,8 @@ def main():
                 json.dump(rep, fo, ensure_ascii=False, indent=1)
 
         def _rehash():
-            files = sorted(f for f in os.listdir(pkg_dir) if f != "SHA256SUMS")
+            files = sorted(f for f in os.listdir(pkg_dir)
+                           if f != "SHA256SUMS" and os.path.isfile(os.path.join(pkg_dir, f)))
             with open(os.path.join(pkg_dir, "SHA256SUMS"), "w", encoding="utf-8") as fo:
                 for f in files:
                     h = _hash.sha256(open(os.path.join(pkg_dir, f), "rb").read()).hexdigest()
