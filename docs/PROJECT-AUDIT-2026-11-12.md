@@ -81,7 +81,7 @@
 | 2 | **PROJECT_STATE**（30 秒现状+已知缺陷+独立审计方法） | 散落各处 | ✅ 新增 `docs/PROJECT-STATE.md` |
 | 3 | **GLOSSARY 唯一术语源**（+ 术语自动检查器 `97_check_terms.py`） | 无术语表 | ✅ 新增 `docs/GLOSSARY.md`；❌ **自动检查器未实现** |
 | 4 | **ERRATA 勘误**（已发布/历史文档不再更正的错误） | 无 | ✅ 新增 `docs/ERRATA.md`（11 条） |
-| 5 | **禁止专有/商业字体（含系统字体）** | ❌ 违反：Songti/Hiragino 用于 QA 对照、缺件参考、复核图 | ⚠️ 政策写入 AGENTS/ERRATA/DATA；**替换未完成**（待换 OFL 字体） |
+| 5 | **禁止专有/商业字体（含系统字体）** | 已替换：全管线仅用霞鹜文楷（OFL，`scripts/reffont.py`） | ✅ 完成（2026-11-12，D21；`font_qa` 孔洞对照一并删除） |
 | 6 | **并发上限（≤10 线程/20 核）+ `cv2.setNumThreads(1)` + OMP env** | ❌ 未设守卫，曾跑满 CPU | ✅ AGENTS 规则 + `jobrun.sh` env + 10 个管线脚本加守卫；构建/快闸已复验 |
 | 7 | **agent 不做 git 写操作（由 owner 提交）** | ❌ 会话里多次自行提交 | ✅ 规则恢复，写入 AGENTS §1 |
 | 8 | **发布流程固定顺序 + 发布前核对数字表** | 部分有（release_gate），但曾反复打包 | ✅ AGENTS §4 + WORKFLOW §7 + clean-tree/SHA 闸 |
@@ -100,7 +100,7 @@
 |---|---|---|
 | P0 | 字形级框线闸、provenance 无拷贝闸、页级几何校验闸 | CS1（下一轮） |
 | P0 | 术语自动检查器（GLOSSARY 落地为 CI 检查） | CS1 顺带，脚本 `scripts/check_terms.py` |
-| P1 | 专有字体替换（Songti → OFL 字体，或去掉参考依赖） | CS1/材料轮 |
+| P1 | 专有字体替换（Songti → OFL 字体） | ✅ 完成（2026-11-12，BF-14） |
 | P1 | 缺件扫描邻字隔离修正（1,200 偏高）；343 页无 quad | CS1/CS2 |
 | P1 | mapping 生成链脚本化（当前只有数据+脚本碎片） | 长期，保留全部 map JSON 为证据 |
 | P1 | 影印来源/许可信息（DATA §1 待补） | 需 owner 提供 |

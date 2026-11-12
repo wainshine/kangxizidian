@@ -1,20 +1,29 @@
 #!/usr/bin/env python3
-"""参考结构闸（语义锚）：把成品字形与参考字体同字做组件级对比，
-找出「在参考结构里找不到对应墨迹」的组件（框线/邻字/碎片污染）。
+"""参考结构对比（**仅对比分析/研究，不是发布依据**）。
 
-标签（字）是语义锚：一个组件若是该字的部件，参考字体同字对应位置必有墨；
-参考里没有 → 属于污染。风格差异用「参考墨迹膨胀 DILATE px」容忍。
+把成品字形与参考字体同字做组件级对比，找出「在参考结构里找不到对应墨迹」的组件，
+用于人工研究污染/断笔来源。
+
+口径（DECISIONS D20/D21）：
+  - 参考字体 = 霞鹜文楷（OFL，`scripts/reffont.py`）；禁止系统宋体/黑体。
+  - **对比结果不得用于自动删除字形组件**：破坏性清理开关已在主构建链禁用
+    （`font_norm.vectorize_gray` 对 `enable_ref_filter` 直接 raise）。
+  - 不数孔洞/连通分量作为质量判据：刻本断笔是工艺特征。
 """
-import json, os, sys
-import numpy as np, cv2
+import os
+import sys
+
+import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SONGTI = "/System/Library/Fonts/Supplemental/Songti.ttc"
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
+from reffont import path as REF_FONT, index as REF_INDEX, has_char as _ref_has_char, raster as _ref_raster  # noqa: E402
+
 SIZE = 256
 DILATE = 5
 MIN_AREA = 12          # 忽略极小噪点
 COV_TH = 0.16          # 小碎片覆盖率阈值；大块另用 0.08
-MAX_DEL_FRAC = 0.60    # 安全阀：可疑组件面积合计不超过字形墨量 60% 才允许外科删除
+MAX_DEL_FRAC = 0.60    # 历史安全阀（仅报告用），主链禁用自动删除
 
 
 def raster(font_path, ch, size=SIZE, index=None):
@@ -26,7 +35,8 @@ def raster(font_path, ch, size=SIZE, index=None):
 
 
 def analyze(our_mask, ref_mask, dilate=DILATE, min_area=MIN_AREA, cov_th=COV_TH):
-    """返回可疑组件列表（像素 bbox / 面积 / 参考覆盖率）。"""
+    """返回可疑组件列表（像素 bbox / 面积 / 参考覆盖率）。仅供人工分析。"""
+    import cv2
     n, lab, st, _ = cv2.connectedComponentsWithStats(our_mask.astype(np.uint8), 8)
     if n <= 1:
         return []
@@ -46,27 +56,19 @@ def analyze(our_mask, ref_mask, dilate=DILATE, min_area=MIN_AREA, cov_th=COV_TH)
     return out
 
 
-_REF_CMAP = None
-
-
 def ref_has(ch):
-    """参考宋体是否收录该字（未收录 → 参考闸不适用）。"""
-    global _REF_CMAP
-    if _REF_CMAP is None:
-        sys.path.insert(0, os.path.join(ROOT, "work", "font", "_pylibs"))
-        from fontTools.ttLib import TTFont
-        _REF_CMAP = TTFont(SONGTI, fontNumber=7).getBestCmap()
-    return ord(ch) in _REF_CMAP
+    """参考字体是否收录该字（未收录 → 参考对比不适用，调用方须披露）。"""
+    return _ref_has_char(ch)
 
 
 def glyph_masks(our_font, ch, size=SIZE):
     ours = raster(our_font, ch, size)
     if not ref_has(ch):
         return ours, None
-    ref = raster(SONGTI, ch, size, index=7)
-    return ours, ref
+    return ours, _ref_raster(ch, size)
 
 
 def safe_to_delete(suspects, total_ink, max_del_frac=MAX_DEL_FRAC):
+    """历史安全阀（仅报告用）；主构建链禁止据此删除组件（D20）。"""
     del_area = sum(s["area"] for s in suspects)
     return del_area <= max_del_frac * max(1, total_ink)

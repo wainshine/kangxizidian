@@ -5,7 +5,7 @@
 > **现行状态（2026-11-12，v2.6.1）**：发布字体 17,007 字形（headword-only 真迹），基本区 10,269/20,992 = 48.92%，目标字表 10,269/16,567 = 61.98%，缺口 6,298。
 > 现行构建输入：`work/lead/page_geometry.jsonl`、`work/lead/mapping_verified_all33.jsonl`、`work/lead/mapping_block_v270.jsonl`、`work/font/build/manifest_v261.json`；缓存 tag v350；字体 sha `c73c3023…`。
 > 构建/闸命令见 `docs/PIPELINE.md` §6；本文 §1 的 14 册 PDF 描述仍准确（00–13，3,869 页，12GB）。
-> **字体许可规则**（沿用馆阁体标准）：禁止把专有/商业字体（含系统宋体）作为发布依据；现有 Songti 引用仅用于报告/对照（`font_qa` 孔洞对照、`scan_missing_parts` 参考校验），不得作为签收唯一依据，替换为 OFL 字体列入待办（见 `docs/ERRATA.md` E8）。
+> **字体许可规则**（沿用馆阁体标准）：禁止把专有/商业字体（含系统宋体/黑体）作为发布依据或参照。全管线唯一参考字体 = **霞鹜文楷（LXGW WenKai，OFL 1.1）**，由 `scripts/reffont.py` 统一提供，默认 `work/font/_fonts/LXGWWenKai-Regular.ttf`（复制自馆阁体项目 vendored 文件，不随发布包分发）。参考字体只用于对比分析，不得用于自动删改字形（D20/D21）。
 >
 > 回答三个问题：每个文件从哪来、能不能用、怎么复现。
 > **待补**：14 册 PDF 的来源信息（影印出版者／扫描者／获取渠道）——待所有者提供，见 §1。

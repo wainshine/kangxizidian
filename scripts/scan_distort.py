@@ -20,7 +20,7 @@ def worker(args):
     import font_build as FB
     import font_norm as FN
     from fidelity_eval import glyph_mask_from_font
-    from refgate import raster as ref_raster, SONGTI
+    from reffont import raster as ref_raster
     out = []
     try:
         lat = FB.get_page_lattice(page).get(half)
@@ -40,7 +40,7 @@ def worker(args):
                 continue
             gw, gh = int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1)
             ga = int(gm.sum())
-            ref = ref_raster(SONGTI, ch, 256, index=7)
+            ref = ref_raster(ch, 256)
             rys, rxs = np.nonzero(ref)
             if len(rxs) == 0:
                 continue

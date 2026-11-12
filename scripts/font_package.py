@@ -408,7 +408,7 @@ def main():
     ap.add_argument("--version", default="", help="默认从 name 表 Version 读取")
     ap.add_argument("--zip", action="store_true", default=True, help="生成 zip（默认开）")
     ap.add_argument("--no-zip", dest="zip", action="store_false")
-    ap.add_argument("--skip-qa", action="store_true", help="跳过渲染/孔洞 QA（不建议）")
+    ap.add_argument("--skip-qa", action="store_true", help="跳过字体 QA（不建议）")
     ap.add_argument("--force-overwrite", action="store_true",
                     help="允许覆盖已 finalize（包内 gate-report 标记 finalized=true）的包")
     ap.add_argument("--allow-dirty", action="store_true",
@@ -450,7 +450,7 @@ def main():
         fail("无法确定 version（name 表为空且未传 --version）")
 
     if not args.skip_qa:
-        # 复用 font_qa.py 的渲染/孔洞检查（manifest 模式）；失败即中止
+        # 复用 font_qa.py 的字体检查（manifest 模式）；失败即中止
         qa_out = WORK / "qa" / f"package-{version}"
         cmd = [sys.executable, str(ROOT / "scripts" / "font_qa.py"),
                "--font", str(font_path), "--outdir", str(qa_out)]

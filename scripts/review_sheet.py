@@ -15,43 +15,17 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _PAGE_CACHE = {}
 
 # 参照字体：用于「Unicode 身份标签/对照小字」，必须独立于项目字体（否则自举死循环）。
-# 只允许 OFL：霞鹜文楷（LXGW WenKai）、思源黑体（Source Han Sans）。路径可用 REVIEW_REF_FONT 覆盖。
-_REF_CANDIDATES = [
-    os.environ.get("REVIEW_REF_FONT", ""),
-    os.path.join(ROOT, "work/font/_fonts/LXGWWenKai-Regular.ttf"),
-    "/Users/wainshine/newAI/guangeti/data/base/LXGWWenKai-Regular.ttf",
-    os.path.join(ROOT, "work/font/_fonts/SourceHanSansCN-Regular.otf"),
-    "/Users/wainshine/newAI/guangeti/data/base/SourceHanSansCN-Regular.otf",
-]
-_REF_FONT = next((p for p in _REF_CANDIDATES if p and os.path.exists(p)), None)
-
-
-_REF_CMAP = None
+# 唯一来源 scripts/reffont.py：霞鹜文楷（OFL）；禁止系统宋体/黑体（DECISIONS D21）。
+from reffont import path as _ref_path, has_cp as _ref_has_cp  # noqa: E402
 
 
 def ref_font_path():
-    if not _REF_FONT:
-        raise RuntimeError("缺少 OFL 参照字体：请把 LXGWWenKai-Regular.ttf 放到 "
-                           "work/font/_fonts/ 或设置 REVIEW_REF_FONT")
-    return _REF_FONT
+    return _ref_path()
 
 
 def ref_has_char(ch):
     """参照字体是否覆盖该字符（稀有扩展字可能没有 → 明确标注，不画豆腐块）。"""
-    global _REF_CMAP
-    try:
-        import sys as _sys
-        _sys.path.insert(0, os.path.join(ROOT, "work", "font", "_pylibs"))
-        if _REF_CMAP is None:
-            from fontTools.ttLib import TTFont
-            cmap = TTFont(ref_font_path(), fontNumber=0).getBestCmap() or {}
-            _REF_CMAP = set(cmap.keys())
-        cp = ord(ch)
-        if cp not in _REF_CMAP:
-            return False
-        return True
-    except Exception:
-        return True
+    return _ref_has_cp(ord(ch))
 
 
 def pdf_map():
@@ -75,8 +49,10 @@ def page_gray(page, dpi=150):
 
 def crop_png(page, box, size=160, pad=6, dpi=150):
     g = page_gray(page, dpi)
-    x0, y0 = max(0, box[0] - pad), max(0, box[1] - pad)
-    x1, y1 = min(g.shape[1], box[2] + pad), min(g.shape[0], box[3] + pad)
+    # mapping 的 box 可能是 float（150dpi 坐标）；统一取整后再切片
+    bx = [int(round(v)) for v in box]
+    x0, y0 = max(0, bx[0] - pad), max(0, bx[1] - pad)
+    x1, y1 = min(g.shape[1], bx[2] + pad), min(g.shape[0], bx[3] + pad)
     im = Image.fromarray(g[y0:y1, x0:x1]).convert("L")
     out = Image.new("L", (size, size), 255)
     im.thumbnail((size - 10, size - 10))

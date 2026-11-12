@@ -12,7 +12,10 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 sys.path.insert(0, os.path.join(ROOT, "work", "font", "_pylibs"))
 
 CELL_W, CELL_H = 190, 330
-REF_FONT = "/System/Library/Fonts/Supplemental/Songti.ttc"
+# 参考字体：霞鹜文楷（OFL，唯一来源 scripts/reffont.py）；标签也用同一 OFL 字体。
+from reffont import path as _ref_font_path, index as _ref_font_index  # noqa: E402
+REF_FONT = _ref_font_path()
+REF_INDEX = _ref_font_index()
 COLS, ROWS = 10, 10
 PER_PAGE = COLS * ROWS
 
@@ -56,9 +59,9 @@ def main():
             crops[idx] = path
 
     font_glyph = ImageFont.truetype(os.path.join(ROOT, args.font), 76)
-    font_ref = ImageFont.truetype(REF_FONT, 72)
-    f_label = ImageFont.truetype("/System/Library/Fonts/Hiragino Sans GB.ttc", 13)
-    f_small = ImageFont.truetype("/System/Library/Fonts/Hiragino Sans GB.ttc", 11)
+    font_ref = ImageFont.truetype(REF_FONT, 72, index=REF_INDEX)
+    f_label = ImageFont.truetype(REF_FONT, 13, index=REF_INDEX)
+    f_small = ImageFont.truetype(REF_FONT, 11, index=REF_INDEX)
     n_pages = (len(rows) + PER_PAGE - 1) // PER_PAGE
     summary = {"chars": len(rows), "pages": n_pages,
                "status": {}, "categories": {},
@@ -80,7 +83,7 @@ def main():
                 page.paste(src, (x0 + 4, y0 + 2))
             except Exception:
                 pass
-            # 最新字体字形（缺失/隔离用参考宋体灰字占位）
+            # 最新字体字形（缺失/隔离用 OFL 参考字体灰字占位）
             ch = r["char"]
             if ch in man:
                 g = Image.new("L", (118, 100), 255)

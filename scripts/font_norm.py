@@ -45,8 +45,8 @@ PDF_MAP = json.load(open(ROOT / "work" / "t2" / "pdf_map.json"))
 DPI150_TO_PT = 72.0 / 150.0          # 150dpi 页面像素 -> PDF pt
 
 EM = 1000
-REF_FONT = os.environ.get("REF_FONT_PATH", "/System/Library/Fonts/Supplemental/Songti.ttc")
-REF_INDEX = 7
+# 参考字体统一走 scripts/reffont.py（霞鹜文楷 OFL）；禁止系统宋体等专有字体（D21）。
+# 注意：参考过滤属破坏性清理，主链已按 D20 禁用（vectorize_gray 会 raise）。
 ASCENT = 880
 DESCENT = -120
 INK_LONG_SIDE = 760.0     # 字面框最长边 -> font units
@@ -769,12 +769,12 @@ def _ref_has(ch: str) -> bool:
     global _REF_HAS
     if _REF_HAS is None:
         try:
-            sys.path.insert(0, str(WORK / "_pylibs"))
-            from fontTools.ttLib import TTFont
-            _REF_HAS = TTFont(REF_FONT, fontNumber=REF_INDEX).getBestCmap()
+            sys.path.insert(0, str(ROOT / "scripts"))
+            from reffont import cmap as _ref_cmap
+            _REF_HAS = _ref_cmap()
         except Exception as e:
-            raise RuntimeError(f"参考字体不可用（REF_FONT={REF_FONT}）：{e}。"
-                               "请设置 REF_FONT_PATH 或安装字体；不允许静默跳过参考过滤。")
+            raise RuntimeError(f"参考字体不可用（霞鹜文楷 OFL / REF_FONT_PATH）：{e}。"
+                               "不允许静默跳过参考过滤。")
     return ord(ch) in _REF_HAS
 
 
@@ -788,15 +788,13 @@ def apply_reference_filter(ink: np.ndarray, ch: str, dilate: int = 25,
     import cv2
     if not ch or not _ref_has(ch):
         return ink
-    from PIL import Image, ImageDraw, ImageFont
     h, w = ink.shape
     try:
-        f = ImageFont.truetype(REF_FONT, 256, index=REF_INDEX)
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from reffont import raster as _ref_raster
+        ref = _ref_raster(ch, 256)
     except Exception:
         return ink
-    im = Image.new("L", (256, 256), 0)
-    ImageDraw.Draw(im).text((128, int(0.88 * 256)), ch, fill=255, font=f, anchor="ms")
-    ref = np.array(im) > 127
     src = (ink > 0).astype(np.uint8)
     n, lab, st, _ = cv2.connectedComponentsWithStats(src, 8)
     if n <= 1:

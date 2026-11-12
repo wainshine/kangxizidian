@@ -9,13 +9,14 @@
 3. `docs/WORKFLOW.md` —— 流程纪律：候选/正式分层、变更集、闸分层、里程碑发版、7 张复核图
 4. `docs/VERSION-HISTORY.md` —— 每版改了什么、探索 vs 修补
 5. `docs/WORK-MAP.md` —— `work/` 痕迹地图（**不能盲删**）
-6. `docs/DECISIONS.md` —— 口径决策（唯一权威，D1–D18+更正注记）
+6. `docs/DECISIONS.md` —— 口径决策（唯一权威，D1–D21+更正注记）
 7. `docs/GLOSSARY.md` —— 术语（冲突时以它为准）
 
 ## 1. 硬性约束（违反即事故）
 
 - **git 写操作**：默认**不要** add/commit/reset/checkout/push；由 owner 本人提交。owner 明确说「提交」时才提交，并写清 commit message。
-- **禁止专有/商业字体作为依据**（含系统自带宋体/黑体）：不新增依赖；现有 Songti 引用仅用于报告/对照（`font_qa` 孔洞对照、`scan_missing_parts` 参考校验），**不得作为发布/签收的唯一依据**；历史数字若依赖它需在报告中注明。替换为 OFL 字体（如 LXGW WenKai）列入待办。
+- **禁止专有/商业字体作为依据**（含系统自带宋体/黑体）：全管线唯一参考字体 = **霞鹜文楷（LXGW WenKai，OFL）**，由 `scripts/reffont.py` 统一提供（默认 `work/font/_fonts/LXGWWenKai-Regular.ttf`，不随包分发）；任何脚本不得再新增专有字体路径。
+- **不数孔洞/连通分量评判字形**（D21）：刻本为雕刻常断笔，孔洞缺失/连通分量偏多/碎片都是工艺特征，不是缺陷信号；字形质量由 pre-cut 几何 + `glyph_frame_gate`（线段几何）+ 内容/缺件闸承担。
 - **并发上限**：同时最多 **10 个 worker**，总 CPU ≤ 2000%。多进程脚本必须设 `OMP_NUM_THREADS=MKL_NUM_THREADS=OPENBLAS_NUM_THREADS=1`，worker 内 `cv2.setNumThreads(1)`；启动后核对 CPU。默认 `FONT_BUILD_WORKERS=10`。
 - **大文件不入库**：PDF、`work/`、模型、TTF 构建产物、zip 都在 `.gitignore`。
 - **`work/` 不可盲删**：JSON/JSONL 是方法核心成果，一律保留；只清图片/数组/纯缓存（见 `docs/WORK-CLEANUP.md`）。
@@ -29,15 +30,15 @@
 
 - 当前基线：**v2.6.1**（过程版本，不签收）；`release/` 仅保留 v2.5.8（重构前基线）与 v2.6.1。
 - 字形 **17,007**（headword-only 真迹）；基本区 10,269/20,992 = **48.92%**；目标字表 10,269/16,567 = **61.98%**；缺口 **6,298**（高频缺 23）。
-- 闸：QA PASS；内容闸 35（阈值 35）；缺件 1,200、框线逃逸 153（block 几何首次全量新基线，**尚未清零**）。
-- 构建：`work/lead/mapping_block_v270.jsonl` + `work/lead/page_geometry.jsonl` + 字体缓存 tag **v350**；全量重建 ~9.3 分钟（10 workers，缓存 0 命中时），缓存命中时 ~20 秒。
+- 闸：**font_qa FAIL**（仅同框 2 对；孔洞/连通分量判据已删，D21）；内容闸 35（阈值 35）；缺件 1,200（**旧宋体参考口径**，D21 后须重扫）、框线逃逸 153（**尚未清零**）。
+- 构建：`work/lead/mapping_block_v270.jsonl` + `work/lead/page_geometry.jsonl` + **自动缓存版本**（算法 sha8 + 几何 sha12，人工 tag v350 已废）；全量重建 ~9.3 分钟（10 workers，缓存 0 命中时，修复前记录）；缓存命中耗时待重建实测（BF-22）。
 - 隔离 9 字：刃/榍/法/紆/総/荹/仟/禦/絞。
-- 下一轮：CS1 门禁三闸（字形级框线/无拷贝 provenance/页级几何校验）→ CS2 页级几何（框线 153→0）→ CS3 mapping 指派（内容 35→0）。
+- 进度：CS0 ✅（参考字体统一霞鹜文楷 OFL、font_qa 去孔洞/连通分量；2026-11-12）→ CS1-A 先修扫描绑定/闸契约（不重建）→ CS1-B 字形变更批次 + 一次全量重建 → CS1.5 映射/坐标增量重建 → CS2 pre-cut/页级几何 → CS3 内容/缺件。
 
 ## 3. 最短验证命令
 
 ```bash
-# 字体 QA
+# 字体 QA（当前状态预期 FAIL：同框 2 对 沓/𦧟、䛱/忠）
 .venv/bin/python scripts/font_qa.py --font work/font/build/KangXiKai-v2.6.1.ttf \
   --manifest work/font/build/manifest_v261.json --outdir work/font/build/qa_check
 # 快闸（≤3 分钟；7 项）
@@ -46,7 +47,7 @@
   --baseline work/font/build/KangXiKai-v2.5.8.ttf \
   --baseline-manifest work/font/build/manifest_v258.json \
   --pkg-dir release/KangXiKai-v2.6.1 --content-max-damaged 35
-# 缓存命中重建（应 17,007 cached，sha=c73c3023…）
+# 缓存命中重建（应 17,007 cached；旧 sha c73c3023 是修复前 key 产物，新 key 重建后重测，不作验收基线）
 FONT_BUILD_WORKERS=10 .venv/bin/python scripts/font_build.py \
   --mapping work/lead/mapping_block_v270.jsonl --out /tmp/check.ttf --version 2.6.1
 ```

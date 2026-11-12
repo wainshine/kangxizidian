@@ -30,7 +30,7 @@
 |---|---|---|
 | `font_build.py` | 全量构建：mapping + 格块掩膜 + 版框擦除 + `--repair-overlay` 回写；按页并行 | **核心** |
 | `font_norm.py` | 二值化/掩膜/擦框/清理/矢量化/归一化 | **核心** |
-| `font_qa.py` | 渲染闸/空字形/同框/内部一致性 | **核心** |
+| `font_qa.py` | 表/cmap==manifest/空字形/bbox/advance/同框；不数孔洞/连通分量（D21） | **核心** |
 | `font_package.py` | 打包 + SHA256SUMS + zip 自检 | **核心** |
 | `release_gate.py` | 发布门禁 7 项（QA/版本/字符集 diff/内容闸/文档/SHA/zip） | **核心（新）** |
 | `content_loss_gate.py` | 逐字内容缺失闸（覆盖率下限） | **核心** |
@@ -44,6 +44,7 @@
 `repair_all_missing`（全库批量缺件修复）· `repair_offset`（3×3 块重选修切偏，内置逐字 gate）
 
 ### 1.3 参考闸（5）
+**参考字体唯一来源 = `reffont.py`（霞鹜文楷 OFL；禁止宋体/黑体）**；参考结果只做对比分析，不得自动删改字形（D20/D21）。
 `refgate`（参考字体 raster/结构支持）· `refgate2`（带配准版）· `refgate2_scan`（全量扫描）·
 `refgate_clean`（轮廓级外科清理，v2.5.1 清理 1,216 字）· `fidelity_eval`（字形↔原书墨迹配准 IoU，所有闸的底层量具）
 

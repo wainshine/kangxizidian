@@ -1423,8 +1423,9 @@ def make_montage(page_result, gray, out_path, scale=1.0, min_score=0.45):
     """
     from PIL import Image, ImageDraw, ImageFont
     try:
-        f_big = ImageFont.truetype("/System/Library/Fonts/Hiragino Sans GB.ttc", 20)
-        f_sm = ImageFont.truetype("/System/Library/Fonts/Hiragino Sans GB.ttc", 15)
+        from reffont import path as _ref_font_path, index as _ref_font_index
+        f_big = ImageFont.truetype(_ref_font_path(), 20, index=_ref_font_index())
+        f_sm = ImageFont.truetype(_ref_font_path(), 15, index=_ref_font_index())
     except Exception:
         f_big = f_sm = None
     H, W = gray.shape

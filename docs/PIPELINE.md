@@ -105,7 +105,7 @@ R 正式包（里程碑）                                               scripts
 6. **描迹**：2× 超采样（避免描迹偏移），得轮廓；
 7. **归一化**：以主字簇 bbox 为基准，最长边 → **760 font units**，按 crop 内 box 边距对齐中心；EM=1000；
 8. **轮廓整理**：`orient_contours`（方向/回字规则）、prune 短轮廓；
-9. **cache**：key = `v350_<page><half>_<char>_<box>`；未变字直接命中（组装整字体 ~20s）。
+9. **cache**：key = `<自动缓存版本>_<page><half>_<char>_<box>`（版本 = 算法脚本 sha8 + geometry sha12，人工 tag 已废）；未变字直接命中（命中耗时待重建实测，BF-22）。
 
 构建参数：`FONT_BUILD_WORKERS=10`；17,007 字全量 **554s**（0 命中时）；旧缓存 tag v248–v341 已不参与。
 
@@ -113,9 +113,9 @@ R 正式包（里程碑）                                               scripts
 
 | 闸 | 脚本 | 判据/口径 | 当前基线 |
 |---|---|---|---|
-| 字体 QA | `font_qa.py` | render_bad/tiny/超 em/advance/同框=0 | PASS |
+| 字体 QA | `font_qa.py` | 表/cmap==manifest/空字形/bbox(tiny,超 em)/advance/fontRevision/同框=0；**不数孔洞/连通分量**（D21） | PASS（v2.6.1 仅同框 2 对 FAIL） |
 | 内容缺失 | `content_loss_gate.py` | 新旧字形 ink_ratio/IoU（vs v2.5.8） | **35**（阈值 35） |
-| 缺件扫描 | `scan_missing_parts.py` | 源块组件未被字形覆盖（content+block 口径） | **1,200**（新口径基线） |
+| 缺件扫描 | `scan_missing_parts.py` | 源块组件未被字形覆盖（content+block 口径；参考字体=霞鹜文楷 OFL） | **1,200**（旧宋体参考口径；D21 切换后须重扫重定基线） |
 | 框线逃逸 | `scan_frame_escape.py` | 块内贯穿线残留 | **153**（新口径基线） |
 | 快闸 | `fast_gate.py` | QA/版本/字符diff/内容/box均匀/文档/SHA | ≤3min，7 项 |
 | 全闸 | `release_gate.py` | 上述 + **包内 TTF sha == --font** + 缺件/框线复用文件存在校验 + 文档 + SHA + zip（SHA 冻结后重建） | 9/9 PASS（v2.6.1 修复后因同框冲突 font_qa FAIL，属预期） |
@@ -184,8 +184,8 @@ FONT_BUILD_WORKERS=10 .venv/bin/python scripts/font_build.py \
 | 基本区覆盖 | 10,269 / 20,992 = **48.92%**；目标字表 10,269 / 16,567 = **61.98%** |
 | 缺口 | 6,298（其中高频 23） |
 | 隔离 | 9（刃/榍/法/紆/総/荹/仟/禦/絞） |
-| 全量构建 | 17,007 字 / 554s @10 workers / cache v350 |
-| 闸 | QA PASS；内容 35；缺件 1,200；框线 153（后两者为 block 新口径首次基线） |
+| 全量构建 | 17,007 字 / 554s @10 workers（修复前记录；新自动缓存版本待重建实测） |
+| 闸 | QA 仅同框 2 对 FAIL（v2.6.1 过程版）；内容 35；缺件 1,200（旧参考口径，待重扫）；框线 153 |
 | 已知结构债 | 343 页无 content_quad；缺件扫描邻字隔离待修正；页级几何按页修；09–11/13 卷锚点；100 字签核 |
 
 ---

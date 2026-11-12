@@ -54,8 +54,10 @@
 
 - `font_qa.py`（孔洞对照）、`scan_missing_parts.py`（参考校验）、`owner_defect_sheet.py`（复核图占位）使用 macOS 系统宋体。
 - 这是**专有字体**；按项目约束（沿用馆阁体标准）：不新增依赖，现有引用只能用于报告/对照，**不得作为发布/签收的唯一依据**。
-- **进展（2026-11-12）**：复核图（owner 表/轮次包）已改用 **霞鹜文楷（OFL）** 做参照小字与标签；
-  `font_qa`/`scan_missing_parts` 内部参考仍用系统宋体（仅报告/辅助判断，待替换，见 BACKLOG BF-14）。
+- **已解决（2026-11-12，D21）**：全管线参考字体统一为 **霞鹜文楷（OFL）**，唯一来源 `scripts/reffont.py`
+  （`font_qa` 孔洞对照已删除；`scan_missing_parts`/`refgate`/`fidelity_eval`/复核图/legacy 标注脚本均已切换）。
+  macOS 宋体不再被任何构建/闸/报告脚本引用；`lead_t1v2_frozen.py` 等 legacy 脚本仅替换了标注字体，方法未变。
+- 覆盖对比（对 17,007 字集）：霞鹜文楷 12,427（73.07%）> 旧系统宋体 TC 12,155（71.47%），换字体不降覆盖率。
 
 ## E9. 早期「8/8/9/9 闸 PASS」不代表字形无框线
 
@@ -92,3 +94,14 @@
 
 - 旧 release_gate 只用 `--font` 做 QA，从不校验包内 TTF；把 v2.6.0 字体塞进 v2.6.1 包副本仍 6/6 PASS。
 - 已修：finalize 增加 `pkg_font_sha`（包内 TTF sha 必须 == --font），负测试已复现 FAIL。
+
+
+## E16. 孔洞/连通分量结构判据作废（2026-11-12，D21）
+
+- `font_qa.py` 曾用「孔洞对照宋体」「连通分量>24 判坏」「碎片率 soft flag」评估字形结构；口径错误：
+  **刻本为雕刻常把笔画刻断**，孔洞缺失/连通分量偏多不是缺陷信号，反而会误伤真迹。
+- 已删除：孔洞对照、soft flag、基于连通分量/细长线的 `render_bad`；字体 QA 只保留与连通性无关的
+  表/cmap/空字形/bbox/advance/fontRevision/同框检查。字形级框线检测改由 `glyph_frame_gate`
+  的线段几何判据承担（不数孔洞）。
+- 回归证据（2026-11-12 重跑 v2.6.1）：17,007 字，空字形 0、tiny 0、超 em 0、advance 0、render 空 0，
+  唯一 FAIL = 同框 2 对（沓/𦧟、䛱/忠，映射问题）。

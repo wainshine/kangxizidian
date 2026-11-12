@@ -4,7 +4,7 @@ import os, sys
 import numpy as np, cv2
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SONGTI = "/System/Library/Fonts/Supplemental/Songti.ttc"
+from reffont import path as REF_FONT, index as REF_INDEX, raster as _ref_raster
 SIZE = 256
 
 
@@ -69,4 +69,4 @@ def masks(font, ch, size=SIZE):
     ours = raster(font, ch, size)
     if not ref_has(ch):
         return ours, None
-    return ours, raster(SONGTI, ch, size, index=7)
+    return ours, _ref_raster(ch, size)

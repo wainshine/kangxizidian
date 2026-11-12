@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-"""C 流 · 字体 QA：表完整性 / 空字形 / bbox / cmap 一致性 / 孔洞（对照宋体）/ 渲染检查。
+"""字体 QA：表完整性 / 空字形 / bbox / cmap 一致性 / 渲染为空 / 同框冲突。
 
-思路改造自 guangeti 13_qa.py（覆盖/空字形/contact sheet）与 71_holes.py（孔洞审计）：
-  - 本 demo 只映射真迹字，不做 20,992 假覆盖，所以 cmap 覆盖断言改为
-    「cmap == manifest 字表」；
-  - 孔洞对照基准用系统宋体（Songti TC），仅报告不硬判（刻本与宋体笔形不同，
-    丢失量级才是信号）；`lost` 单列；
-  - 自交/形状问题用「PIL 256px 渲染 + 连通分量/墨量/孔洞」做粗检，最终目检 specimen。
+口径（DECISIONS D21）：
+  - **不数孔洞、不用连通分量/碎片率评判字形结构**：刻本为雕刻常把笔画刻断，
+    孔洞与连通性不是缺陷信号；此前「孔洞对照宋体」指标已删除。
+  - 参考字体统一为霞鹜文楷（OFL，`scripts/reffont.py`），QA 本身不再依赖参考字体。
+  - 保留的硬检查都是与笔画连通性无关的：表齐全、cmap==manifest、空字形、
+    bbox 越界/过小、advance、fontRevision、同框多字。
+  - 字形级框线检测归 `glyph_frame_gate`（线段几何判据），不在本脚本内重复。
 
 用法：
-  .venv/bin/python scripts/font_qa.py --font work/font/demo/KangXiKai-demo-v0.1.0.ttf \
-      --manifest work/font/demo/manifest.json --outdir work/font/qa
+  .venv/bin/python scripts/font_qa.py --font work/font/build/KangXiKai-v2.6.1.ttf \
+      --manifest work/font/build/manifest_v261.json --outdir work/font/qa
 """
-
-
 
 from __future__ import annotations
 
@@ -42,70 +41,6 @@ sys.path.insert(0, str(WORK / "_pylibs"))
 REQUIRED_TABLES = ["glyf", "loca", "cmap", "head", "hhea", "hmtx", "maxp", "name",
                    "OS/2", "post"]
 SIZES = (256, 96, 48)
-SONGTI = "/System/Library/Fonts/Supplemental/Songti.ttc"
-
-
-def holes_of(mask: np.ndarray) -> int:
-    import cv2
-    out = cv2.findContours(mask.astype(np.uint8), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
-    hier = out[-1]
-    if hier is None:
-        return 0
-    return int(sum(1 for h in hier[0] if h[3] != -1))
-
-
-def n_components(mask: np.ndarray) -> int:
-    import cv2
-    n, _, stats, _ = cv2.connectedComponentsWithStats(mask.astype(np.uint8), 8)
-    return int(sum(1 for i in range(1, n) if stats[i, cv2.CC_STAT_AREA] >= 4))
-
-
-def soft_flag(ch: str, mask: np.ndarray) -> dict:
-    """字形级软标志：细碎成分（细化率）/ 主体外挂残段（审计2 P1-3 路/蹋 类）。
-
-    指标：
-      - thin_comps：面积>=2%主成分、且最粗处 <0.5×主成分最粗处的成分数（蹋 类细丝）；
-      - frag_frac ：面积<5%主成分的碎片面积占比（碎屑）。
-    触发：thin_comps>=2 或 frag_frac>0.30。仅记录，不硬判。
-    """
-    import cv2
-    n, lab, stats, _ = cv2.connectedComponentsWithStats(mask.astype(np.uint8), 8)
-    comps = []
-    for i in range(1, n):
-        area = int(stats[i, cv2.CC_STAT_AREA])
-        if area < 10:
-            continue
-        m = (lab == i).astype(np.uint8)
-        dt = cv2.distanceTransform(m, cv2.DIST_L2, 3)
-        comps.append((area, float(dt.max())))
-    if not comps:
-        return {"char": ch, "flags": []}
-    comps.sort(reverse=True)
-    main_area, main_dt = comps[0]
-    total = sum(c[0] for c in comps)
-    frag_area = sum(c[0] for c in comps[1:] if c[0] < 0.05 * main_area)
-    thin = sum(1 for area, d in comps[1:] if area >= 0.02 * main_area and d < 0.5 * main_dt)
-    flags = []
-    if thin >= 2:
-        flags.append(f"thin_comps={thin}")
-    if total and frag_area / total > 0.30:
-        flags.append(f"frag_frac={frag_area/total:.2f}")
-    return {"char": ch, "flags": flags, "n_comp": len(comps),
-            "thin_comps": thin, "frag_frac": round(frag_area / total, 3) if total else 0}
-
-
-def n_line_like(mask: np.ndarray) -> int:
-    """细长直线状组件数（框线/栏线残片特征）：短边<=3px 且 长边>=40px（256px 渲染）。"""
-    import cv2
-    n, lab, st, _ = cv2.connectedComponentsWithStats(mask.astype(np.uint8), 8)
-    cnt = 0
-    for i in range(1, n):
-        w, h, a = st[i, cv2.CC_STAT_WIDTH], st[i, cv2.CC_STAT_HEIGHT], st[i, cv2.CC_STAT_AREA]
-        if a < 8:
-            continue
-        if min(w, h) <= 3 and max(w, h) >= 40:
-            cnt += 1
-    return cnt
 
 
 def raster_glyph(ch: str, font_path: str, size: int, index: int | None = None,
@@ -156,7 +91,7 @@ def main():
               "missing_in_font": sorted(want - got),
               "extra_in_font": sorted(got - want)}
 
-    # 1) 空字形 / bbox 闸
+    # 1) 空字形 / bbox / advance（与笔画连通性无关的几何检查）
     empty, tiny, huge, out_of_em = [], [], [], []
     bboxes = {}
     adv_bad = []
@@ -179,40 +114,14 @@ def main():
     report.update(empty=empty, tiny=tiny, out_of_em=out_of_em, adv_bad=adv_bad,
                   bboxes=bboxes)
 
-    # 2) 渲染检查（256px）：墨量、连通分量、孔洞（对照宋体 TC）
-    ref_ok = Path(SONGTI).exists()
+    # 2) 渲染为空（只查「轮廓存在但渲染不出墨」的坏 outline；不判结构）
     render_bad = []
-    hole_rows = []
-    soft_rows = []
     for ch in sorted(want):
         mask = raster_glyph(ch, str(font_path), args.font_size_check)
         ink = int(mask.sum())
-        if ink < 200:
-            render_bad.append({"char": ch, "reason": f"ink too small at 256px ({ink})"})
-            continue
-        ncomp = n_components(mask)
-        line_like = n_line_like(mask)
-        # 楷体复杂字合法分离笔画可达 20+；仅当「组件多且含细长直线状残片」或 极多(>24) 才判坏
-        if ncomp > 24 or (ncomp > 14 and line_like >= 1):
-            render_bad.append({"char": ch,
-                               "reason": f"components={ncomp}, line_like={line_like}"})
-        # 字形级软标志（审计2 P1-3：路/蹋 类细碎/外挂残段；不硬判，进报告）
-        soft_rows.append(soft_flag(ch, mask))
-        if ref_ok:
-            try:
-                ref = raster_glyph(ch, SONGTI, args.font_size_check, index=7)
-            except Exception:
-                ref = None
-            if ref is not None and ref.sum() > 200:
-                ho, hb = holes_of(mask), holes_of(ref)
-                hole_rows.append((ch, ho, hb, ink))
-    lost = [r for r in hole_rows if r[2] > 0 and r[1] == 0]
-    fewer = [r for r in hole_rows if 0 < r[1] < r[2]]
-    soft_flags = [r for r in soft_rows if r["flags"]]
-    report.update(render_bad=render_bad, soft_flags=soft_flags,
-                  holes={"n": len(hole_rows), "lost": [r[0] for r in lost],
-                         "fewer": [r[0] for r in fewer],
-                         "rows": hole_rows[:400]})
+        if ink < 50:
+            render_bad.append({"char": ch, "reason": f"renders empty at 256px ({ink})"})
+    report["render_bad"] = render_bad
 
     # 3) version / name 一致性 + 可复现元信息
     ver_names = [str(n) for n in f["name"].names if n.nameID == 5 and n.platformID == 3]
@@ -226,9 +135,8 @@ def main():
     report["ps_name"] = f["name"].getDebugName(6)
     report["license_url"] = f["name"].getDebugName(14)
 
-    # 4) 硬闸
+    # 4) 硬闸（同框多标签：manifest 带 page/half/box 时，同一 crop 不得对应两个码位）
     problems = []
-    # 同框多标签检查（审计 P0-1）：manifest 带 page/half/box 时，同一 crop 不得对应两个码位
     conflicts = []
     try:
         recs = [(ch, r) for ch, r in (manifest.get("chars") or {}).items()
@@ -257,28 +165,23 @@ def main():
     if adv_bad:
         problems.append(f"wrong advance {adv_bad[:5]}")
     if render_bad:
-        problems.append(f"render bad {render_bad[:5]}")
+        problems.append(f"render empty {render_bad[:5]}")
     if report.get("fontRevision_ok") is False:
         problems.append("fontRevision mismatch")
     stats = {k: report[k] for k in
              ("n_glyphs", "n_cmap", "n_manifest", "cmap_equals_manifest",
               "missing_tables", "empty", "tiny", "out_of_em", "adv_bad",
               "fontRevision_ok", "head_created", "head_modified", "family_name",
-              "ps_name", "render_bad", "holes")}
-    stats["soft_flags"] = {"n": len(report.get("soft_flags", [])),
-                           "chars": [r["char"] for r in report.get("soft_flags", [])][:200]}
-    stats["holes"] = {"n": report["holes"]["n"], "lost": report["holes"]["lost"],
-                      "fewer": report["holes"]["fewer"]}
+              "ps_name", "render_bad", "same_box_conflicts")}
     stats["problems"] = problems
     stats["pass"] = not problems
     (outdir / "stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=1))
     (outdir / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=1))
     print(json.dumps({k: stats[k] for k in
                       ("n_glyphs", "n_cmap", "n_manifest", "empty", "tiny",
-                       "out_of_em", "adv_bad", "fontRevision_ok")},
+                       "out_of_em", "adv_bad", "fontRevision_ok",
+                       "same_box_conflicts")},
                      ensure_ascii=False, indent=1))
-    print("holes: n=%d lost=%s fewer=%s" % (stats["holes"]["n"],
-                                            stats["holes"]["lost"], stats["holes"]["fewer"]))
     if problems:
         print("PROBLEMS:")
         for p in problems:

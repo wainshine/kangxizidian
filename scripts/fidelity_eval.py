@@ -88,20 +88,17 @@ def register_iou(a, b):
 
 
 def clean_target(page, box, ch):
-    """污染无关的目标墨迹：原书墨 ∩ 参考结构支持域（参考无对应墨迹的碎片被剔除）。"""
+    """对比分析用：原书墨 ∩ 参考结构支持域（仅评估对照，不用于主构建，见 D20/D21）。
+
+    参考字体 = 霞鹜文楷（OFL，scripts/reffont.py）。
+    """
     import numpy as np, cv2
-    from refgate import ref_has
+    from reffont import has_char as _ref_has, raster as _ref_raster
     src = source_ink(page, box)
-    if not ref_has(ch):
+    if not _ref_has(ch):
         return src
-    ref = None
     try:
-        from refgate import SONGTI
-        from PIL import Image, ImageDraw, ImageFont
-        f = ImageFont.truetype(SONGTI, 256, index=7)
-        im = Image.new("L", (256, 256), 0)
-        ImageDraw.Draw(im).text((128, int(0.88 * 256)), ch, fill=255, font=f, anchor="ms")
-        ref = np.array(im) > 127
+        ref = _ref_raster(ch, 256)
     except Exception:
         return src
 

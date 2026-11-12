@@ -80,11 +80,11 @@ def worker(args):
             gw = cv2.warpAffine(gm.astype(np.uint8), M, (src.shape[1], src.shape[0]),
                                flags=cv2.INTER_NEAREST) > 0
             gd = cv2.dilate(gw.astype(np.uint8), np.ones((9, 9), np.uint8)) > 0
-            # 参考字体（宋体）对齐到源图：用于判断「缺失组件是否属于该字」
+            # 参考字体（霞鹜文楷 OFL）对齐到源图：用于判断「缺失组件是否属于该字」
             ref_ok = True
             try:
-                from refgate import raster as _rr, SONGTI as _ST
-                ref = _rr(_ST, ch, 256, index=7)
+                from reffont import raster as _ref_raster
+                ref = _ref_raster(ch, 256)
                 rn, rl, rst, _ = cv2.connectedComponentsWithStats(ref.astype(np.uint8), 8)
                 rc = [(rst[i, 0], rst[i, 1], rst[i, 0] + rst[i, 2], rst[i, 1] + rst[i, 3], int(rst[i, 4]))
                       for i in range(1, rn) if rst[i, 4] >= 20]

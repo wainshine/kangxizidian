@@ -57,4 +57,25 @@
   2. 新增三个闸：glyph_frame_gate（判据参照 P2-5：细长线≥0.5 字宽且厚≤3px）、provenance_gate（禁止整字拷贝）、page_geometry_gate；
   3. 修同框 2 对映射（CS3 提前为 CS1.5，因闸已挡住发布）；
   4. 扫描-字体 SHA 绑定 + 文档数字对账。
-- 已建立审计 findings 的机器可读对照：`work/lead/audit3-findings-triage.jsonl`（见文件），逐条标注 `confirmed/fixed/deferred/refuted`，供后续跟踪。
+- 已建立审计 findings 的机器可读对照：`work/lead/audit3-findings-map.jsonl`（86/86 逐条；旧 `triage.jsonl` 仅保留主题级 21 行）；汇总见 §5。
+
+## 5. findings 逐条对照（2026-11-12 补全）
+
+> 首版只按主题合并（`audit3-findings-triage.jsonl` 21 行）；本次把 DSH 全部 **86** 条 findings 逐条对到状态与唯一清单，确认无孤儿项。
+
+- 机器可读：`work/lead/audit3-findings-map.jsonl`（86 行；字段 `id/severity/status/bf/round/note`）。
+- 覆盖：**86/86 有归属**；`fixed` 12、`fixed-partial` 6、`accepted` 1、`deferred` 67。`deferred` 仅表示已进唯一清单（`docs/BACKLOG.md`）并有轮次，**不代表已修**。
+- 按级别的状态分布：
+
+| 级别 | fixed | fixed-partial | accepted | deferred | 合计 |
+|---|---|---|---|---|---|
+| P0 | 4 | 1 | 0 | 1 | 6 |
+| P1 | 5 | 3 | 1 | 26 | 35 |
+| P2 | 2 | 2 | 0 | 24 | 28 |
+| P3 | 1 | 0 | 0 | 16 | 17 |
+| **合计** | **12** | **6** | **1** | **67** | **86** |
+
+- 首版 BACKLOG 42 条按主题合并；逐条核对发现 9 条 P2/P3 细节无独立归属，已补 **BF-43..51**：
+  BF-43 overlay 能力仍可触达（P1）、BF-44 闸/构建归因不可复现（P2）、BF-45 clean-tree/freshness 可绕过（P1）、BF-46 内容闸吞样（P2）、BF-47 audit 现行文档时点（P2）、BF-48 构建入口/缓存卫生（P2）、BF-49 scripts 保留判定（P2）、BF-50 worker 上限（P2）、BF-51 降级路径标记（P2）。
+- GLM 审计的 14 项修复中，有 5 项不在 DSH findings 清单（`--limit` 吞字、font_package rmtree、quad 三套口径、mapping 重复字跨页覆盖、D20 登记等），仅记录在本文 §1；DSH/GLM 重叠项以 DSH-ID 为准。
+- 状态未变：v2.6.1 仍**不可签收**（font_qa 同框 2 对 FAIL；包为旧 finalize 产物）。
