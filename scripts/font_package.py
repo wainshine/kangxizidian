@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import subprocess
 import json
 import shutil
 import sys
@@ -407,9 +408,20 @@ def main():
     ap.add_argument("--zip", action="store_true", default=True, help="生成 zip（默认开）")
     ap.add_argument("--no-zip", dest="zip", action="store_false")
     ap.add_argument("--skip-qa", action="store_true", help="跳过渲染/孔洞 QA（不建议）")
+    ap.add_argument("--allow-dirty", action="store_true",
+                    help="允许工作区未提交（仅调试；正式包必须 clean tree 并记录 commit）")
     ap.add_argument("--extra", action="append", default=[],
                     help="额外打进 release 的文件（可多次；在 SHA256SUMS 前复制）")
     args = ap.parse_args()
+
+    # 可复现性闸：打包必须来自已提交的代码树（否则 hash 不可复现）
+    if not args.allow_dirty:
+        r = subprocess.run(["git", "status", "--porcelain"], cwd=str(ROOT),
+                           capture_output=True, text=True)
+        dirty = [ln for ln in (r.stdout or "").splitlines() if ln.strip()]
+        if dirty:
+            fail("工作区有未提交改动，先提交代码再打包（--allow-dirty 仅限调试）：\n  "
+                 + "\n  ".join(dirty[:10]))
 
     font_path = Path(args.font)
     if not font_path.is_absolute():
@@ -441,7 +453,6 @@ def main():
                "--font", str(font_path), "--outdir", str(qa_out)]
         if manifest is not None:
             cmd += ["--manifest", str(ROOT / args.manifest)]
-        import subprocess
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode != 0:
             fail("font_qa 未通过:\n" + r.stdout[-2000:] + r.stderr[-1000:])

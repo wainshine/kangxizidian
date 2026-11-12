@@ -45,6 +45,12 @@ def main():
                     help="加跑全库缺件扫描（scan_missing_parts；耗时约 10 分钟，发布候选版应开）")
     ap.add_argument("--content-max-damaged", type=int, default=0,
                     help="内容缺失闸阈值（默认 0=严格；过程版本可给阈值并披露）")
+    ap.add_argument("--reuse-missing", default=None,
+                    help="复用已有缺件扫描 jsonl（不重跑，按字体/几何版本缓存思想）")
+    ap.add_argument("--reuse-frame", default=None,
+                    help="复用已有框线逃逸扫描 jsonl")
+    ap.add_argument("--reuse-content", default=None,
+                    help="复用已有内容缺失闸 json")
     ap.add_argument("--frame-scan", action="store_true",
                     help="加跑框线逃逸闸（scan_frame_escape）")
     ap.add_argument("--frame-max-flagged", type=int, default=0,
@@ -114,6 +120,8 @@ def main():
     # 4) 内容缺失闸：既看退出码，也解析 JSON 的 damaged（双重保险）
     if args.prev:
         out_json = os.path.join("work", "lead", f"content-loss-gate-{tag}.json")
+        if args.reuse_content:
+            out_json = args.reuse_content
         r = subprocess.run([sys.executable, "scripts/content_loss_gate.py", args.prev, args.font,
                             args.manifest, out_json], cwd=ROOT, capture_output=True, text=True)
         damaged = None
@@ -135,8 +143,12 @@ def main():
     # 4b) 全库缺件扫描（可选；发布候选版应开）
     if args.scan:
         out_scan = os.path.join("work", "lead", f"missing_scan_gate_{tag}.jsonl")
-        r = subprocess.run([sys.executable, "scripts/scan_missing_parts.py", args.font,
-                            args.manifest, out_scan], cwd=ROOT, capture_output=True, text=True)
+        if args.reuse_missing:
+            out_scan = args.reuse_missing
+            r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
+        else:
+            r = subprocess.run([sys.executable, "scripts/scan_missing_parts.py", args.font,
+                                args.manifest, out_scan], cwd=ROOT, capture_output=True, text=True)
         flagged = None
         try:
             flagged = sum(1 for line in open(os.path.join(ROOT, out_scan))
@@ -156,9 +168,13 @@ def main():
     # 4c) 框线逃逸闸（v2.6：切前排除后块内不应再有贯穿框线）
     if args.frame_scan:
         out_frame = os.path.join("work", "lead", f"frame_escape_scan_{tag}.jsonl")
-        r = subprocess.run([sys.executable, "scripts/scan_frame_escape.py",
-                            "--manifest", args.manifest, "--out", out_frame],
-                           cwd=ROOT, capture_output=True, text=True)
+        if args.reuse_frame:
+            out_frame = args.reuse_frame
+            r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
+        else:
+            r = subprocess.run([sys.executable, "scripts/scan_frame_escape.py",
+                                "--manifest", args.manifest, "--out", out_frame],
+                               cwd=ROOT, capture_output=True, text=True)
         flagged = None
         try:
             flagged = sum(1 for line in open(os.path.join(ROOT, out_frame)))
