@@ -33,7 +33,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_GEOMETRY = "work/lead/page_geometry.jsonl"
-DEFAULT_MAPPING = "work/lead/mapping_block_v270.jsonl"
+DEFAULT_MAPPING = "work/lead/mapping_block_v271.jsonl"
 DEFAULT_MANIFEST = "work/font/build/manifest_v261.json"
 DEFAULT_OUT = "work/lead/page-geometry-gate.json"
 

@@ -28,28 +28,28 @@
 
 ## 2. 当前状态（2026-11-12）
 
-- 当前基线：**v2.6.1**（过程版本，不签收）；`release/` 仅保留 v2.5.8（重构前基线）与 v2.6.1。
-- 字形 **17,007**（headword-only 真迹）；基本区 10,269/20,992 = **48.92%**；目标字表 10,269/16,567 = **61.98%**；缺口 **6,298**（高频缺 23）。
-- 闸：font_qa 仅同框 2 对 FAIL；内容闸 35（阈值 35）；缺件 1,200（旧参考口径，待重扫）、源图框线 153；**字形级框线 23**（v2.6.1 mixed cache，待重建复测）、**页级几何 bad_boxes 198 / 空指派半版 1,173**（已知债）。
-- 构建：`work/lead/mapping_block_v270.jsonl` + `work/lead/page_geometry.jsonl` + **自动缓存版本**（算法 sha8 + 几何 sha12，人工 tag v350 已废）；全量重建 ~9.3 分钟（10 workers，缓存 0 命中时，修复前记录）；缓存命中耗时待重建实测（BF-22）。
+- 当前基线：**v2.6.2 工程候选**（`work/font/build/KangXiKai-v2.6.2.ttf`，sha `dae5c507…`；fast_gate 仅字形框线 23 一项 FAIL）；`release/` 仅保留 v2.5.8（重构前基线）与 v2.6.1（过程版）。
+- 字形 **17,005**（headword-only 真迹；同块冲突剔除 沓/忠）；基本区 10,267/20,992 = **48.91%**；目标字表 10,267/16,567 = **61.97%**；缺口 **6,300**（高频缺 23 + 忠 待重新定位）。
+- 闸（v2.6.2 候选）：font_qa **PASS**（同框 0）；字形级框线 **23** FAIL（CS2）；内容 35（阈值）PASS；provenance PASS；页级几何 198/1,173（候选阈值 PASS，里程碑严格 0）；缺件 1,200（旧参考口径待重扫）。
+- 构建：`work/lead/mapping_block_v271.jsonl`（同块修复后；v270 留档）+ `work/lead/page_geometry.jsonl` + **自动缓存版本**（算法 sha8+几何 sha12）；实测全量重建 **6m42s**（0 命中）、缓存命中重建 **3m50–3m52s**（17,005 cached，10 workers）。
 - 隔离 9 字：刃/榍/法/紆/総/荹/仟/禦/絞。
-- 进度：CS0 ✅（参考字体/QA 判据）→ **CS1-A ✅**（三闸 + 输入绑定 + 构建硬化；BF-01/09/12/43/45/46/48/50）→ **下一步 CS1-B：一次全量重建**（新缓存键；字形变更批次）→ CS1.5 映射/坐标增量重建 → CS2 pre-cut/页级几何（含摘除 strip，D22）→ CS3 内容/缺件。
+- 进度：CS0 ✅（参考字体/QA 判据）→ **CS1-A ✅**（三闸 + 输入绑定 + 构建硬化；BF-01/09/12/43/45/46/48/50）→ **CS1-B ✅ 2026-11-12**（v2.6.2 全量重建 6m42s；同块修复后增量 3m50s；候选定版）→ **CS1.5 ✅ 2026-11-12**：同块 2 对清除（E23）+ 增量重建（17,005 字）→ fast_gate 仅 1 项已知 FAIL；box∩quad 198/360 复核为页级几何残差 → CS2 pre-cut/页级几何（含摘除 strip，D22）→ CS3 内容/缺件。
 
 ## 3. 最短验证命令
 
 ```bash
-# 字体 QA（当前状态预期 FAIL：同框 2 对 沓/𦧟、䛱/忠）
-.venv/bin/python scripts/font_qa.py --font work/font/build/KangXiKai-v2.6.1.ttf \
-  --manifest work/font/build/manifest_v261.json --outdir work/font/build/qa_check
+# 字体 QA（v2.6.2 候选预期 PASS：同框 0；字形框线由 glyph_frame_gate 管）
+.venv/bin/python scripts/font_qa.py --font work/font/build/KangXiKai-v2.6.2.ttf \
+  --manifest work/font/build/manifest_v262.json --outdir work/font/build/qa_check
 # 快闸（新增三闸+绑定，约 1–2 分钟内容闸/4 分钟全量；缺基线参数即 FAIL）
-.venv/bin/python scripts/fast_gate.py --font work/font/build/KangXiKai-v2.6.1.ttf \
-  --manifest work/font/build/manifest_v261.json --version 2.6.1 \
+.venv/bin/python scripts/fast_gate.py --font work/font/build/KangXiKai-v2.6.2.ttf \
+  --manifest work/font/build/manifest_v262.json --version 2.6.2 \
   --baseline work/font/build/KangXiKai-v2.5.8.ttf \
   --baseline-manifest work/font/build/manifest_v258.json \
   --pkg-dir release/KangXiKai-v2.6.1 --content-max-damaged 35
-# 缓存命中重建（应 17,007 cached；旧 sha c73c3023 是修复前 key 产物，新 key 重建后重测，不作验收基线）
+# 缓存命中重建（应 17,005 cached，~3m50s；全量 0 命中 ~6m42s）
 FONT_BUILD_WORKERS=10 .venv/bin/python scripts/font_build.py \
-  --mapping work/lead/mapping_block_v270.jsonl --out /tmp/check.ttf --version 2.6.1
+  --mapping work/lead/mapping_block_v271.jsonl --out /tmp/check.ttf --version 2.6.2
 ```
 
 ## 4. 发布流程（顺序固定，勿跳步）

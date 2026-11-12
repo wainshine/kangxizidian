@@ -86,7 +86,7 @@ def main():
     ap.add_argument("--max-missing-quad-chars", type=int, default=300)
     ap.add_argument("--max-empty-assign-halves", type=int, default=1200,
                     help="页级几何闸：候选允许已知空指派半版（v2.6.1 实测 1,173；里程碑严格 0）")
-    ap.add_argument("--mapping", default="work/lead/mapping_block_v270.jsonl")
+    ap.add_argument("--mapping", default="work/lead/mapping_block_v271.jsonl")
     ap.add_argument("--stats", default=None, help="build stats（默认 <font>.build_stats.json）")
     ap.add_argument("--tag", default=None)
     args = ap.parse_args()

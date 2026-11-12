@@ -70,7 +70,7 @@ def main():
                     help="首跑模式：doc_check 允许 gate-report 引用暂缺（finalize 会生成）")
     ap.add_argument("--no-finalize", action="store_true",
                     help="不写 gate-report 进包、不重算 SHA（仅用于调试）")
-    ap.add_argument("--mapping", default="work/lead/mapping_block_v270.jsonl",
+    ap.add_argument("--mapping", default="work/lead/mapping_block_v271.jsonl",
                     help="mapping（provenance/页级几何闸输入）")
     ap.add_argument("--geometry", default="work/lead/page_geometry.jsonl",
                     help="S1 页级几何（页级几何闸输入）")
