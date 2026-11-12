@@ -113,6 +113,33 @@ def _hough_line_clusters(ink, theta_deg=0.0):
     return cluster(vs), cluster(hs)
 
 
+
+def fallback_quad_from_lattice(gray, lattice=None):
+    """无框线可检时的兜底正文区：小字中心 bbox + 2 格余量，页边黑带钳制（不旋转）。"""
+    if lattice is None:
+        return None
+    px, py, phx, phy = [float(v) for v in lattice]
+    ink = _ink(gray)
+    h, w = ink.shape
+    # 用与 lattice 同 phase 的格点推断正文覆盖：找有墨的格
+    best = None
+    ys = np.arange(phy, h, py)
+    xs = np.arange(phx, w, px)
+    if len(xs) < 5 or len(ys) < 5:
+        return None
+    colprof = ink[:, :].mean(axis=0)
+    rowprof = ink.mean(axis=1)
+    xs_ok = [x for x in xs if x < w and colprof[int(x)] > 0.02]
+    ys_ok = [y for y in ys if y < h and rowprof[int(y)] > 0.02]
+    if len(xs_ok) < 5 or len(ys_ok) < 5:
+        return None
+    x0 = min(xs_ok) - px; x1 = max(xs_ok) + px
+    y0 = min(ys_ok) - py; y1 = max(ys_ok) + py
+    x0, y0 = max(0.0, x0), max(0.0, y0)
+    x1, y1 = min(float(w - 1), x1), min(float(h - 1), y1)
+    M = np.array([[1, 0, 0], [0, 1, 0]], np.float32)
+    return {"box": (x0, y0, x1, y1), "M": M, "Minv": M.copy(), "theta": 0.0}
+
 def detect_content_quads(gray):
     """返回 {half: {"box": (x0,y0,x1,y1) in rot space, "M": 2x3, "Minv": 2x3}}。
 

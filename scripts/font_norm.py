@@ -636,6 +636,41 @@ def trim_crop_frame_edges(ink: np.ndarray, max_band: int = 40) -> np.ndarray:
         out[:, xx:] = False
     return out
 
+
+def strip_frame_lines_crossing_block(ink: np.ndarray, block_rect=None) -> np.ndarray:
+    """类级规则：块内「贯穿块且延伸到块外」的细线 = 框线/界行；删除。
+
+    字身笔画不会延伸到块外，因此该规则对字身零误伤；不依赖页级框线检测。
+    block_rect = (x0,y0,x1,y1) crop 坐标；None 时不处理。
+    """
+    if block_rect is None:
+        return ink
+    out = ink.copy()
+    h, w = out.shape
+    x0, y0, x1, y1 = [int(round(v)) for v in block_rect]
+    x0, y0 = max(0, x0), max(0, y0)
+    x1, y1 = min(w, x1), min(h, y1)
+    if x1 - x0 < 10 or y1 - y0 < 10:
+        return out
+    gap = 8
+    def extend_row(y):
+        left = out[y, max(0, x0 - gap):x0].any()
+        right = out[y, x1:min(w, x1 + gap)].any()
+        return left or right
+    def extend_col(x):
+        up = out[max(0, y0 - gap):y0, x].any()
+        down = out[y1:min(h, y1 + gap), x].any()
+        return up or down
+    for y in range(y0, y1):
+        seg = out[y, x0:x1]
+        if seg.mean() >= 0.80 and extend_row(y):
+            out[y, x0:x1] = False
+    for x in range(x0, x1):
+        seg = out[y0:y1, x]
+        if seg.mean() >= 0.80 and extend_col(x):
+            out[y0:y1, x] = False
+    return out
+
 def strip_crop_frame_bands(ink: np.ndarray, frac: float = 0.85) -> np.ndarray:
     """裁片级框线排除（切前层，不是事后按形状删组件）：
 
@@ -813,6 +848,8 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
         ink[~clip_mask] = False
     ink = trim_crop_frame_edges(ink)
     ink = strip_crop_frame_bands(ink)
+    # 注意：strip_frame_lines_crossing_block 在块相位不稳的页会误伤字身（实测 35→60 回归），
+    # 默认不启用；待格点相位校验通过后再按页启用。
     ink = erase_rects(ink, erase_rects_list)
     if frame_mask is not None:
         ink[frame_mask > 0] = 0

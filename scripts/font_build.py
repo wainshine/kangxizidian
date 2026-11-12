@@ -241,13 +241,39 @@ def sha256(path: Path) -> str:
 # ---------------------------------------------------------------------------
 # 页级预处理（格点 / 正文 bbox / 版框 mask）——make font 的「源头边界」基础设施
 # ---------------------------------------------------------------------------
+_GEOM_CACHE = None
+_GEOM_PATH = os.path.join(str(WORK), "lead", "page_geometry.jsonl")
+
+
+def _load_geom():
+    global _GEOM_CACHE
+    if _GEOM_CACHE is not None:
+        return _GEOM_CACHE
+    _GEOM_CACHE = {}
+    try:
+        if os.path.exists(_GEOM_PATH):
+            for line in open(_GEOM_PATH, encoding="utf-8"):
+                r = json.loads(line)
+                if "error" not in r:
+                    _GEOM_CACHE[r["page"]] = r
+            print(f"[geom] loaded {len(_GEOM_CACHE)} pages", flush=True)
+    except Exception as e:
+        print("[geom] load fail", e, flush=True)
+    return _GEOM_CACHE
+
+
 _LAT_CACHE = {}
 
 
 def get_page_lattice(page_key: str) -> dict:
-    """每页/半版拟合格点（节点=小字中心），返回 {half: (px,py,phx,phy)}。"""
+    """每页/半版拟合格点（节点=小字中心），返回 {half: (px,py,phx,phy)}。优先读页级几何缓存。"""
     if page_key in _LAT_CACHE:
         return _LAT_CACHE[page_key]
+    geom = _load_geom().get(page_key)
+    if geom and geom.get("lattice"):
+        out = {k: tuple(v) for k, v in geom["lattice"].items() if v}
+        _LAT_CACHE[page_key] = out
+        return out
     import numpy as np
     import cv2
     from detect_blocks import page_gray, binarize, fit_axis
@@ -294,6 +320,25 @@ def get_page_content_quads(page_key: str):
     """版框内正文区（每半版）；裁切时直接 clip，框线/黑带不进入裁片。见 scripts/page_frames.py。"""
     if page_key in _QUAD_CACHE:
         return _QUAD_CACHE[page_key]
+    geom = _load_geom().get(page_key)
+    if geom and geom.get("quads"):
+        quads = dict(geom["quads"])
+        # 兜底：缺半版 → 用 lattice + 小字中心 bbox 估计正文区（类级规则）
+        if len(quads) < 2 and geom.get("lattice"):
+            try:
+                from detect_blocks import page_gray
+                from page_frames import fallback_quad_from_lattice
+                g = page_gray(page_key[:2], int(page_key[3:]))
+                lattice = {k: tuple(v) for k, v in geom["lattice"].items() if v}
+                for half in ("L", "R"):
+                    if half not in quads:
+                        q = fallback_quad_from_lattice(g, lattice.get(half))
+                        if q:
+                            quads[half] = q
+            except Exception:
+                pass
+        _QUAD_CACHE[page_key] = quads
+        return _QUAD_CACHE[page_key]
     try:
         from detect_blocks import page_gray
         from page_frames import detect_content_quads
@@ -324,9 +369,15 @@ _TEXT_BBOX_CACHE = {}
 
 
 def get_page_text_bbox(page_key: str, inset: float = 5.0):
-    """正文墨迹 bbox 内缩（版框外沿≈bbox；内缩后不含框线）。"""
+    """正文墨迹 bbox 内缩（版框外沿≈bbox；内缩后不含框线）。优先读页级几何缓存。"""
     if page_key in _TEXT_BBOX_CACHE:
         return _TEXT_BBOX_CACHE[page_key]
+    if inset == 5.0:
+        geom = _load_geom().get(page_key)
+        if geom and geom.get("text_bbox"):
+            out = tuple(geom["text_bbox"])
+            _TEXT_BBOX_CACHE[page_key] = out
+            return out
     import numpy as np
     from detect_blocks import page_gray, binarize
     out = None
@@ -473,7 +524,7 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                            "override": str(override[ch].get("source", ""))}
                 n_cached += 1
                 continue
-            ck = (f"v330_{page}{half}_{ch}_"
+            ck = (f"v340_{page}{half}_{ch}_"
                   f"{box[0]}_{box[1]}_{box[2]}_{box[3]}").replace("/", "_")
             cpath = cache_dir / f"{ck}.json"
             if use_cache and cpath.exists():
