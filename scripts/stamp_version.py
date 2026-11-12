@@ -14,6 +14,7 @@ def main():
     ap.add_argument("--font", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--version", required=True)
+    ap.add_argument("--copyright", default=None, help="可选：同时修正 nameID0 版权串")
     args = ap.parse_args()
     from fontTools.ttLib import TTFont
     f = TTFont(args.font, recalcTimestamp=False)
@@ -26,6 +27,9 @@ def main():
     style = name.getDebugName(2) or "Regular"
     name.setName(f"{family} {style} {v}", 3, 3, 1, 0x409)
     name.setName(f"{family} {style} {v}", 3, 1, 0, 0)
+    if args.copyright:
+        for plat, enc, lang in ((3, 1, 0x409), (1, 0, 0)):
+            name.setName(args.copyright, 0, plat, enc, lang)
     # head.fontRevision: 2.55 之类
     try:
         parts = (v.split(".") + ["0", "0"])[:3]

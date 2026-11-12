@@ -11,6 +11,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dir", required=True)
     ap.add_argument("--version", required=True)
+    ap.add_argument("--allow-missing-attestation", action="store_true",
+                    help="首跑模式：gate-report-*.json 尚未生成，允许其引用暂缺")
     args = ap.parse_args()
     d = args.dir
     v = args.version
@@ -31,7 +33,20 @@ def main():
     basic = cov.get("cjk_basic_in_target_set")
     pct = cov.get("basic_coverage_pct")
     gap = cov.get("target_headword_gap")
+    # 覆盖率/缺口必须与 coverage-detail 完全一致（不可只出现旧值）
     for name in ("README.md", "PROVENANCE.md", "QA.md"):
+        pth = os.path.join(d, name)
+        if not os.path.exists(pth):
+            continue
+        txt = open(pth, encoding="utf-8").read()
+        if pct is not None and f"{pct:.2f}%" not in txt and f"{pct:.2f}" not in txt:
+            errs.append(f"{name}: 未出现 coverage 的覆盖率 {pct:.2f}")
+        if gap is not None and f"{gap:,}" not in txt and str(gap) not in txt:
+            errs.append(f"{name}: 未出现 coverage 的缺口 {gap}")
+
+    names = ["README.md", "PROVENANCE.md", "QA.md"]
+    names += [f for f in files if f.startswith("RELEASE-NOTES") and f.endswith(".md")]
+    for name in names:
         p = os.path.join(d, name)
         if not os.path.exists(p):
             errs.append(f"{name} 缺失")
@@ -51,6 +66,8 @@ def main():
         # 文件引用存在性：`.json/.png/.md` 文件名词
         for ref in re.findall(r"[A-Za-z0-9_.\-]+\.(?:jsonl|json|png|md)\b", txt):
             if ref in ("README.md", "PROVENANCE.md", "QA.md", "SHA256SUMS", "OFL.txt"):
+                continue
+            if ref.startswith("gate-report-") and args.allow_missing_attestation:
                 continue
             if ref not in files:
                 errs.append(f"{name}: 引用不存在文件 {ref}")

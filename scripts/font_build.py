@@ -27,7 +27,7 @@ VERSION = "0.1.0"
 ASCENT, DESCENT = 880, -120
 OFL_TEXT = ("This Font Software is licensed under the SIL Open Font License, Version 1.1. "
             "This license is available with a FAQ at: https://openfontlicense.org")
-COPYRIGHT = ("KangXi Kai demo v0 — glyphs extracted from the 1716 Kangxi Dictionary "
+COPYRIGHT = ("KangXi Kai — glyphs extracted from the 1716 Kangxi Dictionary "
              "(内府刊本) scans. SIL OFL 1.1. No third-party font outlines used.")
 DEFAULT_SOURCE_DATE_EPOCH = 1792713600  # 2026-10-23T00:00:00Z
 

@@ -477,7 +477,7 @@ def main():
             "legacy_target_cmap": 20992 + PUNCT_EXPECTED,
             "cjk_basic_block": [f"U+{BLOCK[0]:04X}", f"U+{BLOCK[1]:04X}"],
             "punct_expected": 0,
-            "note": "headword-only：不含标点/数字/空格；缺口见 v24x-strict-report/gan_targets",
+            "note": "headword-only：不含标点/数字/空格；缺口清单见 high-freq-gap 与 lead_gan_targets（D19）",
         },
         "provenance_counts": prov_counts,
         "real": prov_counts.get("real", 0),

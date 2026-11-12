@@ -709,7 +709,7 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    char: str | None = None, enable_line_swt: bool = False,
                    enable_ref_filter: bool = False,
                    normalize_main_cluster: bool = False,
-                   enable_edge_strip: bool = True,
+                   enable_edge_strip: bool = False,   # 危险：默认关（D20）
                    block_rect: tuple[int, int, int, int] | None = None,
                    erase_rects_list: list[tuple[int, int, int, int]] | None = None,
                    frame_mask: "np.ndarray | None" = None) -> dict:

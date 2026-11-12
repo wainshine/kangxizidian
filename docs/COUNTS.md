@@ -1053,3 +1053,23 @@ snap_box μ 项、审计台账、repair 校验落盘。
 
 **v2.5.7**：17,007 字；字形数据与 v2.5.6 相同（轮廓差异 0）；内容闸 0；字符集 diff 0；QA PASS；
 release_gate **8/8 全绿**（含独立缺件扫描）；23 项 SHA 全过；不签收。
+
+## 第七十一节、发布证据链 + 高频缺口披露 + v2.5.8  [实际时间 2026-11-12 08:15]
+
+四份新一轮审计（GLM 3代 / 永乐大典 / 四书白文 / 【馆阁楷对照】）的处置：
+1. **发布证据链**（GLM N1/N5、永乐 P0-2、四书 P1-1）：release_gate finalize 两轮收敛——报告冻结入包 →
+   SHA256SUMS 覆盖含报告全部文件（22 项/23 文件）→ 重建 zip → 终校验；报告自带 8 步结果与 attestation；
+2. **门禁接线**（GLM N2/N3/N4）：`--quarantine` 真正读取并缺省合并全部隔离清单；char_diff 缺基线 **FAIL**；
+   缺件扫描严格/阈值两档（本版 flagged 587 ≤ 700，**明示为已知债**）；
+3. **破坏性开关**（永乐 P1-3）：`vectorize_gray` 默认 False（D20）；
+4. **高频字缺口**（四书 P0-1、永乐 P1-2）：新增 `high-freq-gap-v258.json`，繁体常用字 285 中缺 **23**
+   （`一件你內合在多張教樣氣法清為王相種臺與被裡都間`），README/PROVENANCE 首页披露；一/在/為/你 等优先重定位；
+5. **文档/版本统一**（永乐 P0-1/P1-1/P2-1、四书 P1-3）：docs/README、RELEASE-PLAN、PLAN、SCRIPTS 统一 v2.5.8；
+   coverage 隔离改 9 字、rebuild_cmd 更新；SHA 数按包实数；
+6. **包卫生**（四书 P1-2）：审计文件与开发文档移出发布包（D17 §4）；
+7. **字体元数据**（GLM H16）：nameID0 去掉「demo v0」；
+8. **mapping 可复算缺口**（【馆阁楷对照】P0）：build_recipe 增加 mapping_sha256、overlay base 重建命令与 sha；
+   标签层从零复算仍未脚本化 → 挂账 v2.6.0。
+
+**v2.5.8**：17,007 字；覆盖 48.92%/61.98%；缺口 6,298；高频缺 23；隔离 9；QA PASS；内容闸 0；
+**8/8 门禁 PASS（gate-report 随包且计入 SHA，attestation finalized）**；22 项 SHA 全过；zip 自检 PASS；不签收。

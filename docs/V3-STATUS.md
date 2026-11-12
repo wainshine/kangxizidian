@@ -419,3 +419,10 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 
 - 两轮审计 26 条声明：成立 17 / 部分 4 / 不成立 3（抗辩 audit/AUDIT-REBUTTAL-v2.6-SCRIPTS.md）；
 - 内容闸 exit 3、release_gate --scan、危险开关默认关+raise、归档断链修复 49/49、overlay 脚本入库；8/8 门禁全绿；不签收。
+
+## 六十、发布证据链 + 高频缺口 + v2.5.8（2026-11-12 08:20）
+
+- gate-report 随包且计入 SHA（22/22，attestation finalized）；--quarantine 接线、char_diff 防空转、扫描双档；
+- 高频缺口披露：繁体常用字 285 中缺 23（一/在/為/你 等）；隔离统一 9 字；文档全统一 v2.5.8；
+- 审计文件/开发文档移出发布包（D17§4）；git 已提交；不签收。
+
