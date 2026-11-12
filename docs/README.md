@@ -13,15 +13,16 @@
 | 4 | `WORKFLOW.md` | 流程纪律：候选/正式、变更集、闸分层、里程碑发版、7 张复核图 |
 | 5 | `VERSION-HISTORY.md` | 逐版变更（v0.3→v2.6.1）+ 探索/修补分类 |
 | 6 | `WORK-MAP.md` | `work/` 痕迹地图与安全清理规则 |
-| 7 | `WORK-CLEANUP.md` / `WORK-CLEANUP-IMPACT.md` | 清理分类、已执行记录、影响评估 |
-| 8 | `DECISIONS.md` | 口径决策（唯一权威，D1–D18+更正注记） |
-| 9 | `GLOSSARY.md` | 术语（冲突时以它为准） |
-| 10 | `ERRATA.md` | 历史错误/作废数字/已知误导（考古避坑） |
-| 11 | `DATA.md` | 数据来源/许可/校验和/复现链 |
-| 12 | `SCRIPTS.md` | 脚本清单与旧方法评估（含归档说明） |
-| 13 | `CANONICAL-ORDER.md` | 正典序/字表数据层 |
-| 14 | `STRUCTURE.md` | 卷/部/PDF 分节结构 |
-| 15 | `HEADERS.md` | 书眉数据层（版心读数） |
+| 7 | `BACKLOG.md` | **待修复清单**（P0/P1/P2/ACCEPT + 轮次 + 验收），每轮从这认领 |
+| 8 | `WORK-CLEANUP.md` / `WORK-CLEANUP-IMPACT.md` | 清理分类、已执行记录、影响评估 |
+| 9 | `DECISIONS.md` | 口径决策（唯一权威，D1–D18+更正注记） |
+| 10 | `GLOSSARY.md` | 术语（冲突时以它为准） |
+| 11 | `ERRATA.md` | 历史错误/作废数字/已知误导（考古避坑） |
+| 12 | `DATA.md` | 数据来源/许可/校验和/复现链 |
+| 13 | `SCRIPTS.md` | 脚本清单与旧方法评估（含归档说明） |
+| 14 | `CANONICAL-ORDER.md` | 正典序/字表数据层 |
+| 15 | `STRUCTURE.md` | 卷/部/PDF 分节结构 |
+| 16 | `HEADERS.md` | 书眉数据层（版心读数） |
 
 
 审计：`../audit/README.md`（现行结论），`../audit/_history/`（历史审计存档）。
