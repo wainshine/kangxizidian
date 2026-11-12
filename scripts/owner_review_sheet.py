@@ -13,7 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def load_font():
     import argparse
-    return os.environ.get("OWNER_FONT", "work/font/build/KangXiKai-v2.5.4.ttf")
+    return os.environ.get("OWNER_FONT", "work/font/build/KangXiKai-v2.5.8.ttf")
 
 
 def glyph_png(font_path, ch, size=160):
@@ -41,12 +41,12 @@ def crop_png(page, box, dpi=150, pad=6):
 
 def main():
     font = load_font()
-    man_path = os.environ.get("OWNER_MANIFEST", "work/lead/manifest-v254.json")
+    man_path = os.environ.get("OWNER_MANIFEST", "work/lead/manifest-v258.json")
     man = json.load(open(os.path.join(ROOT, man_path), encoding="utf-8"))
     chars = man["chars"]
     # 只抽基本区字（U+4E00–U+9FFF）：owner 可读、参考字体/PIL 渲染稳定
     basic = [c for c in sorted(chars) if 0x4E00 <= ord(c) <= 0x9FFF]
-    ver = os.environ.get("OWNER_VERSION", "v254")
+    ver = os.environ.get("OWNER_VERSION", "v258")
     random.seed(2026)
     sample = random.sample(basic, min(100, len(basic)))
     os.makedirs(os.path.join(ROOT, "work/review"), exist_ok=True)

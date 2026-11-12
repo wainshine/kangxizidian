@@ -4,9 +4,9 @@ import json, os, sys
 import numpy as np, fitz
 from PIL import Image, ImageDraw, ImageFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FONT = os.environ.get("OWNER_FONT", os.path.join(ROOT, "work/font/build/KangXiKai-v2.4.17.ttf"))
+FONT = os.environ.get("OWNER_FONT", os.path.join(ROOT, "work/font/build/KangXiKai-v2.5.8.ttf"))
 MP = json.load(open(os.path.join(ROOT, "work/t2/pdf_map.json")))
-rows = json.load(open(os.path.join(ROOT, "work/review/owner-provenance-100-v254.json")))
+rows = json.load(open(os.path.join(ROOT, "work/review/owner-provenance-100-v258.json")))
 
 
 def page_gray(page):
@@ -57,7 +57,7 @@ def main():
         d.text((x + 4, y + 254), f'{page} {r["half"]}', font=fnt, fill=(0, 110, 200))
         d.text((x + 4, y + 272), f'框={r["box"]}', font=fnt, fill=(0, 140, 0))
         d.text((x + 4, y + 290), f'{r["label_source"]}'[:26], font=fnt, fill=(120, 120, 120))
-    out = os.path.join(ROOT, "work/review/owner-provenance-100-v254-color.png")
+    out = os.path.join(ROOT, "work/review/owner-provenance-100-v258-color.png")
     S.save(out)
     print(json.dumps({"png": out, "n": len(rows), "mode": "RGB"}))
 
