@@ -5,20 +5,22 @@
 
 ---
 
+> **清理已执行（2026-11-12）**：A+B 删除 61 项/24.90GB，work 43G→19G；JSON 成果与 15 个对比字体保留。详见 `docs/WORK-CLEANUP.md` §〇。
+
 ## 1. 顶层目录地图（2026-11-12 实测）
 
 | 目录 | 大小 | 文件数 | 内容 | 可重建性 | 建议 |
 |---|---|---|---|---|---|
 | `work/models` | **13G** | — | PaddleOCR / 检测等模型与权重 | 可重下但很慢 | **保留**（重下成本高） |
-| `work/font` | **22G** | — | 字体构建：`build/`（历史 TTF 63 个 + **cache 约 34 万文件/约 18G**）、crops/glyphs/demo/qa | cache 可重建（**重切全量 ~9min/10 workers**，但会失去各代构建痕迹） | **保留 build/*.ttf 与 qa**；cache 按 tag 清理（见 §3） |
+| `work/font` | **2.5G** | — | 字体构建：`build/`（15 个对比字体 + **cache v350 17,007 文件/1.1G** + release_extras）、crops/glyphs/qa | v350 缓存可重建（全量 ~9min/10 workers） | 已清理：仅留 v350 与 15 个代表字体 |
 | `work/map` | **2.7G** | 66 个子版本 | mapping 探索：`charalign2..16`、`ca16*`、`bu_*`、`v3full`、`split*/iter*` 等 | 不可重建（历史探索） | **保留**（这是「探索痕迹」主体之一） |
-| `work/lead` | **1.3G** | 598 | 每版扫描/修复/审计 jsonl 与诊断图：`content-loss-*`、`missing/offset/frame_scan_*`、`repair_overlay_v256`、`defect-ledger-v258`、`mapping_verified_all*`、`page_geometry.jsonl`、`mapping_block_v270` 等 | 部分可重跑（耗时长），历史结论不可重建 | **保留**（版本证据核心） |
-| `work/seq` | **867M** | 43 | 正典序/书眉/对齐数据、pkl 中间件 | 部分可重建 | 保留；pkl 可再生成但慢 |
-| `work/t00` | **851M** | — | T0 阶段页面渲染缓存 | 可重建（慢） | 可清理（建议先留 30 天） |
-| `work/detect2` | **525M** | — | 检测器 v2 输出 | 可重建 | 同上 |
-| `work/t2` | **418M** | — | 对齐/DP/校订中间结果（`pdf_map.json` 现行依赖） | **部分不可重建** | **保留**（`pdf_map.json` 是现行输入） |
-| `work/paddlex_cache` + `work/uvcache` | 1.4G | — | 工具缓存 | 可重建 | 可清理 |
-| `work/review` | 227M | 97 | 人工复核图：缺陷历史台账、owner 标记核验表、round 复核包 | 可按脚本重生成 | 保留（复核证据） |
+| `work/lead` | **702M** | ~600 | 每版扫描/修复/审计 jsonl 与诊断图：`content-loss-*`、`missing/offset/frame_scan_*`、`repair_overlay_v256`、`defect-ledger-v258`、`mapping_verified_all*`、`page_geometry.jsonl`、`mapping_block_v270` 等 | 部分可重跑（耗时长），历史结论不可重建 | **保留**（版本证据核心） |
+| `work/seq` | **29M** | — | 正典序/书眉/对齐数据、pkl 中间件 | 部分可重建 | 保留；pkl 可再生成但慢 |
+| `work/t00` | **3.2M** | — | T0 阶段页面渲染缓存 | 可重建（慢） | 可清理（建议先留 30 天） |
+| `work/detect2` | **30M** | — | 检测器 v2 输出 | 可重建 | 同上 |
+| `work/t2` | **14M** | — | 对齐/DP/校订中间结果（`pdf_map.json` 现行依赖） | **部分不可重建** | **保留**（`pdf_map.json` 是现行输入） |
+| `work/paddlex_cache` + `work/uvcache` | 0 | — | 已于 2026-11-12 清理 | — | — |
+| `work/review` | 144M | — | 人工复核图：缺陷历史台账、owner 标记核验表、round 复核包 | 可按脚本重生成 | 保留（复核证据） |
 | `work/t1`、`work/audit-v2419`、`work/audit-v254` 等 | 小 | — | 检测器/审计现场 | 历史证据 | 保留 |
 
 ---
