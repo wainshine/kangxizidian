@@ -172,3 +172,18 @@
   页级 mask 不能碰（会误伤字身）；下一步用 verified tight ink bbox 作为 keep 区
   （块框只用于 2×2 掩膜），或修这些页的 content quad。
 - 构建耗时：全量 17,005 字 **636s（10m36s）**（含每页一次 page_gray 渲染）；缓存命中重建预计 ~4–5 分钟。
+
+
+## E25. verified tight box 作 keep 区：实验回退（2026-11-13）
+
+- 目的：E24 剩余 14 字残线在检测块框内，尝试用 mapping_verified 的 tight ink bbox 作为 keep 区
+  （keep 区内不应用细线 mask），清掉框内残线。新增 `mapping_block_v272`（每字带 verified_box）、
+  `font_norm.vectorize_box(keep_box150=...)`、`font_build` 实验通道（env `FONT_VERIFIED_KEEP=1`）。
+- 结果（3 次全量重建）：
+  1) keep=verified（无过滤）：字形框线 23→**5**，但内容闸抓到 **去 -25%、蘇 -21%**（IoU 0.13/0.09）→ 真笔画被当线删掉；
+  2) 加面积比可靠性门槛（≥0.6×块框）：框线 8，但 **緅 -32%**（ratio 恰 0.60，仍是片段框）；
+  3) 回退：`FONT_VERIFIED_KEEP` 默认 **0**，候选恢复 `eec49c4e…`（14 字框线、内容安全、内容闸 33/35）。
+- 教训：verified bbox 对不少字是**片段框**（正常字头 ink bbox 也只占 2×2 块框 50–70%，面积比无法区分真假完整）；
+  不能用它直接做 ROI。下一步：由**字形自身 thick ink**（腐蚀掉细线后的墨迹 bbox）反推 keep 区（二次 pass），
+  并以内容闸 0 damaged 为硬条件。
+- 产物：`mapping_block_v272.jsonl`（verified_box，留作后续；候选仍用 v271）；失败构建 d960daeb/cb586213 弃用。

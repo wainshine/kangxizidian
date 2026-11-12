@@ -9,7 +9,7 @@
 | 级别 | 数量 | 说明 |
 |---|---|---|
 | P0 | 9（已完成 4） | BF-01/02/08/09 ✅；余：坐标 1、内容 1、闸契约 1、包 1、框线 1 |
-| P1 | 22（已完成 5） | BF-12/14/37/43/45 ✅；余 17 |
+| P1 | 22（已完成 5） | BF-12/14/37/43/45 ✅；余 17（含新增 BF-53） |
 | P2 | 20（已完成 4） | BF-22/46/48/50 ✅；余 16（含 BF-44 部分完成） |
 | ACCEPT | 4 | 历史文档不改写、v2.6.1 旧包不重打、历史数字不回溯重算、审计报告保留 |
 
@@ -37,7 +37,7 @@
 | BF-04 | **v2.6.1 包不可签收**：旧 finalize（zip 内报告/SHA 旧）、包内 README 数字矛盾（60/700 vs 153/1200）、review tsv 混入 v2.6.0 数据 | 审计 DSH P0-2/P1；本次核对确认 | 不重打 v2.6.1；下一候选重建后按新 finalize 顺序出包；材料由同一数据源生成 | 新包 zip==目录、SHA 覆盖报告、材料数字与 gate-report 一致 | CS1 |
 | BF-05 | **内容闸 35→33**（14 字 IoU<0.3 级别） | `content-loss` 闸；页级 pre-cut mask 后 35→33 | 归因：盒/指派/裁切；类级修 + 回写 mapping；不得用 restore | 内容闸 0（或经 owner 同意的披露阈值，且逐字有原因） | CS3 |
 | BF-06 | **缺件 1,200**（邻字隔离未修+ref fail-closed 影响） | 审计 E3/P1；本次已修 ref fail-closed，需重扫 | 先修「block 内邻字组件不计入」类规则，重扫得到干净基线 | 缺件数字可解释；已知债清单冻结 | CS3/CS4 |
-| BF-07 | **框线逃逸/字形级框线** | 源图口径 153（旧）；字形级 23→**14**（E24 页级 pre-cut mask 修 9 字） | 页级几何（BF-11）+ 页级 pre-cut mask（已有）+ verified tight bbox keep 区（框内残线） | 字形级框线=0；源图口径重扫后披露 | CS2 |
+| BF-07 | **框线逃逸/字形级框线** | 源图口径 153（旧）；字形级 23→**14**（E24 页级 pre-cut mask 修 9 字）；verified-box keep 实验回退（E25） | 页级几何（BF-11）+ 页级 pre-cut mask（已有）+ **由字形自身 thick ink 反推 ROI（二次 pass）** 清框内残线 | 字形级框线=0；源图口径重扫后披露 | CS2 |
 | BF-08 | **缓存/几何修复后首次全量重建候选** | 本轮修了 cache key/几何路径；旧字体是旧 key 产物 | 全量重建（0 命中）→ v2.6.2；回退实验后 v2.6.2 候选 | ✅ **完成（2026-11-12）**：v2.6.2 全量 6m42s（sha `58fd9235…`）；缓存命中重建（3m52s）sha 一致 —— 可复现；数字见 `fast-gate-v264.json` | CS1 |
 | BF-09 | **构建失败静默**：单字失败仅 WARN，仍 exit 0 | 审计 GLM P1/DSH | 硬失败：任何 skipped（除 `--limit`）→ 写失败报告（`aborted/failed_n/failed`）并 exit≠0；`--allow-partial` 才放行 | ✅ **完成（2026-11-12）**：注入坏 box → `ABORT: 1 字构建失败` + `/tmp/bad.build_stats.json`，exit 1 | CS1 |
 
@@ -77,6 +77,7 @@
 | BF-48 | **构建入口/边界缺陷与缓存卫生**：`--manifest` 入口未定义；仓库外路径写 stats 崩溃；测试条目污染生产缓存 | 审计 BUILD-09/10/11、DATA-15 | 实现 `load_from_manifest_jsonl`（复用 mapping 主链）；`_rel_path` 容错；缓存按 `_CACHE_VER` 分子目录（旧 flat 目录不再读取），stats 增 `cache` 计数 | ✅ **完成（2026-11-12）**：三入口均可跑；缓存目录 `b7441e3f…`/`fbe518ed…` 各 2 文件（limit 测试）；旧 flat 的甲/乙/丙不再被读取，待清理（不影响新构建） | CS1 |
 | BF-49 | **scripts/ 保留判定缺失**：4 个已宣布归档的「切后擦线」死脚本仍在现行目录且可互 import；14 个脚本无调用方无判定 | 审计 DOCS-12/27 | 每脚本标 keep/archive（README 清单）；死脚本移 `scripts/_archive/` 或加 guard；主链不得 import | 现行 scripts 无未标注/不可判定脚本 | CS2 |
 | BF-50 | **worker 上限未强制**：`--workers`/`FONT_BUILD_WORKERS` 无 clamp（999 可绕过 ≤10） | 审计 BUILD-05 | `clamp_workers`：`--workers`/env 都 clamp ≤10 并告警 | ✅ **完成（2026-11-12）**：`clamp_workers(999)` → 10 + WARN | CS1 |
+| BF-53 | **框内残线 ROI 方案**：剩余 14 字的细线在检测块框内，页级 mask 不能碰；verified bbox 不可靠（E25） | E24/E25 实验；`glyph-frame-gate-v262.json` | 二次 pass：第一次矢量化后由字形 thick ink（腐蚀细线后）反推 keep 区，再以该 ROI 重切；内容闸 0 damaged 为硬条件 | 字形框线 14→0；内容/缺件闸无回归 | CS2 |
 | BF-51 | **构建降级路径无标记**：geometry/quad/lattice 异常只打日志继续，可在无 content clip/块掩膜下完成构建 | 审计 BUILD-08 | 降级次数/类型写 stats 并进闸；超阈值 FAIL | 人为降级 → stats 可见且闸失败 | CS2 |
 
 ## 5. 非审计遗留（历史欠账，2026-11-12 补录）
@@ -123,7 +124,7 @@
 5. **CS3**：BF-05 内容 35→0 + BF-06 缺件（新参考口径）；
 6. **CS4/CS5**：BF-16/BF-15 + 历史硬条件 BF-29/30/31/32/33 + 流程 BF-38/39 + 策略 BF-41/42 → 1–2 天。
 
-> 合计未完成 **38 条**（P0 5 + P1 17 + P2 16；已完成 13：BF-01/02/08/09/12/14/22/37/43/45/46/48/50）。CS2 剩余：BF-03/04/05/06/07 + 字框线 23 + 闸契约尾项 BF-10/17/18/20/23/24/25/44/47。审计 86 条 findings 现 28 fixed / 8 fixed-partial / 1 accepted / 49 deferred。
+> 合计未完成 **39 条**（P0 5 + P1 18 + P2 16；已完成 13：BF-01/02/08/09/12/14/22/37/43/45/46/48/50）。CS2 剩余：BF-03/04/05/06/07/53 + 字框线 14 + 闸契约尾项 BF-10/17/18/20/23/24/25/44/47。审计 86 条 findings 现 28 fixed / 8 fixed-partial / 1 accepted / 49 deferred。
 
 ## 9. 维护规则
 

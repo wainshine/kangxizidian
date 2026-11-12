@@ -540,7 +540,9 @@ def _worker_page(args):
                          min(block[2], tbb[2]), min(block[3], tbb[3]))
             res = vectorize_box(page, box, enable_edge_strip=False,
                                 block150=block, content_quad=quads.get(half),
-                                frame_mask=line_mask, frame_mask_outer=thin_mask)
+                                frame_mask=line_mask, frame_mask_outer=thin_mask,
+                                outer_keep_margin150=2.0,
+                                keep_box150=tuple(it["vbox"]) if it.get("vbox") else None)
         except Exception as e:
             res = {"ok": False, "reason": str(e)[:120]}
         out.append((it["idx"], ch, res))
@@ -612,8 +614,17 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                     src[ch] = {**rec["src"], "cached": True}
                     n_cached += 1
                     continue
+            # verified tight box keep 区：实验通道（E25），默认关闭。
+            # 原因：verified box 对部分字是片段框/不完整（去/蘇/緅），用作 keep 会删真笔画；
+            # 待「由字形自身 ink 反推 ROI（二次 pass）」方案验证后再启用。
+            vbox = a.get("verified_box") if os.environ.get("FONT_VERIFIED_KEEP", "0") == "1" else None
+            if vbox:
+                ba = max(1.0, (box[2] - box[0]) * (box[3] - box[1]))
+                va = (vbox[2] - vbox[0]) * (vbox[3] - vbox[1])
+                if va < 0.6 * ba:
+                    vbox = None
             items.append({"idx": idx, "char": ch, "half": half, "box": box,
-                          "page": page, "cpath": str(cpath)})
+                          "page": page, "cpath": str(cpath), "vbox": vbox})
             idx += 1
 
     # 按页分组并行

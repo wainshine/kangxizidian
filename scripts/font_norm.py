@@ -944,7 +944,8 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                   strip_report: dict | None = None,
                   block_edge_band150: float = 0.0,
                   frame_mask_outer: "np.ndarray | None" = None,
-                  outer_keep_margin150: float = 4.0) -> dict:
+                  outer_keep_margin150: float = 4.0,
+                  keep_box150: tuple | None = None) -> dict:
     """150dpi box -> 灰度 crop -> 归一化轮廓（自适应 pad）。block150=2×2 格块（150dpi）。
 
     先按小 pad（6px@150dpi）渲染；若最大连通域触 crop 边界（说明框偏紧、
@@ -1013,11 +1014,13 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                 fm2 = cv2.resize(sub2, (gray.shape[1], gray.shape[0]),
                                  interpolation=cv2.INTER_NEAREST)
                 mm = int(round(outer_keep_margin150 * 2))
-                # crop 坐标 = (page150 - (box - pad150)) * 2；keep 区 = box ± margin
-                kx0 = max(0, int(round(2 * pad150)) - mm)
-                ky0 = max(0, int(round(2 * pad150)) - mm)
-                kx1 = min(gray.shape[1], int(round((box[2] - box[0] + pad150) * 2)) + mm)
-                ky1 = min(gray.shape[0], int(round((box[3] - box[1] + pad150) * 2)) + mm)
+                # keep 区：优先用 verified tight ink bbox（没有则退回 block box）
+                kr = keep_box150 if keep_box150 is not None else box
+                # crop 坐标 = (page150 - (box - pad150)) * 2
+                kx0 = max(0, int(round((kr[0] - (box[0] - pad150)) * 2)) - mm)
+                ky0 = max(0, int(round((kr[1] - (box[1] - pad150)) * 2)) - mm)
+                kx1 = min(gray.shape[1], int(round((kr[2] - (box[0] - pad150)) * 2)) + mm)
+                ky1 = min(gray.shape[0], int(round((kr[3] - (box[1] - pad150)) * 2)) + mm)
                 if kx1 > kx0 and ky1 > ky0:
                     fm2[ky0:ky1, kx0:kx1] = 0
                 fm = fm2 if fm is None else np.maximum(fm, fm2)
