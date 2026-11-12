@@ -173,6 +173,46 @@ def detect_content_quads(gray):
         x1, y1 = min(float(w - 1), x1), min(float(h - 1), y1)
         if x1 - x0 < 100 or y1 - y0 < 100:
             continue
+        # refine：若边界内 20px 处还有贯穿细线（漏检的内框线），把边界推过它
+        def _line_rows_in(y_start, y_end, width):
+            rows = []
+            for yy in range(int(y_start), int(y_end)):
+                row = rotb[yy, int(x0):int(x1)]
+                if row.size and row.mean() >= 0.45:
+                    idx = np.where(row)[0]
+                    if len(idx):
+                        runs = _runs(idx)
+                        if max(r[-1] - r[0] + 1 for r in runs) >= 0.55 * width:
+                            rows.append(yy)
+            return rows
+        for _ in range(2):
+            r_top = _line_rows_in(y0 + 1, min(y0 + 20, y1), x1 - x0)
+            if r_top:
+                y0 = max(r_top) + 4
+            r_bot = _line_rows_in(max(y0, y1 - 20), y1, x1 - x0)
+            if r_bot:
+                y1 = min(r_bot) - 4
+            def _line_cols_in(x_start, x_end, height):
+                cols = []
+                for xx in range(int(x_start), int(x_end)):
+                    col = rotb[int(y0):int(y1), xx]
+                    if col.size and col.mean() >= 0.45:
+                        idx = np.where(col)[0]
+                        if len(idx):
+                            runs = _runs(idx)
+                            if max(r[-1] - r[0] + 1 for r in runs) >= 0.55 * height:
+                                cols.append(xx)
+                return cols
+            c_left = _line_cols_in(x0 + 1, min(x0 + 20, x1), y1 - y0)
+            if c_left:
+                x0 = max(c_left) + 4
+            c_right = _line_cols_in(max(x0, x1 - 20), x1, y1 - y0)
+            if c_right:
+                x1 = min(c_right) - 4
+        x0, y0 = max(0.0, x0), max(0.0, y0)
+        x1, y1 = min(float(w - 1), x1), min(float(h - 1), y1)
+        if x1 - x0 < 100 or y1 - y0 < 100:
+            continue
         out[half] = {"box": (x0, y0, x1, y1), "M": M, "Minv": Minv,
                      "theta": round(theta, 3)}
     return out
