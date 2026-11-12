@@ -23,7 +23,8 @@ def worker(args):
     try:
         lat = FB.get_page_lattice(page).get(half)
         tbb = FB.get_page_text_bbox(page)
-        fm = FB.get_page_frame_mask(page)
+        quads = FB.get_page_content_quads(page)
+        quad = quads.get(half)
     except Exception as e:
         return [(it["char"], f"prepare:{e}") for it in items]
     for it in items:
@@ -35,6 +36,19 @@ def worker(args):
                          min(block[2], tbb[2]), min(block[3], tbb[3]))
             gray = FN.render_pdf_crop(page, box, pad150=6, dpi=300)
             src = FN.binarize(gray)
+            # 与构建同一口径：content clip + 裁片框线带排除；只比较 block 区域
+            if quad is not None:
+                from page_frames import clip_mask_page
+                cm = clip_mask_page(gray.shape, (box[0] - 6, box[1] - 6), quad)
+                src = src & cm
+            src = FN.trim_crop_frame_edges(src)
+            src = FN.strip_crop_frame_bands(src)
+            bx0 = int(round((block[0] - (box[0] - 6)) * 2)) if block else 0
+            by0 = int(round((block[1] - (box[1] - 6)) * 2)) if block else 0
+            bx1 = int(round((block[2] - (box[0] - 6)) * 2)) if block else src.shape[1]
+            by1 = int(round((block[3] - (box[1] - 6)) * 2)) if block else src.shape[0]
+            bx0, by0 = max(0, bx0), max(0, by0)
+            bx1, by1 = min(src.shape[1], bx1), min(src.shape[0], by1)
             gm = glyph_mask_from_font(font, ch)
             def comps(mask):
                 n, lab, st, _ = cv2.connectedComponentsWithStats(mask.astype(np.uint8), 8)
@@ -73,10 +87,14 @@ def worker(args):
                     ref_ok = False
             except Exception:
                 ref_ok = False
-            total = int(src.sum())
+            block_ink = int(src[by0:by1, bx0:bx1].sum())
+            total = max(1, block_ink)
             miss = []
             for (x0, y0, x1, y1, a) in cs:
                 if a < 0.010 * total:
+                    continue
+                mx, my = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+                if not (bx0 - 6 <= mx <= bx1 + 6 and by0 - 6 <= my <= by1 + 6):
                     continue
                 ww, hh = x1 - x0 + 1, y1 - y0 + 1
                 if min(ww, hh) < 8:
