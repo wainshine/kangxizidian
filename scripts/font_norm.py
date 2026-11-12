@@ -580,6 +580,94 @@ def erase_rects(ink: np.ndarray, rects: list[tuple[int, int, int, int]] | None) 
     return out
 
 
+
+
+def trim_crop_frame_edges(ink: np.ndarray, max_band: int = 40) -> np.ndarray:
+    """裁片级版面边排除（最后一层保险）：
+
+    从裁片四边向内，若外带出现「贯穿裁片的长直线带」（框线在 crop 内的残余），
+    则把该边整体裁掉（带 + 其后空白），直到遇到正文墨。只动**外带**，不碰字身。
+    """
+    out = ink.copy()
+    h, w = out.shape
+    def find_top():
+        for y in range(min(max_band, h)):
+            if out[y].mean() >= 0.55 and out[y].sum() >= 0.5 * w:
+                return y
+        return None
+    def find_bot():
+        for y in range(h - 1, max(0, h - max_band), -1):
+            if out[y].mean() >= 0.55 and out[y].sum() >= 0.5 * w:
+                return y
+        return None
+    def find_left():
+        for x in range(min(max_band, w)):
+            if out[:, x].mean() >= 0.55 and out[:, x].sum() >= 0.5 * h:
+                return x
+        return None
+    def find_right():
+        for x in range(w - 1, max(0, w - max_band), -1):
+            if out[:, x].mean() >= 0.55 and out[:, x].sum() >= 0.5 * h:
+                return x
+        return None
+    ytop = find_top()
+    if ytop is not None:
+        yy = ytop
+        while yy + 1 < h and out[yy + 1].mean() < 0.05:
+            yy += 1
+        out[:yy + 1, :] = False
+    ybot = find_bot()
+    if ybot is not None:
+        yy = ybot
+        while yy - 1 >= 0 and out[yy - 1].mean() < 0.05:
+            yy -= 1
+        out[yy:, :] = False
+    xleft = find_left()
+    if xleft is not None:
+        xx = xleft
+        while xx + 1 < w and out[:, xx + 1].mean() < 0.05:
+            xx += 1
+        out[:, :xx + 1] = False
+    xright = find_right()
+    if xright is not None:
+        xx = xright
+        while xx - 1 >= 0 and out[:, xx - 1].mean() < 0.05:
+            xx -= 1
+        out[:, xx:] = False
+    return out
+
+def strip_crop_frame_bands(ink: np.ndarray, frac: float = 0.85) -> np.ndarray:
+    """裁片级框线排除（切前层，不是事后按形状删组件）：
+
+    只删「贯穿整个裁片边界」的整行/整列墨带（真框线必然贯穿裁片；字形笔画不会触到裁片两侧），
+    因此对字身零误伤。用于 content clip 之后仍残留的框线（框线正好穿过整个 crop 的情形）。
+    """
+    out = ink.copy()
+    h, w = out.shape
+    rows = []
+    for y in range(h):
+        row = out[y]
+        if row[0] and row[-1] and row.sum() >= frac * w:
+            rows.append(y)
+    cols = []
+    for x in range(w):
+        col = out[:, x]
+        if col[0] and col[-1] and col.sum() >= frac * h:
+            cols.append(x)
+    def erase_runs(idx, axis):
+        if not idx:
+            return
+        runs = np.split(np.array(idx), np.where(np.diff(idx) > 1)[0] + 1)
+        for r in runs:
+            a, b = int(r[0]), int(r[-1])
+            if axis == 0:
+                out[a:b + 1, :] = False
+            else:
+                out[:, a:b + 1] = False
+    erase_runs(rows, 0)
+    erase_runs(cols, 1)
+    return out
+
 def mask_to_block(ink: np.ndarray, rect: tuple[int, int, int, int] | None) -> np.ndarray:
     """只保留 2×2 格块内的墨迹（格块=源头正确边界；块外一律不属于本字）。"""
     if rect is None:
@@ -723,6 +811,8 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
     ink = binarize(gray)
     if clip_mask is not None:
         ink[~clip_mask] = False
+    ink = trim_crop_frame_edges(ink)
+    ink = strip_crop_frame_bands(ink)
     ink = erase_rects(ink, erase_rects_list)
     if frame_mask is not None:
         ink[frame_mask > 0] = 0

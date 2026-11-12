@@ -43,6 +43,10 @@ def main():
                     help="隔离清单 JSON（缺省自动找 work/lead/v*_residual.json）")
     ap.add_argument("--scan", action="store_true",
                     help="加跑全库缺件扫描（scan_missing_parts；耗时约 10 分钟，发布候选版应开）")
+    ap.add_argument("--frame-scan", action="store_true",
+                    help="加跑框线逃逸闸（scan_frame_escape）")
+    ap.add_argument("--frame-max-flagged", type=int, default=0,
+                    help="框线逃逸闸阈值（默认 0=严格；预览可给阈值并披露）")
     ap.add_argument("--scan-max-flagged", type=int, default=None,
                     help="缺件扫描 flagged 阈值；缺省=严格模式要求 0（签收版）；预览版可显式给阈值并披露")
     ap.add_argument("--zip", default=None, help="打包后的 zip 路径（finalize 时重建 zip 并校验）")
@@ -140,6 +144,21 @@ def main():
         steps.append({"step": "scan_missing_parts", "ok": ok_scan,
                       "detail": {"returncode": r.returncode, "flagged": flagged,
                                  "mode": mode, "tail": (r.stdout or "")[-200:]}})
+    # 4c) 框线逃逸闸（v2.6：切前排除后块内不应再有贯穿框线）
+    if args.frame_scan:
+        out_frame = os.path.join("work", "lead", f"frame_escape_scan_{tag}.jsonl")
+        r = subprocess.run([sys.executable, "scripts/scan_frame_escape.py",
+                            "--manifest", args.manifest, "--out", out_frame],
+                           cwd=ROOT, capture_output=True, text=True)
+        flagged = None
+        try:
+            flagged = sum(1 for line in open(os.path.join(ROOT, out_frame)))
+        except Exception:
+            pass
+        ok_frame = (r.returncode == 0 and flagged is not None and flagged <= args.frame_max_flagged)
+        steps.append({"step": "frame_escape", "ok": ok_frame,
+                      "detail": {"flagged": flagged, "threshold": args.frame_max_flagged,
+                                 "mode": "strict" if args.frame_max_flagged == 0 else "threshold"}})
     # 5) 文档校验（gate-report 由 finalize 生成；首次运行未含报告时用 --first-pass 跳过该文件引用）
     if args.pkg_dir:
         cmd = [sys.executable, "scripts/check_release_docs.py",

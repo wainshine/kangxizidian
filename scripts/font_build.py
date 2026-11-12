@@ -287,6 +287,25 @@ def get_page_lattice(page_key: str) -> dict:
     return _LAT_CACHE[page_key]
 
 
+_QUAD_CACHE = {}
+
+
+def get_page_content_quads(page_key: str):
+    """版框内正文区（每半版）；裁切时直接 clip，框线/黑带不进入裁片。见 scripts/page_frames.py。"""
+    if page_key in _QUAD_CACHE:
+        return _QUAD_CACHE[page_key]
+    try:
+        from detect_blocks import page_gray
+        from page_frames import detect_content_quads
+        g = page_gray(page_key[:2], int(page_key[3:]))
+        quads = detect_content_quads(g)
+    except Exception as e:
+        print("[quads] FAIL", page_key, e, flush=True)
+        quads = {}
+    _QUAD_CACHE[page_key] = quads
+    return quads
+
+
 def block_for_box(lat, box):
     """由字框中心求其 2×2 格块（150dpi）。节点=小字中心 => 块左上 = 节点 - 半格。"""
     if not lat:
@@ -368,7 +387,7 @@ def _worker_page(args):
     try:
         lat_all = get_page_lattice(page)
         tbb = get_page_text_bbox(page)
-        fms = get_page_frame_mask(page)
+        quads = get_page_content_quads(page)
     except Exception as e:
         return [(it["idx"], None, {"ok": False, "reason": f"page prepare: {e}"}) for it in items]
     for it in items:
@@ -379,7 +398,7 @@ def _worker_page(args):
                 block = (max(block[0], tbb[0]), max(block[1], tbb[1]),
                          min(block[2], tbb[2]), min(block[3], tbb[3]))
             res = vectorize_box(page, box, enable_edge_strip=False,
-                                block150=block, frame_mask=fms)
+                                block150=block, content_quad=quads.get(half))
         except Exception as e:
             res = {"ok": False, "reason": str(e)[:120]}
         out.append((it["idx"], ch, res))
@@ -454,7 +473,7 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                            "override": str(override[ch].get("source", ""))}
                 n_cached += 1
                 continue
-            ck = (f"v312_{page}{half}_{ch}_"
+            ck = (f"v330_{page}{half}_{ch}_"
                   f"{box[0]}_{box[1]}_{box[2]}_{box[3]}").replace("/", "_")
             cpath = cache_dir / f"{ck}.json"
             if use_cache and cpath.exists():
