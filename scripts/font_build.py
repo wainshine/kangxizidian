@@ -531,7 +531,7 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                            "override": str(override[ch].get("source", ""))}
                 n_cached += 1
                 continue
-            ck = (f"v341_{page}{half}_{ch}_"
+            ck = (f"v350_{page}{half}_{ch}_"
                   f"{box[0]}_{box[1]}_{box[2]}_{box[3]}").replace("/", "_")
             cpath = cache_dir / f"{ck}.json"
             if use_cache and cpath.exists():
