@@ -224,7 +224,7 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 - **修复**：字体内部 Version 1.2.0（v1.1 遗留 0.1.0）；随包 `manifest.json` / `provenance-detail.json` / `qa-report.json` / `qa-stats.json` / `coverage-detail.json` / `QA.md` / `RELEASE-NOTES.md`；覆盖口径拆分（严格基本区 47.08%）。
 - **披露**：5,157 条可疑指派（3,929 weak + 1,552 碎片 + 41 无统计）、150 个纯注文页嫌疑半版，清单随包。
 - **v1.2**：7,807 字，QA PASS，zip 自检 PASS，sha256 `87249d3e…`；owner 9/11、demo 11/27（与 v1.1 一致）。
-- 新增 `audit/AUDIT-RESPONSE-2.md`。
+- 新增 `audit/_history/AUDIT-RESPONSE-2.md`。
 
 ## 二十、繁体 OCR 方案调研（2026-11-09 调研）
 
@@ -245,7 +245,7 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 - 修复 P0-1（同框双标→0）、P0-2（238 非字头字剔除）、P0-3（管线脚本化）；P1 精度口径更正为 85-88%（原 97% 作废）。
 - **17,524 字形**，基本区∩目标 = 10,728/16,567 = **64.76%**；QA PASS、SHA256SUMS 19 项、zip PASS；sha256 `6a0d5c93…`。
 - 随包披露：same-box-conflicts(49框/98字)、dropped-noncanonical(238)、excluded-chars(107)、vlm-confirm-report、fp-validation。
-- 新增 `audit/AUDIT-RESPONSE-3.md`。
+- 新增 `audit/_history/AUDIT-RESPONSE-3.md`。
 
 ## 二十三、v2.1.0：注文小字过滤 + 孔洞语义更正（2026-11-09 19:01）
 
@@ -297,18 +297,18 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 
 ## 三十一、自审计 + v2.4.1（2026-11-10 09:33）
 
-- 自审计（audit/AUDIT-SELF-v2.4.0.md）：发布完整性/标准合规/可复现构建（逐字节一致）/数字一致性全部通过；发现 P1（README 披露缺口）+ P2（override 门禁、孔洞口径）。
+- 自审计（audit/_history/AUDIT-SELF-v2.4.0.md）：发布完整性/标准合规/可复现构建（逐字节一致）/数字一致性全部通过；发现 P1（README 披露缺口）+ P2（override 门禁、孔洞口径）。
 - v2.4.1：README 模板化（标准/敞口/GAN 计划）+ override 门禁；字表不变 17,121 / 62.46% / GAN 目标 6,219；QA PASS；sha256 `e4598db0…`；18 项 SHA 全过。
 
 ## 三十二、审计归档规范 + v2.4.2（2026-11-10 09:44）
 
-- 审计文件统一入 `audit/`（README 约定命名/流程）；自审计报告移入 `audit/AUDIT-SELF-v2.4.0.md`，docs 引用同步；
+- 审计文件统一入 `audit/`（README 约定命名/流程）；自审计报告移入 `audit/_history/AUDIT-SELF-v2.4.0.md`，docs 引用同步；
 - v2.4.2：字表不变（17,121 / 62.46% / GAN 目标 6,219），QA PASS，18/18 SHA OK，sha256 `7e624d60…`，自审计随包。
 
 ## 三十三、文档/审计目录校订 + v2.4.3（2026-11-10 11:32）
 
 - docs/ 19 份 + audit/ 9 份逐份校订：新增 docs/README 索引与 audit 核验台账；现行文档改到与代码一致，历史文档加状态横幅与过期标注，DECISIONS 追加 D15-D18。
-- 自审计（audit/AUDIT-SELF-v2.4.2.md）：全部通过，仅 P2（models 体积声明）修正。
+- 自审计（audit/_history/AUDIT-SELF-v2.4.2.md）：全部通过，仅 P2（models 体积声明）修正。
 - v2.4.3（patch，字体内容同 v2.4.2）：17,121 字形，62.46%，QA PASS，20/20 SHA OK，sha256 `d0107b11…`；随包自审计+核验台账。
 
 ## 三十四、第五轮审计抗辩 + v2.4.4（2026-11-10 13:05）
@@ -417,7 +417,7 @@ S5 发布链：cmap 20,992+42；缺字 mapped_traditional（Unihan kTraditionalV
 
 ## 五十九、门禁加固 + v2.5.7（2026-11-12 07:05）
 
-- 两轮审计 26 条声明：成立 17 / 部分 4 / 不成立 3（抗辩 audit/AUDIT-REBUTTAL-v2.6-SCRIPTS.md）；
+- 两轮审计 26 条声明：成立 17 / 部分 4 / 不成立 3（抗辩 audit/_history/AUDIT-REBUTTAL-v2.6-SCRIPTS.md）；
 - 内容闸 exit 3、release_gate --scan、危险开关默认关+raise、归档断链修复 49/49、overlay 脚本入库；8/8 门禁全绿；不签收。
 
 ## 六十、发布证据链 + 高频缺口 + v2.5.8（2026-11-12 08:20）

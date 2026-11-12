@@ -197,3 +197,14 @@ release/KangXiKai-vX.Y.Z/
 2. 下一轮以**变更集 cs1 = 页级几何校验 + mapping 指派审计**开始：先出 50 字级小样本对照，再决定是否全量；
 3. 每轮只交：`candidate .ttf + round-<id>/ 7 张图 + 1 页摘要`，不再交「半个正式包」；
 4. 打包脚本改为「清单校验 + 一次性打包」，正式包 5 分钟内完成，不再 20–30 分钟。
+
+## 10bis 每版必须留下的记录（防失忆）
+
+每完成一个候选/正式版本，必须同时产出以下三样，缺一不发版：
+
+1. `docs/VERSION-HISTORY.md` 追加一行：版本 / 日期 / 类型（探索/结构/修补/材料）/ 本版变更 / 章节目录 / 现状；
+2. `work/changesets/cs-<id>.jsonl`：本版变更集（scope/root_cause/fix/verification，见 §2）；
+3. `work/lead/version-artifacts-v<ver>.jsonl`：本版涉及的 mapping/scan/字形/复核文件清单
+   （路径 + sha256 或 大小+mtime），供未来判断「这一版的痕迹是什么」。
+
+另：发布包 `build_recipe.json` 必须记录 `git_commit / git_dirty / cache_tag / 扫描数字来源`。

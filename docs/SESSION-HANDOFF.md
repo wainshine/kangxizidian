@@ -1,13 +1,15 @@
-> **文档状态：编年记录（各节为写作当时的状态，不是现行口径）**。
-> **现行口径（2026-11-10）**：发布 = `release/KangXiKai-v2.4.3/`（17,121 字形，全部字头级真迹；基本区∩16,567 = 10,348 = 62.46%；
-> 缺口 6,219 = GAN 补全目标；QA PASS）；标准 = headword-only（`docs/DECISIONS.md` D15）；发布流程 = D17；版本号 = D18。
-> **已知过期/冲突条目索引**（本文历史节的读法）：
-> - 「47.1% / 7,807 字」（§二十八）= v1.1 阶段；「70.51% / 20,611」（§三十二）= v2.0 阶段；「64.74% / 17,518」（§三十七-三十八）= v2.3.2 阶段 —— 均已被 v2.4.0 的 headword-only 清理取代；
-> - 「回填 433 字 / 356 小字回填」（§三十九-§四十）= 已被 §四十一 与 D15 推翻（397 个小字已全部剔除）；
-> - 「cmap 20,992/21,034 覆盖承诺」（早期节、PROMPT）= 作废（D15 不补假覆盖）；
-> - 「书内页码=2×扫描页−11」（早期引用）= 作废（D14：葉码 = 扫描页 −5）；
-> - v2.3.0 的「QA PASS」表述与包内 qa-stats 矛盾（§四十已记录根因），现行以 `qa-stats` 的 `pass` 字段为准。
-> 检索建议：需要现行状态时只读每节末尾的「实际时间」+ 文末最新节，或直接看 `release/` 与 `docs/RELEASE-PLAN.md`。
+> **本文件是历史交接编年（2026-11-08 起）；新会话请不要从本文开始读。**
+>
+> **新会话恢复顺序（2026-11-12 起）**：
+> 1. `docs/PIPELINE.md` —— 现行管线架构/原理/流程/复现命令（唯一权威）
+> 2. `docs/WORKFLOW.md` —— 流程纪律（候选/正式、变更集、闸分层、里程碑、复核图）
+> 3. `docs/VERSION-HISTORY.md` —— 每版改了什么、探索 vs 修补
+> 4. `docs/WORK-MAP.md` —— `work/` 痕迹地图（不能盲删）
+> 5. `audit/SELF-AUDIT-2026-11-12.md` —— 流程自审计与已知错误
+> 6. 当前轮：`work/changesets/` + `work/review/round-*/`
+>
+> 当前基线：**v2.6.1**（17,007 字，基本区 61.98%，commit `18944b9`，cache `v350`）；`release/` 仅保留 v2.5.8 与 v2.6.1。
+> 下文的早期节为当时状态，数字/口径以现行三份文档与 `release/` 为准。
 
 # SESSION-HANDOFF · 2026-11-08 接手会话后交接
 
@@ -332,7 +334,7 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 
 ## 1a. 自审计 + v2.4.1（2026-11-10 09:33）
 
-- 自审计报告 audit/AUDIT-SELF-v2.4.0.md：完整性/合规/可复现/数字 全通过；P1 README 披露缺口、P2 override 门禁与孔洞口径已修。
+- 自审计报告 audit/_history/AUDIT-SELF-v2.4.0.md：完整性/合规/可复现/数字 全通过；P1 README 披露缺口、P2 override 门禁与孔洞口径已修。
 - v2.4.1：字表不变（17,121；62.46%；GAN 目标 6,219），QA PASS，sha256 `e4598db0…`，18/18 SHA OK。
 
 ## 1b. 审计归档 + v2.4.2（2026-11-10 09:44）
@@ -343,7 +345,7 @@ solver/extractor/review 工具；文档 TAKEOVER/V3-STATUS/DETECTOR-V2/FONT-BUIL
 ## 1d. 文档/审计校订 + v2.4.3（2026-11-10 11:32）
 
 - docs/19 + audit/9 全部校订（状态横幅/冲突修正/索引/核验台账）；DECISIONS D15-D18。
-- 自审计 audit/AUDIT-SELF-v2.4.2.md：全过（P2 models 体积已修）。
+- 自审计 audit/_history/AUDIT-SELF-v2.4.2.md：全过（P2 models 体积已修）。
 - v2.4.3（patch）：17,121 字形，62.46%，QA PASS，20/20 SHA OK，sha256 `d0107b11…`。
 
 ## 1e. 第五轮审计 + v2.4.4（2026-11-10 13:05）

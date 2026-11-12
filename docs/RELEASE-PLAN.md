@@ -62,7 +62,7 @@ SOURCE_DATE_EPOCH=1792713600 .venv/bin/python scripts/font_build.py \
   --extra work/font/build/release_extras/RELEASE-NOTES-v243.md \
   --extra work/font/build/release_extras/v243-strict-report.json \
   --extra work/font/build/release_extras/random120-v243.png \
-  --extra audit/AUDIT-SELF-v2.4.2.md
+  --extra audit/_history/AUDIT-SELF-v2.4.2.md
 ```
 
 `font_package.py` 内置闸（任一失败即 ABORT）：字体可开 / 表齐全 / `cmap == manifest` / 空字形 0 /

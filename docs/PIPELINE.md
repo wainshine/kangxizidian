@@ -1,0 +1,203 @@
+# PIPELINE · 现行管线架构 / 原理 / 流程（v2.6.1，2026-11-12）
+
+> 本文是**唯一现行管线说明**。旧文档状态：`FONT-BUILD.md` 的 §0–§11 是 demo 阶段（已过期），`TAKEOVER.md`/`V3-STATUS.md` 是历史编年。
+> 本文与 `docs/WORKFLOW.md`（流程纪律）、`docs/DECISIONS.md`（口径决策）、`docs/VERSION-HISTORY.md`（逐版变更）配套。
+
+---
+
+## 0. 一句话
+
+**PDF 页面 → 页级几何（格点/正文区）→ 字头 mapping（框=2×2 格块）→ 裁切阶段排除版框/邻墨 → 矢量化 + 归一化 → TTF → 自动闸 + 人工复核 → 里程碑发布。**
+
+当前基线：**v2.6.1**，17,007 字形（基本区 10,269 = 61.98%），构建 commit `18944b9`，缓存 tag `v350`。
+
+---
+
+## 1. 目标与不可违反的约束
+
+| # | 约束 | 来源 |
+|---|---|---|
+| 1 | **只收字头真迹**（headword-only），不收注文小字；不补假字形 | D15 |
+| 2 | 字头 = **2×2 小字格块**；框面积由排版决定，同页应几乎一致 | owner |
+| 3 | **版框线/页边黑带/界行在裁切阶段排除**，严禁「切进来再擦」 | owner |
+| 4 | **同类问题类级修**，不按单字打补丁；禁止 restore/overlay 整字拷贝 | owner / 审计 |
+| 5 | 数字必须来自闸输出（可复算）；没有证据的结论不写 | 流程 |
+| 6 | 正式包必须来自 **clean git tree**，SHA 覆盖 gate-report，finalize 后不改包 | 流程 |
+| 7 | 只有里程碑发正式包；候选 `cYYYYMMDD-n` 不进 release/ | WORKFLOW |
+
+---
+
+## 2. 数据与坐标约定
+
+| 项 | 约定 |
+|---|---|
+| 扫描件 | `康熙字典/康熙字典.NN.*.pdf`（12 卷，3,869 页）；`work/t2/pdf_map.json`：卷号 `01..13` → 文件名 |
+| 页 key | `NN_PPPP`（如 `02_0074`） |
+| 一页 = 跨页 | 左/右半版 `L`/`R`；gutter 由列投影取 42–58% 区间最小值定位 |
+| 坐标 dpi | **150dpi 坐标系**（lattice/box/manifest 全部用它）；渲染裁片用 **300dpi**（`dpi_scale=2.0`） |
+| 字框 box | `[x0,y0,x1,y1]` @150dpi，`(x0,y0)` 左上 |
+| 产物根 | `work/`（不入 git，见 `docs/WORK-MAP.md`）；发布物 `release/` |
+
+---
+
+## 3. 管线总览（四层 + 两闸）
+
+```
+12 PDF (3869 页)
+   │  S0 页面角色（body 页 3,266 / 卷首 / 目录 / 牌记 …）      scripts/lead_page_roles.py, t1 detector(冻结)
+   ▼
+S1 页级几何 G（每页一次，缓存）                                  scripts/build_page_geometry.py
+   lattice: 小字格点 (px,py,phx,phy)（每半版）                  → work/lead/page_geometry.jsonl
+   text_bbox / content_quad(版框正文区, 含旋转 M/Minv)             3,869 行；3,526 页有 quad
+   ▼
+S2 字头 mapping M（单一真源）                                   work/lead/mapping_verified_all33.jsonl
+   正典序 → 页面半版 → box；修复（扩框/重定位）回写 mapping      → mapping_block_v270.jsonl（box=2×2 块∩正文区）
+   ▼
+S3 字形构建 F（脏集增量；cache key = geometry×box×算法 tag）    scripts/font_build.py + scripts/font_norm.py
+   每字：300dpi 渲染 → 二值化 → content clip → 裁片框线排除
+        → 2×2 块掩膜 → 主簇清理 → 2× 描迹 → 归一化(长边760)     → work/font/build/KangXiKai-v<ver>.ttf
+   ▼
+C 候选（字体 + 快闸 + 人工复核包，不打包）                       docs/WORKFLOW.md
+   ├─ L1 快闸 fast_gate（QA/版本/字符diff/内容闸/box均匀性/文档/SHA，≤3min）
+   └─ L2 全闸 full_gate（缺件/框线/几何校验/映射审计，仅在里程碑前）
+   ▼
+R 正式包（里程碑）                                               scripts/font_package.py + scripts/release_gate.py
+   字体 + manifest/provenance/coverage/QA + gate-report + 明细
+   + build_recipe(git commit/算法版本) + SHA256SUMS + zip（SHA 覆盖报告，finalize 后不改）
+```
+
+---
+
+## 4. 分阶段详解
+
+### S1 页级几何（`scripts/build_page_geometry.py`，10 workers，一次性 10–13 分钟）
+
+- **lattice 拟合**：小字组件中心（h 24–54, w 9–60, area 40–1200）→ 对 x/y 分别拟合周期 `(px,py)` 与相位 `(phx,phy)`；输出每半版 `(px,py,phx,phy)`；
+- **text_bbox**：正文墨迹 bbox 内缩 5px（版框外沿≈bbox）；
+- **content_quad（版框正文区）**：`scripts/page_frames.py`
+  1) Hough 长线估计页面微旋转 θ（本批 0.2–0.4°），旋转校正；
+  2) 近轴（±2.5°）线段聚类，得竖线簇 x / 横线簇 y；
+  3) 每半版取「靠边但最靠内」的框线簇作为版框内边界，再内缩 4px；
+  4) 小字 bbox ±60px 兜底、页边黑带钳制、框线缺失侧用 lattice 兜底（`fallback_quad_from_lattice`）；
+  5) 保留旋转矩阵 `M/Minv`，供裁切时把 150dpi 点映射到旋转空间；
+- 产物：`work/lead/page_geometry.jsonl`（3,869 行；3,526 页有 content_quad；343 页无 quad → 走兜底/裁片外带规则）。
+
+### S2 字头 mapping（`work/lead/mapping_block_v270.jsonl`）
+
+- 正典序 `work/seq/canonical.jsonl` → 42,302 条 → 3,266 body 页定位 → `mapping_verified_all33.jsonl`（5,695 页半版、17,007 字）；
+- **box = 2×2 格块 ∩ content_quad**（`scripts/make_block_mapping.py`）：
+  `block_for_box(lat, box)` 由字框中心取 2×2 格（半格偏移 + 3px 余量），再与 content_quad 求交；
+- 结果：框宽 p5/p50/p95 = 99/102/103，框高 95/98/100（同页 σ≈0.4px）——面积口径与排版一致；
+- **单一真源**：修复（缺件扩框/切偏重选）必须回写到 mapping，不再用 overlay/restore 把旧字形拷回（v2.6.0 的 375 字 restore 已废弃）。
+
+### S3 字形构建（`scripts/font_build.py` → `scripts/font_norm.py`）
+
+每字流程（`vectorize_box`）：
+
+1. **渲染**：PDF 300dpi 直渲染 box+pad（`render_pdf_crop`，pad 150dpi 6px；若触边自动加大 pad 重渲一次）；
+2. **二值化**：中值背景相减（`binarize`）；
+3. **切前排除（核心）**：
+   - `content_quad` → `clip_mask_page`：二值化前把版框正文区外的像素置零（框线/黑带/角部楔形从不进入 ink）；
+   - `trim_crop_frame_edges`：裁片外带若出现贯穿长线，把该边整条裁掉（只动外带）；
+   - `strip_crop_frame_bands`：删除贯穿裁片边界、触到两侧的整行/整列墨带（字形笔画不会触到裁片两侧）；
+4. **2×2 块掩膜**：只保留该字 2×2 格块内墨（块外邻字/注文丢弃，3px 余量）；
+5. **主簇清理**（`clean_ink`）：取最大主组件及邻近组件，去孤立碎片/贴边残片；`enable_edge_strip=False`（危险开关默认关）；
+6. **描迹**：2× 超采样（避免描迹偏移），得轮廓；
+7. **归一化**：以主字簇 bbox 为基准，最长边 → **760 font units**，按 crop 内 box 边距对齐中心；EM=1000；
+8. **轮廓整理**：`orient_contours`（方向/回字规则）、prune 短轮廓；
+9. **cache**：key = `v350_<page><half>_<char>_<box>`；未变字直接命中（组装整字体 ~20s）。
+
+构建参数：`FONT_BUILD_WORKERS=10`；17,007 字全量 **554s**（0 命中时）；旧缓存 tag v248–v341 已不参与。
+
+### S4 闸（自动验证）
+
+| 闸 | 脚本 | 判据/口径 | 当前基线 |
+|---|---|---|---|
+| 字体 QA | `font_qa.py` | render_bad/tiny/超 em/advance/同框=0 | PASS |
+| 内容缺失 | `content_loss_gate.py` | 新旧字形 ink_ratio/IoU（vs v2.5.8） | **35**（阈值 35） |
+| 缺件扫描 | `scan_missing_parts.py` | 源块组件未被字形覆盖（content+block 口径） | **1,200**（新口径基线） |
+| 框线逃逸 | `scan_frame_escape.py` | 块内贯穿线残留 | **153**（新口径基线） |
+| 快闸 | `fast_gate.py` | QA/版本/字符diff/内容/box均匀/文档/SHA | ≤3min，7 项 |
+| 全闸 | `release_gate.py` | 上述 + 文档 + SHA + zip，finalize 后 SHA 覆盖报告 | 9/9 PASS |
+
+- 扫描结果按字体 SHA 缓存于 `work/gates/<sha12>/`；字体不变不重扫；
+- `jobrun.sh` 包装后台任务：写 `work/jobs/<name>.status`（START/DONE/KILLED/FAILED + EXIT），pipefail 不再被 `| tail` 掩盖。
+
+### S5 打包与发布
+
+- `font_package.py`：**freshness**（字体须比 manifest 新）+ **clean-tree**（工作区必须干净，否则 ABORT；调试可 `--allow-dirty`）+ QA + 材料 + SHA + zip；
+- `release_gate.py`：9 步 PASS → 写 gate-report → 重算 SHA（覆盖含报告）→ 终校验 → zip 自检；
+- `build_recipe.json` 记录 **git commit / dirty / cache tag / 算法脚本 sha / 扫描数字**，保证可复现；
+- 正式包**只在里程碑**发（`docs/WORKFLOW.md` §7）；候选只给字体+复核包+快闸。
+
+---
+
+## 5. 不变量（改代码前先看）
+
+1. **框 = 2×2 格块 ∩ content**，面积必须均匀；不要退回「字内墨迹紧框」。
+2. **mapping 是唯一真源**；修复回写 mapping，禁止 overlay/restore 拷贝旧字形。
+3. **版框类只在裁切阶段排除**；主链不做「按形状删框线」的补救。
+4. 闸阈值只允许逐版收紧；放宽必须在包内报告写明原因并经 owner 同意。
+5. cache key 必须含几何/mapping/box/算法版本；只重建脏集。
+6. 无证据不写数字；每次变更追加 `docs/VERSION-HISTORY.md` + `work/changesets/`。
+
+---
+
+## 6. 复现命令
+
+```bash
+# 0) 一次性：页级几何（10 workers）
+.venv/bin/python scripts/build_page_geometry.py
+
+# 1) block mapping（box=2×2 块∩正文区，8 workers）
+.venv/bin/python scripts/make_block_mapping.py \
+  --mapping work/lead/mapping_verified_all33.jsonl \
+  --out work/lead/mapping_block_v270.jsonl --workers 8
+
+# 2) 全量重建（10 workers；缓存 tag 变更即全量）
+FONT_BUILD_WORKERS=10 .venv/bin/python scripts/font_build.py \
+  --mapping work/lead/mapping_block_v270.jsonl \
+  --out work/font/build/KangXiKai-v2.6.1.ttf --version 2.6.1
+
+# 3) 快闸（≤3 分钟；每次候选）
+.venv/bin/python scripts/fast_gate.py --font work/font/build/KangXiKai-v2.6.1.ttf \
+  --manifest work/font/build/manifest_v261.json --version 2.6.1 \
+  --baseline work/font/build/KangXiKai-v2.5.8.ttf \
+  --baseline-manifest work/font/build/manifest_v258.json \
+  --pkg-dir release/KangXiKai-v2.6.1 --content-max-damaged 35
+
+# 4) 全闸 + finalize（里程碑前；可用已有扫描结果复用）
+.venv/bin/python scripts/release_gate.py --version 2.6.1 \
+  --font work/font/build/KangXiKai-v2.6.1.ttf --manifest work/font/build/manifest_v261.json \
+  --prev work/font/build/KangXiKai-v2.5.8.ttf --prev-manifest work/font/build/manifest_v258.json \
+  --pkg-dir release/KangXiKai-v2.6.1 --zip release/KangXiKai-v2.6.1.zip \
+  --scan --frame-scan --content-max-damaged 35 --tag v261
+```
+
+---
+
+## 7. 当前数字（v2.6.1，可复算）
+
+| 项 | 值 |
+|---|---|
+| 字形数 | 17,007（全部 headword-only 真迹） |
+| 基本区覆盖 | 10,269 / 20,992 = **48.92%**；目标字表 10,269 / 16,567 = **61.98%** |
+| 缺口 | 6,298（其中高频 23） |
+| 隔离 | 9（刃/榍/法/紆/総/荹/仟/禦/絞） |
+| 全量构建 | 17,007 字 / 554s @10 workers / cache v350 |
+| 闸 | QA PASS；内容 35；缺件 1,200；框线 153（后两者为 block 新口径首次基线） |
+| 已知结构债 | 343 页无 content_quad；缺件扫描邻字隔离待修正；页级几何按页修；09–11/13 卷锚点；100 字签核 |
+
+---
+
+## 8. 失败模式与教训（不要再踩）
+
+| 失败模式 | 现象 | 现行对策 |
+|---|---|---|
+| 切后擦框线 | 反复回归（嗃/勤） | 切前排除（content clip + 裁片外带规则） |
+| restore/overlay 整字拷贝 | 旧框线回流、双真源 | 删除该层；修复回写 mapping |
+| 门禁盲区 | v2.6.0 带坏字形 9/9 PASS | 必须加字形级/几何级闸；数字来自闸输出 |
+| 墨迹紧框 | 面积不一致、左大右漏 | block mapping（框=2×2 块） |
+| 小修重跑全库扫描 | 27 分钟/次、发版失效 | 闸分层 + 按字体 SHA 复用 + 脏集重建 |
+| `| tail` 吞退出码 | 失败显示成功 | jobrun + pipefail + status 标记 |
+| 未提交代码打包 | hash 不可复现 | clean-tree 打包闸 + build_recipe 记录 commit |
