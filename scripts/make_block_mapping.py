@@ -61,10 +61,9 @@ def _shrink_box_past_bands(page, box, pad=12):
 def worker(args):
     page, half, items = args
     import font_build as fb
-    from page_frames import detect_content_quads
-    from detect_blocks import page_gray
     try:
-        quads = detect_content_quads(page_gray(page[:2], int(page[3:])))
+        # 统一入口（含页级几何缓存 + lattice fallback；审计 P0-3）
+        quads = fb.get_page_content_quads(page)
         lat = fb.get_page_lattice(page).get(half)
         q = quads.get(half)
     except Exception:
@@ -83,7 +82,7 @@ def worker(args):
         nb = [float(round(v)) for v in nb]
         if nb[2] - nb[0] < 60 or nb[3] - nb[1] < 60:
             continue
-        out.append((ch, nb))
+        out.append((it.get("rid"), ch, nb))
     return out
 
 
@@ -97,29 +96,33 @@ def main():
     jobs = {}
     for r in rows:
         items, seen = [], set()
-        for a in r.get("assigned", []):
+        for idx_a, a in enumerate(r.get("assigned", [])):
             ch = a.get("char"); cand = a.get("cand") or {}
             box = cand.get("box") or a.get("box")
             if ch and box and ch not in seen:
-                seen.add(ch); items.append({"char": ch, "box": box})
+                seen.add(ch)
+                items.append({"char": ch, "box": box,
+                              "rid": f"{r.get('page')}|{idx_a}|{ch}"})
+        # 注意：重复字跨页时按行处理（rid 唯一），不再用 newmap[ch] 全局覆盖
         if items:
             jobs.setdefault((r["page"], r.get("half", "")), []).extend(items)
     jl = [(p, h, items) for (p, h), items in jobs.items()]
     newmap = {}
     with ProcessPoolExecutor(max_workers=args.workers) as ex:
         for res in ex.map(worker, jl, chunksize=2):
-            for ch, nb in res:
-                newmap[ch] = nb
+            for rid, ch, nb in res:
+                newmap[(rid, ch)] = nb
     changed = 0
     for r in rows:
-        for a in r.get("assigned", []):
+        for idx_a, a in enumerate(r.get("assigned", [])):
             ch = a.get("char")
-            if ch in newmap:
+            rid = f"{r.get('page')}|{idx_a}|{ch}"
+            if rid in newmap:
                 cand = dict(a.get("cand") or {})
                 old = cand.get("box") or a.get("box")
-                if [float(round(v)) for v in old] != newmap[ch]:
+                if [float(round(v)) for v in old] != newmap[rid, ch]:
                     changed += 1
-                cand["box"] = newmap[ch]
+                cand["box"] = newmap[rid, ch]
                 a["cand"] = cand
     with open(os.path.join(ROOT, args.out), "w", encoding="utf-8") as fo:
         for r in rows:

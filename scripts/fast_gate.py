@@ -74,20 +74,34 @@ def main():
     content_detail = {}
     if args.baseline:
         cd, sha12 = cache_dir(args.font)
-        cached = os.path.join(cd, "content_loss.json")
-        if os.path.exists(cached):
-            content_detail = json.load(open(cached))
-            content_detail["reused"] = True
-        else:
-            r = run([sys.executable, "scripts/content_loss_gate.py", args.baseline, args.font,
-                     args.manifest, cached])
+        base_sha = ""
+        try:
+            import hashlib as _h
+            base_sha = _h.sha256(open(os.path.join(ROOT, args.baseline), "rb").read()).hexdigest()[:12]
+        except Exception:
+            pass
+        rows_path = os.path.join(cd, f"content_loss_rows_{base_sha}.json")
+        sum_path = os.path.join(cd, "content_loss_summary.json")
+        content_detail = {}
+        if os.path.exists(rows_path) and os.path.exists(sum_path):
             try:
-                rows = json.load(open(cached))
+                cached = json.load(open(sum_path))
+                if isinstance(cached, dict) and cached.get("baseline_sha12") == base_sha:
+                    content_detail = dict(cached); content_detail["reused"] = True
+            except Exception:
+                content_detail = {}
+        if not content_detail:
+            r = run([sys.executable, "scripts/content_loss_gate.py", args.baseline, args.font,
+                     args.manifest, rows_path])
+            try:
+                rows = json.load(open(rows_path))
                 content_detail = {"damaged": len(rows), "returncode": r.returncode,
-                                  "sample": rows[:5], "reused": False}
+                                  "sample": rows[:5], "reused": False,
+                                  "baseline_sha12": base_sha}
             except Exception as e:
-                content_detail = {"error": str(e)[:120], "returncode": r.returncode}
-            json.dump(content_detail, open(cached, "w"), ensure_ascii=False, indent=1)
+                content_detail = {"error": str(e)[:120], "returncode": r.returncode,
+                                  "baseline_sha12": base_sha}
+            json.dump(content_detail, open(sum_path, "w"), ensure_ascii=False, indent=1)
         ok_content = content_detail.get("damaged") is not None and \
             content_detail.get("damaged", 999) <= args.content_max_damaged and \
             content_detail.get("returncode", 0) in (0, 3)

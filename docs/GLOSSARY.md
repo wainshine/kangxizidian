@@ -38,7 +38,7 @@
 | **block mapping** | v2.6.1 起：box = 2×2 块 ∩ content quad；`work/lead/mapping_block_v270.jsonl` |
 | **manifest** | 字形清单（char → page/half/box/label_source），构建输入 |
 | **geometry cache** | 页级几何预计算（lattice/text_bbox/content quads），`work/lead/page_geometry.jsonl` |
-| **cache tag** | 字形缓存版本（当前 **v350**）；key 含 page/half/char/box |
+| **cache key** | 字形缓存键 = **算法脚本 sha8 + page_geometry.jsonl sha12** + page/half/char/box；自动版本化（人工 tag 已废弃） |
 | **脏集（dirty set）** | 本次变更实际影响的字集合；只重建脏集 |
 | **归一化** | 以主字簇 bbox 为基准，最长边 → **760 font units**（UPM 1000） |
 | **pre-cut** | 在二值化/清理**之前**排除版面元素（content clip + 裁片外带规则） |

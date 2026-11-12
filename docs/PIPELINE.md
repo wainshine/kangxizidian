@@ -97,7 +97,7 @@ R 正式包（里程碑）                                               scripts
 1. **渲染**：PDF 300dpi 直渲染 box+pad（`render_pdf_crop`，pad 150dpi 6px；若触边自动加大 pad 重渲一次）；
 2. **二值化**：中值背景相减（`binarize`）；
 3. **切前排除（核心）**：
-   - `content_quad` → `clip_mask_page`：二值化前把版框正文区外的像素置零（框线/黑带/角部楔形从不进入 ink）；
+   - `content_quad`（唯一来源：`font_build.get_page_content_quads`，含页级缓存与 lattice fallback）→ `clip_mask_page`：二值化前把版框正文区外的像素置零（框线/黑带/角部楔形从不进入 ink）；
    - `trim_crop_frame_edges`：裁片外带若出现贯穿长线，把该边整条裁掉（只动外带）；
    - `strip_crop_frame_bands`：删除贯穿裁片边界、触到两侧的整行/整列墨带（字形笔画不会触到裁片两侧）；
 4. **2×2 块掩膜**：只保留该字 2×2 格块内墨（块外邻字/注文丢弃，3px 余量）；
@@ -118,7 +118,7 @@ R 正式包（里程碑）                                               scripts
 | 缺件扫描 | `scan_missing_parts.py` | 源块组件未被字形覆盖（content+block 口径） | **1,200**（新口径基线） |
 | 框线逃逸 | `scan_frame_escape.py` | 块内贯穿线残留 | **153**（新口径基线） |
 | 快闸 | `fast_gate.py` | QA/版本/字符diff/内容/box均匀/文档/SHA | ≤3min，7 项 |
-| 全闸 | `release_gate.py` | 上述 + 文档 + SHA + zip，finalize 后 SHA 覆盖报告 | 9/9 PASS |
+| 全闸 | `release_gate.py` | 上述 + **包内 TTF sha == --font** + 缺件/框线复用文件存在校验 + 文档 + SHA + zip（SHA 冻结后重建） | 9/9 PASS（v2.6.1 修复后因同框冲突 font_qa FAIL，属预期） |
 
 - 扫描结果按字体 SHA 缓存于 `work/gates/<sha12>/`；字体不变不重扫；
 - `jobrun.sh` 包装后台任务：写 `work/jobs/<name>.status`（START/DONE/KILLED/FAILED + EXIT），pipefail 不再被 `| tail` 掩盖。

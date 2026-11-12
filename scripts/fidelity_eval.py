@@ -41,9 +41,18 @@ def glyph_mask_from_contours(contours, size=256):
     return canvas.astype(bool)
 
 
+from functools import lru_cache
+
+
+@lru_cache(maxsize=64)
+def _font_obj(path, size):
+    from PIL import ImageFont
+    return ImageFont.truetype(path, size)
+
+
 def glyph_mask_from_font(font_path, ch, size=256):
-    from PIL import Image, ImageDraw, ImageFont
-    f = ImageFont.truetype(font_path, size)
+    from PIL import Image, ImageDraw
+    f = _font_obj(font_path, size)
     im = Image.new("L", (size, size), 0)
     ImageDraw.Draw(im).text((size // 2, int(0.88 * size)), ch, fill=255, font=f, anchor="ms")
     return np.array(im) > 127

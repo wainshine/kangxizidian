@@ -256,7 +256,30 @@ def sha256(path: Path) -> str:
 # 页级预处理（格点 / 正文 bbox / 版框 mask）——make font 的「源头边界」基础设施
 # ---------------------------------------------------------------------------
 _GEOM_CACHE = None
-_GEOM_PATH = os.path.join(str(WORK), "lead", "page_geometry.jsonl")
+_GEOM_PATH = os.path.join(str(ROOT), "work", "lead", "page_geometry.jsonl")
+
+def _sha12(p):
+    import hashlib as _h
+    try:
+        return _h.sha256(open(p, "rb").read()).hexdigest()[:12]
+    except Exception:
+        return "missing"
+
+
+def _cache_version():
+    """算法+几何联合版本：任何算法脚本或几何缓存变化都会自动失效字形缓存（审计 P0-1/P0-4）。"""
+    import hashlib as _h
+    algo = _h.sha256()
+    for f in ("font_norm.py", "page_frames.py", "detect_blocks.py", "font_build.py"):
+        try:
+            algo.update(open(os.path.join(str(ROOT), "scripts", f), "rb").read())
+        except Exception:
+            pass
+    return f"{algo.hexdigest()[:8]}_{_sha12(_GEOM_PATH)}"
+
+
+_CACHE_VER = _cache_version()
+
 
 
 def _load_geom():
@@ -528,9 +551,10 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                 skipped.append({"page": page, "half": half, "char": ch,
                                 "reason": f"重复字（已用 {src[ch]['page']})"})
                 continue
-            seen.add(ch)
             if limit and len(seen) >= limit:
+                skipped.append({"page": page, "half": half, "char": ch, "reason": "limit"})
                 break
+            seen.add(ch)
             n_seen += 1
             if ch in overlay:
                 glyphs[ch] = {"__overlay__": overlay[ch]}
@@ -545,7 +569,7 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                            "override": str(override[ch].get("source", ""))}
                 n_cached += 1
                 continue
-            ck = (f"v350_{page}{half}_{ch}_"
+            ck = (f"{_CACHE_VER}_{page}{half}_{ch}_"
                   f"{box[0]}_{box[1]}_{box[2]}_{box[3]}").replace("/", "_")
             cpath = cache_dir / f"{ck}.json"
             if use_cache and cpath.exists():
@@ -570,7 +594,7 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
     print(f"[font_build] parallel: pages={len(job_list)} glyphs={len(items)} cached={n_cached}", flush=True)
     results = {}
     done = 0
-    max_workers = int(os.environ.get("FONT_BUILD_WORKERS", "8"))
+    max_workers = int(os.environ.get("FONT_BUILD_WORKERS", "10"))
     with ProcessPoolExecutor(max_workers=max_workers) as ex:
         for page_res in ex.map(_worker_page, job_list, chunksize=1):
             for (i, ch, res) in page_res:
@@ -599,6 +623,9 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
             Path(it["cpath"]).write_text(json.dumps({"ok": True, "char": ch,
                                                              "contours": res["contours"], "src": m},
                                                             ensure_ascii=False))
+    errs = [x for x in skipped if x.get("error") or x.get("reason", "").startswith("err")]
+    if errs:
+        print(f"[font_build] WARN: {len(errs)} 字构建失败（见 skipped；不允许静默通过）", flush=True)
     print(f"[font_build] vectorized {n_new} new glyphs in {_time.time()-t0:.1f}s "
           f"(cached {n_cached}, skipped {len(skipped)})", flush=True)
     return glyphs, src, skipped
@@ -623,6 +650,8 @@ def main():
     ap.add_argument("--repair-overlay", default="",
                     help="修复 overlay JSONL（char/endPts/points），优先于缓存使用")
     args = ap.parse_args()
+    if getattr(args, "repair_overlay", ""):
+        raise SystemExit("D20/E1: overlay/restore 通道已禁用（会把旧架构框线带回）；修复必须回写 mapping 后重切。")
     if not (args.glyphs or args.mapping or args.manifest):
         raise SystemExit("one of --glyphs/--mapping/--manifest required")
     if not args.out:

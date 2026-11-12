@@ -120,16 +120,24 @@ def main():
     # 4) 内容缺失闸：既看退出码，也解析 JSON 的 damaged（双重保险）
     if args.prev:
         out_json = os.path.join("work", "lead", f"content-loss-gate-{tag}.json")
+        reuse_missing_file = False
         if args.reuse_content:
             out_json = args.reuse_content
-        r = subprocess.run([sys.executable, "scripts/content_loss_gate.py", args.prev, args.font,
-                            args.manifest, out_json], cwd=ROOT, capture_output=True, text=True)
+            if not os.path.exists(os.path.join(ROOT, out_json)):
+                reuse_missing_file = True
+            r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
+        else:
+            r = subprocess.run([sys.executable, "scripts/content_loss_gate.py", args.prev, args.font,
+                                args.manifest, out_json], cwd=ROOT, capture_output=True, text=True)
         damaged = None
         try:
             rows = json.load(open(os.path.join(ROOT, out_json)))
-            damaged = len([x for x in rows if "ink_ratio" in x])
+            if isinstance(rows, list):
+                damaged = len([x for x in rows if isinstance(x, dict) and "ink_ratio" in x])
         except Exception:
             pass
+        if reuse_missing_file:
+            damaged = None
         if args.content_max_damaged > 0:
             ok_content = (damaged is not None and damaged <= args.content_max_damaged
                           and r.returncode in (0, 3))
@@ -145,6 +153,10 @@ def main():
         out_scan = os.path.join("work", "lead", f"missing_scan_gate_{tag}.jsonl")
         if args.reuse_missing:
             out_scan = args.reuse_missing
+            if not (os.path.exists(os.path.join(ROOT, out_scan)) and os.path.getsize(os.path.join(ROOT, out_scan)) > 0):
+                steps.append({"step": "scan_missing_parts", "ok": False,
+                              "detail": {"error": "reuse 扫描文件缺失/为空", "file": out_scan}})
+                out_scan = None
             r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
         else:
             r = subprocess.run([sys.executable, "scripts/scan_missing_parts.py", args.font,
@@ -155,35 +167,44 @@ def main():
                           if json.loads(line).get("missing"))
         except Exception:
             pass
-        limit = args.scan_max_flagged
-        if limit is None:
-            ok_scan = (r.returncode == 0 and flagged == 0)
-            mode = "strict(0)"
+        if out_scan is None:
+            pass  # 上面已记 FAIL，不再重复记
         else:
-            ok_scan = (r.returncode == 0 and (flagged is None or flagged <= limit))
-            mode = f"threshold({limit})"
-        steps.append({"step": "scan_missing_parts", "ok": ok_scan,
-                      "detail": {"returncode": r.returncode, "flagged": flagged,
-                                 "mode": mode, "tail": (r.stdout or "")[-200:]}})
+            limit = args.scan_max_flagged
+            if limit is None:
+                ok_scan = (r.returncode == 0 and flagged == 0)
+                mode = "strict(0)"
+            else:
+                # fail-closed：无法判定（文件缺失/解析失败）不得当 PASS
+                ok_scan = (r.returncode == 0 and flagged is not None and flagged <= limit)
+                mode = f"threshold({limit})"
+            steps.append({"step": "scan_missing_parts", "ok": ok_scan,
+                          "detail": {"returncode": r.returncode, "flagged": flagged,
+                                     "mode": mode, "tail": (r.stdout or "")[-200:]}})
     # 4c) 框线逃逸闸（v2.6：切前排除后块内不应再有贯穿框线）
     if args.frame_scan:
         out_frame = os.path.join("work", "lead", f"frame_escape_scan_{tag}.jsonl")
         if args.reuse_frame:
             out_frame = args.reuse_frame
+            if not (os.path.exists(os.path.join(ROOT, out_frame)) and os.path.getsize(os.path.join(ROOT, out_frame)) > 0):
+                steps.append({"step": "frame_escape", "ok": False,
+                              "detail": {"error": "reuse 扫描文件缺失/为空", "file": out_frame}})
+                out_frame = None
             r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
         else:
             r = subprocess.run([sys.executable, "scripts/scan_frame_escape.py",
                                 "--manifest", args.manifest, "--out", out_frame],
                                cwd=ROOT, capture_output=True, text=True)
         flagged = None
-        try:
-            flagged = sum(1 for line in open(os.path.join(ROOT, out_frame)))
-        except Exception:
-            pass
-        ok_frame = (r.returncode == 0 and flagged is not None and flagged <= args.frame_max_flagged)
-        steps.append({"step": "frame_escape", "ok": ok_frame,
-                      "detail": {"flagged": flagged, "threshold": args.frame_max_flagged,
-                                 "mode": "strict" if args.frame_max_flagged == 0 else "threshold"}})
+        if out_frame is not None:
+            try:
+                flagged = sum(1 for line in open(os.path.join(ROOT, out_frame)))
+            except Exception:
+                flagged = None
+            ok_frame = (r.returncode == 0 and flagged is not None and flagged <= args.frame_max_flagged)
+            steps.append({"step": "frame_escape", "ok": ok_frame,
+                          "detail": {"flagged": flagged, "threshold": args.frame_max_flagged,
+                                     "mode": "strict" if args.frame_max_flagged == 0 else "threshold"}})
     # 5) 文档校验（gate-report 由 finalize 生成；首次运行未含报告时用 --first-pass 跳过该文件引用）
     if args.pkg_dir:
         cmd = [sys.executable, "scripts/check_release_docs.py",
@@ -197,8 +218,11 @@ def main():
                               "note": "gate-report 计入 SHA256SUMS；通过 shasum -a 256 -c 验证本文件"}}
     out = args.out or os.path.join(ROOT, "work", "lead", f"gate-report-{tag}.json")
     pkg_report = None
-    # 6) finalize：报告冻结入包 → SHA 覆盖（含报告）→ zip 重建 → 校验
-    #    两轮收敛：R1 用于算 SHA；SHA 通过后把 sha/zip 结果写进 R2，再算一次 SHA 并校验。
+    # 6) finalize（顺序固定，审计 P0-2 修正）：
+    #    a) 包内字体 sha 校验（审计 P0-1：换包不设防）
+    #    b) 预报告（不含 sha 步）→ 写盘 → SHA → 校验
+    #    c) 追加 sha 步骤写最终报告 → 重算 SHA → 校验
+    #    d) SHA 冻结后再重建 zip 并校验（保证 zip == 目录包，且报告自称 finalized=True）
     if args.pkg_dir and not args.no_finalize:
         import hashlib as _hash
         import zipfile
@@ -206,6 +230,21 @@ def main():
         pkg_report = os.path.join(pkg_dir, f"gate-report-{tag}.json")
         zip_path = args.zip or (args.pkg_dir.rstrip("/") + ".zip")
         zp = zip_path if os.path.isabs(zip_path) else os.path.join(ROOT, zip_path)
+
+        def _sha_of(path):
+            return _hash.sha256(open(path, "rb").read()).hexdigest()
+
+        # a) 包内 TTF 必须与 --font 一致（否则 9/9 PASS 可被换包绕过）
+        pkg_ttfs = [f for f in os.listdir(pkg_dir) if f.lower().endswith(".ttf")]
+        if not pkg_ttfs:
+            steps.append({"step": "pkg_font_sha", "ok": False,
+                          "detail": {"error": "包内无 TTF"}})
+        else:
+            src_sha = _sha_of(os.path.join(ROOT, args.font))
+            pkg_sha = _sha_of(os.path.join(pkg_dir, pkg_ttfs[0]))
+            steps.append({"step": "pkg_font_sha", "ok": (src_sha == pkg_sha),
+                          "detail": {"font_sha": src_sha, "pkg_font": pkg_ttfs[0],
+                                     "pkg_font_sha": pkg_sha}})
 
         def _write_report(rep):
             with open(pkg_report, "w", encoding="utf-8") as fo:
@@ -216,8 +255,7 @@ def main():
                            if f != "SHA256SUMS" and os.path.isfile(os.path.join(pkg_dir, f)))
             with open(os.path.join(pkg_dir, "SHA256SUMS"), "w", encoding="utf-8") as fo:
                 for f in files:
-                    h = _hash.sha256(open(os.path.join(pkg_dir, f), "rb").read()).hexdigest()
-                    fo.write(f"{h}  {f}\n")
+                    fo.write(f"{_sha_of(os.path.join(pkg_dir, f))}  {f}\n")
             return files
 
         def _verify_sha():
@@ -226,49 +264,54 @@ def main():
             failed = [ln for ln in (r.stdout or "").splitlines() if "FAILED" in ln]
             return (r.returncode == 0 and not failed), len((r.stdout or "").splitlines()), failed[:5]
 
-        # R1：先冻结一份（不含 sha/zip 结果）
-        _write_report(report)
+        def _build_zip():
+            if os.path.exists(zp):
+                os.remove(zp)
+            with zipfile.ZipFile(zp, "w", zipfile.ZIP_DEFLATED) as zf:
+                for f in sorted(os.listdir(pkg_dir)):
+                    zf.write(os.path.join(pkg_dir, f),
+                             arcname=os.path.join(os.path.basename(pkg_dir.rstrip("/")), f))
+            return subprocess.run(["unzip", "-t", zp], cwd=ROOT, capture_output=True, text=True)
+
+        # b) 预报告（不含 sha 步）
+        pre_ok = all(x["ok"] for x in steps)
+        _write_report({"version": v, "pass": pre_ok, "steps": steps,
+                       "attestation": {"finalized": False, "stage": "pre-sha"}})
         files = _rehash()
         sha_ok, sha_lines, sha_failed = _verify_sha()
-        # zip 重建（在所有文件就绪后）
-        if os.path.exists(zp):
-            os.remove(zp)
-        with zipfile.ZipFile(zp, "w", zipfile.ZIP_DEFLATED) as zf:
-            for f in sorted(os.listdir(pkg_dir)):
-                zf.write(os.path.join(pkg_dir, f),
-                         arcname=os.path.join(os.path.basename(pkg_dir.rstrip("/")), f))
-        rz = subprocess.run(["unzip", "-t", zp], cwd=ROOT, capture_output=True, text=True)
-        zip_ok = rz.returncode == 0
         steps.append({"step": "sha256", "ok": sha_ok,
                       "detail": {"files": len(files), "lines": sha_lines,
                                  "failed": sha_failed, "covers_gate_report": True}})
-        steps.append({"step": "zip_selfcheck", "ok": zip_ok,
-                      "detail": {"rebuilt": True, "tail": (rz.stdout or "")[-200:]}})
+        # c) 最终报告（含 sha 步）→ 重算 SHA → 校验
         final_ok = all(x["ok"] for x in steps)
-        # R2：把 sha/zip 结果写入最终报告 → 重算 SHA（覆盖含 R2）→ 终校验
-        report = {"version": v, "pass": final_ok, "steps": steps,
-                  "attestation": {"finalized": True, "sha_covers": len(files),
-                                  "sha_files": files,
-                                  "sha_verified": sha_ok,
-                                  "sha_verified_after_final_report": True,
-                                  "zip": os.path.relpath(zp, ROOT)}}
-        _write_report(report)
+        _write_report({"version": v, "pass": final_ok, "steps": steps,
+                       "attestation": {"finalized": True, "sha_algorithm": "sha256",
+                                       "sha_covers": len(files), "sha_files": files,
+                                       "zip": os.path.relpath(zp, ROOT)}})
         files = _rehash()
         sha_ok2, sha_lines2, sha_failed2 = _verify_sha()
         final_ok = final_ok and sha_ok2
-        # 终校验结果只写 stdout（避免再次改动报告破坏 SHA）
+        # d) SHA 冻结后再重建 zip（zip == 目录包），校验后不再改动包内任何文件
+        rz = _build_zip()
+        zip_ok = rz.returncode == 0
+        final_ok = final_ok and zip_ok
+        # 终态只写 work/lead 报告（不改包内文件，避免破坏已冻结 SHA）
         try:
             with open(os.path.join(ROOT, out), "w", encoding="utf-8") as fo:
                 json.dump({"version": v, "pass": final_ok, "steps": steps,
-                           "attestation": report["attestation"]}, fo, ensure_ascii=False, indent=1)
+                           "attestation": {"finalized": True,
+                                           "sha_final_ok": sha_ok2,
+                                           "zip_selfcheck_ok": zip_ok,
+                                           "zip": os.path.relpath(zp, ROOT)}},
+                          fo, ensure_ascii=False, indent=1)
         except Exception:
             pass
         for st in steps:
             print(("PASS " if st["ok"] else "FAIL ") + st["step"])
         print(json.dumps({"pass": final_ok, "report": out,
                           "pkg_report": os.path.relpath(pkg_report, ROOT),
-                          "sha_final_ok": sha_ok2, "files": len(files)},
-                         ensure_ascii=False))
+                          "sha_final_ok": sha_ok2, "zip_ok": zip_ok,
+                          "files": len(files)}, ensure_ascii=False))
         return 0 if final_ok else 1
     with open(os.path.join(ROOT, out), "w", encoding="utf-8") as fo:
         json.dump(report, fo, ensure_ascii=False, indent=1)

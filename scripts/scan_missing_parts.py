@@ -120,15 +120,20 @@ def worker(args):
                 reg = src[y0:y1 + 1, x0:x1 + 1]
                 cov = float((reg & gd[y0:y1 + 1, x0:x1 + 1]).sum()) / max(1, int(reg.sum()))
                 if cov < 0.45:
-                    if ref_ok:
-                        reg = rd[y0:y1 + 1, x0:x1 + 1]
-                        refcov = float(reg.sum()) / max(1, reg.size)
-                        if refcov < 0.25:   # 参考字体在此处也没有墨 → 邻字/注文，不是字身部件
-                            continue
+                    if not ref_ok:
+                        # 参考字体不可用：fail-closed，不把组件算作缺件（单列披露）
+                        ref_unavailable += 1
+                        continue
+                    reg = rd[y0:y1 + 1, x0:x1 + 1]
+                    refcov = float(reg.sum()) / max(1, reg.size)
+                    if refcov < 0.25:   # 参考字体在此处也没有墨 → 邻字/注文，不是字身部件
+                        continue
                     miss.append([int(x0), int(y0), int(x1), int(y1), int(a)])
             if miss:
-                out.append({"char": ch, "page": page, "half": half, "box": box,
-                            "missing": miss})
+                row = {"char": ch, "page": page, "half": half, "box": box, "missing": miss}
+                if ref_unavailable:
+                    row["ref_unavailable"] = ref_unavailable
+                out.append(row)
         except Exception as e:
             out.append({"char": ch, "error": str(e)[:80]})
     return out

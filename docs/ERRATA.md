@@ -70,3 +70,24 @@
 
 - release/ 曾堆积 52 个版本目录+52 个 zip（2.5GB），仅 4 个有 PASS 闸报告。
 - 已清理：保留 v2.5.8（基线）与 v2.6.1（重构后首版）；留档 `audit/RELEASE-HISTORY.jsonl` 与 `audit/release-evidence/`。
+
+## E12. v2.6.1 包的 finalize 缺陷（第 3 代审计发现）
+
+- 旧 finalize 顺序：先建 zip → 再写最终报告/SHA ⇒ **zip 内 gate-report 自称 finalized:false、SHA 也是旧的**；`sha_verified_after_final_report` 为硬编码 true。
+- 代码已在《审计响应》中修（zip 改为 SHA 冻结后重建、该字段改实测）；**v2.6.1 包本身仍是旧产物**，保持「过程版本、不签收」，不重新打包。
+
+## E13. v2.6.1 有 2 对同框同轮廓字形（已由修复后的 font_qa 如实暴露）
+
+- 沓/𦧟（08_0319 R，box [1171,855,1272,953]）；䛱/忠（10_0081 R，box [1490,1273,1593,1370]）。
+- 这是 mapping 指派冲突（两个字共用一个 crop），不是字形问题；修复后 font_qa 会让 v2.6.1 门禁 FAIL。
+- 处置：CS1.5/CS3 改 mapping（类级：全库同框冲突检测 + 重指派），不得用改字形绕过。
+
+## E14. S1 几何缓存曾从未被 S3 消费（第 3 代审计发现，已修）
+
+- `font_build.WORK` 指向 `work/font`，`_GEOM_PATH=work/font/lead/page_geometry.jsonl` 不存在 ⇒ 每页仍从 PDF 现算 lattice/quad（这也是「缓存命中重建 242–251s」的真正原因）。
+- 已修：路径改为 `work/lead/page_geometry.jsonl`；启动加载 3,869 页；缓存键改为算法 sha + 几何 sha 自动版本化。
+
+## E15. 旧门禁可被「换包」绕过（已修）
+
+- 旧 release_gate 只用 `--font` 做 QA，从不校验包内 TTF；把 v2.6.0 字体塞进 v2.6.1 包副本仍 6/6 PASS。
+- 已修：finalize 增加 `pkg_font_sha`（包内 TTF sha 必须 == --font），负测试已复现 FAIL。

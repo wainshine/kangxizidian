@@ -41,11 +41,9 @@ def worker(args):
     import cv2
     import font_build as fb
     import font_norm as FN
-    from page_frames import detect_content_quads
-    from detect_blocks import page_gray
     out = []
     try:
-        quads = detect_content_quads(page_gray(page[:2], int(page[3:])))
+        quads = fb.get_page_content_quads(page)  # 统一入口（缓存+fallback；审计 P0-3）
         tbb = fb.get_page_text_bbox(page)
         quad = quads.get(half)
     except Exception:
@@ -81,8 +79,8 @@ def worker(args):
             if bad >= 2:
                 out.append({"char": ch, "page": page, "half": half, "box": box,
                             "line_rows_cols": int(bad)})
-        except Exception:
-            pass
+        except Exception as e:
+            out.append({"char": ch, "error": str(e)[:120], "page": page, "half": half, "box": box})
     return out
 
 

@@ -36,6 +36,7 @@ QA 闸（任一失败即退出，不产出 zip）：
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import subprocess
 import json
@@ -408,6 +409,8 @@ def main():
     ap.add_argument("--zip", action="store_true", default=True, help="生成 zip（默认开）")
     ap.add_argument("--no-zip", dest="zip", action="store_false")
     ap.add_argument("--skip-qa", action="store_true", help="跳过渲染/孔洞 QA（不建议）")
+    ap.add_argument("--force-overwrite", action="store_true",
+                    help="允许覆盖已 finalize（包内 gate-report 标记 finalized=true）的包")
     ap.add_argument("--allow-dirty", action="store_true",
                     help="允许工作区未提交（仅调试；正式包必须 clean tree 并记录 commit）")
     ap.add_argument("--extra", action="append", default=[],
@@ -465,6 +468,16 @@ def main():
         out_root = ROOT / out_root
     out = out_root / f"KangXiKai-v{version}"
     if out.exists():
+        # 审计 P1-2：已 finalize 的包不允许静默覆盖（冻结后不改包内文件）
+        if not args.force_overwrite:
+            for f in os.listdir(out):
+                if f.startswith("gate-report-") and f.endswith(".json"):
+                    try:
+                        gr = json.load(open(os.path.join(out, f), encoding="utf-8"))
+                        if (gr.get("attestation") or {}).get("finalized"):
+                            fail(f"包已 finalize（{f}），拒绝覆盖；确需重建请加 --force-overwrite")
+                    except Exception:
+                        pass
         shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -493,7 +506,9 @@ def main():
         "provenance_counts": prov_counts,
         "real": prov_counts.get("real", 0),
         "non_real": sum(v for k, v in prov_counts.items() if k != "real"),
-        "built_at_utc": date.today().isoformat(),
+        "built_at_utc": datetime.datetime.fromtimestamp(
+            int(os.environ.get("SOURCE_DATE_EPOCH", "0")) or datetime.datetime.now().timestamp(),
+            datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     (out / "provenance.json").write_text(
         json.dumps(prov, ensure_ascii=False, indent=1), encoding="utf-8")

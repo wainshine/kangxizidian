@@ -231,12 +231,12 @@ def main():
     # 同框多标签检查（审计 P0-1）：manifest 带 page/half/box 时，同一 crop 不得对应两个码位
     conflicts = []
     try:
-        recs = [r for r in (manifest.get("chars") or {}).values()
+        recs = [(ch, r) for ch, r in (manifest.get("chars") or {}).items()
                 if isinstance(r, dict) and r.get("page") and r.get("box")]
         bybox = {}
-        for r in recs:
+        for ch, r in recs:  # 审计 P0-5：manifest 的键才是 char，值里没有 "char" 字段
             key = (r["page"], r.get("half", "R"), tuple(r["box"]))
-            bybox.setdefault(key, []).append(r["char"])
+            bybox.setdefault(key, []).append(ch)
         conflicts = [{"page": k[0], "half": k[1], "box": list(k[2]), "chars": sorted(v)}
                      for k, v in bybox.items() if len(set(v)) > 1]
     except Exception:
