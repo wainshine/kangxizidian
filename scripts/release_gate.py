@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""发布门禁：一条命令串起全部硬闸，任一失败即中止（返回非零）。
+"""发布门禁：一条命令串起全部硬闸。所有步骤都会执行并记录，然后统一判定（返回非零）。
+
+说明：旧版 docstring 声称「任一失败即中止」但实际会继续 finalize 并写包——已改：
+  - 未通过 pre-finalize 判定时**绝不改动包**（不写报告/SHA/zip），只在 work/lead 写失败报告；
+  - finalize 前要求 clean git tree（--allow-dirty 仅调试）、缺件/框线扫描必须提供（--allow-missing-scans 仅调试）；
+  - 复用扫描/内容结果必须带输入绑定 sidecar，输入或脚本变化即 FAIL（BF-12）；
+  - 新增三闸：glyph_frame_gate / provenance_gate / page_geometry_gate（BF-01）。
 
 用法:
   python scripts/release_gate.py --version 2.5.6 \
@@ -20,6 +26,8 @@
 import argparse, json, os, subprocess, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "work", "font", "_pylibs"))
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
+import gate_binding as GB
 
 
 def run(cmd, name):
@@ -62,10 +70,27 @@ def main():
                     help="首跑模式：doc_check 允许 gate-report 引用暂缺（finalize 会生成）")
     ap.add_argument("--no-finalize", action="store_true",
                     help="不写 gate-report 进包、不重算 SHA（仅用于调试）")
+    ap.add_argument("--mapping", default="work/lead/mapping_block_v270.jsonl",
+                    help="mapping（provenance/页级几何闸输入）")
+    ap.add_argument("--geometry", default="work/lead/page_geometry.jsonl",
+                    help="S1 页级几何（页级几何闸输入）")
+    ap.add_argument("--stats", default=None, help="build stats JSON（默认 <font>.build_stats.json）")
+    ap.add_argument("--allow-dirty", action="store_true",
+                    help="调试用：允许脏工作区 finalize（正式包禁止）")
+    ap.add_argument("--allow-missing-scans", action="store_true",
+                    help="调试用：finalize 允许不做缺件/框线扫描（正式包禁止）")
     args = ap.parse_args()
     v = args.version
     tag = args.tag or ("v" + v.replace(".", ""))
     steps = []
+    inputs = GB.build_binding(
+        files={"font": args.font, "manifest": args.manifest, "prev_font": args.prev,
+               "prev_manifest": args.prev_manifest, "mapping": args.mapping,
+               "geometry": args.geometry},
+        scripts=["release_gate.py", "font_qa.py", "content_loss_gate.py",
+                 "glyph_frame_gate.py", "provenance_gate.py", "page_geometry_gate.py",
+                 "check_release_docs.py"],
+        include_reffont=True)
 
     # 1) QA
     qa_dir = os.path.join("work", "font", "build", f"qa_gate_{tag}")
@@ -118,15 +143,24 @@ def main():
                                  "quarantine_files": qfiles, "quarantine_n": len(quarantine)}})
 
     # 4) 内容缺失闸：既看退出码，也解析 JSON 的 damaged（双重保险）
+    #    复用必须过输入绑定 sidecar（BF-12）；失败则重算并把 reuse 拒绝写进报告
     if args.prev:
-        out_json = os.path.join("work", "lead", f"content-loss-gate-{tag}.json")
-        reuse_missing_file = False
+        fresh_json = os.path.join("work", "lead", f"content-loss-gate-{tag}.json")
+        out_json = fresh_json
+        r = None
+        reuse_ok = None
         if args.reuse_content:
-            out_json = args.reuse_content
-            if not os.path.exists(os.path.join(ROOT, out_json)):
-                reuse_missing_file = True
-            r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
-        else:
+            vres = GB.validate_reuse(args.reuse_content,
+                                  files={"font": args.font, "baseline": args.prev,
+                                         "manifest": args.manifest},
+                                  scripts=["content_loss_gate.py", "fidelity_eval.py"])
+            reuse_ok = vres["ok"]
+            steps.append({"step": "content_reuse_binding", "ok": reuse_ok,
+                          "detail": {"file": args.reuse_content, **vres}})
+            if reuse_ok:
+                out_json = args.reuse_content
+                r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
+        if r is None:
             r = subprocess.run([sys.executable, "scripts/content_loss_gate.py", args.prev, args.font,
                                 args.manifest, out_json], cwd=ROOT, capture_output=True, text=True)
         damaged = None
@@ -136,75 +170,156 @@ def main():
                 damaged = len([x for x in rows if isinstance(x, dict) and "ink_ratio" in x])
         except Exception:
             pass
-        if reuse_missing_file:
-            damaged = None
+        mode = "threshold" if args.content_max_damaged > 0 else "strict(0)"
+        zero_margin = (args.content_max_damaged > 0 and damaged is not None
+                       and damaged == args.content_max_damaged)
         if args.content_max_damaged > 0:
             ok_content = (damaged is not None and damaged <= args.content_max_damaged
                           and r.returncode in (0, 3))
-            steps.append({"step": "content_loss_gate", "ok": ok_content,
-                          "detail": {"returncode": r.returncode, "damaged": damaged,
-                                     "threshold": args.content_max_damaged, "mode": "threshold"}})
         else:
-            steps.append({"step": "content_loss_gate", "ok": (r.returncode == 0 and damaged == 0),
-                          "detail": {"returncode": r.returncode, "damaged": damaged,
-                                     "tail": (r.stdout or "")[-300:]}})
-    # 4b) 全库缺件扫描（可选；发布候选版应开）
+            ok_content = (r.returncode == 0 and damaged == 0)
+        steps.append({"step": "content_loss_gate", "ok": ok_content,
+                      "detail": {"returncode": r.returncode, "damaged": damaged,
+                                 "mode": mode, "reused": bool(reuse_ok),
+                                 "threshold": args.content_max_damaged,
+                                 "zero_margin": zero_margin,
+                                 "threshold_note": ("阈值=观测值，无余量" if zero_margin else ""),
+                                 "tail": (r.stdout or "")[-300:]}})
+    # 4b) 全库缺件扫描（候选可开；里程碑 finalize 强制要求）
     if args.scan:
         out_scan = os.path.join("work", "lead", f"missing_scan_gate_{tag}.jsonl")
+        r = None
+        reuse_ok = None
         if args.reuse_missing:
             out_scan = args.reuse_missing
-            if not (os.path.exists(os.path.join(ROOT, out_scan)) and os.path.getsize(os.path.join(ROOT, out_scan)) > 0):
-                steps.append({"step": "scan_missing_parts", "ok": False,
-                              "detail": {"error": "reuse 扫描文件缺失/为空", "file": out_scan}})
-                out_scan = None
-            r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
-        else:
+            vres = GB.validate_reuse(out_scan, files={"font": args.font, "manifest": args.manifest},
+                                  scripts=["scan_missing_parts.py", "reffont.py", "refgate.py",
+                                           "font_build.py", "font_norm.py", "page_frames.py",
+                                           "fidelity_eval.py"],
+                                  include_reffont=True)
+            reuse_ok = vres["ok"]
+            steps.append({"step": "missing_reuse_binding", "ok": reuse_ok,
+                          "detail": {"file": out_scan, **vres}})
+            if reuse_ok:
+                r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
+        if r is None:
             r = subprocess.run([sys.executable, "scripts/scan_missing_parts.py", args.font,
                                 args.manifest, out_scan], cwd=ROOT, capture_output=True, text=True)
-        flagged = None
+        flagged = n_error = None
         try:
-            flagged = sum(1 for line in open(os.path.join(ROOT, out_scan))
-                          if json.loads(line).get("missing"))
+            rows = [json.loads(ln) for ln in open(os.path.join(ROOT, out_scan))]
+            n_error = sum(1 for x in rows if x.get("error"))
+            # fail-closed：error 行无法判定，与「缺件」一起计入 flagged（不允许静默丢样）
+            flagged = sum(1 for x in rows if x.get("missing")) + n_error
         except Exception:
             pass
-        if out_scan is None:
-            pass  # 上面已记 FAIL，不再重复记
+        limit = args.scan_max_flagged
+        zero_margin = (limit is not None and flagged is not None and flagged == limit)
+        if limit is None:
+            ok_scan = (r.returncode == 0 and flagged == 0)
+            mode = "strict(0)"
         else:
-            limit = args.scan_max_flagged
-            if limit is None:
-                ok_scan = (r.returncode == 0 and flagged == 0)
-                mode = "strict(0)"
-            else:
-                # fail-closed：无法判定（文件缺失/解析失败）不得当 PASS
-                ok_scan = (r.returncode == 0 and flagged is not None and flagged <= limit)
-                mode = f"threshold({limit})"
-            steps.append({"step": "scan_missing_parts", "ok": ok_scan,
-                          "detail": {"returncode": r.returncode, "flagged": flagged,
-                                     "mode": mode, "tail": (r.stdout or "")[-200:]}})
-    # 4c) 框线逃逸闸（v2.6：切前排除后块内不应再有贯穿框线）
+            ok_scan = (r.returncode == 0 and flagged is not None and flagged <= limit)
+            mode = f"threshold({limit})"
+        steps.append({"step": "scan_missing_parts", "ok": ok_scan,
+                      "detail": {"returncode": r.returncode, "flagged": flagged,
+                                 "error_rows": n_error, "mode": mode, "reused": bool(reuse_ok),
+                                 "zero_margin": zero_margin,
+                                 "tail": (r.stdout or "")[-200:]}})
+    # 4c) 框线逃逸闸（切前排除后块内不应再有贯穿框线）
     if args.frame_scan:
         out_frame = os.path.join("work", "lead", f"frame_escape_scan_{tag}.jsonl")
+        r = None
+        reuse_ok = None
         if args.reuse_frame:
             out_frame = args.reuse_frame
-            if not (os.path.exists(os.path.join(ROOT, out_frame)) and os.path.getsize(os.path.join(ROOT, out_frame)) > 0):
-                steps.append({"step": "frame_escape", "ok": False,
-                              "detail": {"error": "reuse 扫描文件缺失/为空", "file": out_frame}})
-                out_frame = None
-            r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
-        else:
+            vres = GB.validate_reuse(out_frame,
+                                  files={"manifest": args.manifest, "geometry": args.geometry},
+                                  scripts=["scan_frame_escape.py", "font_build.py",
+                                           "font_norm.py", "page_frames.py", "detect_blocks.py"])
+            reuse_ok = vres["ok"]
+            steps.append({"step": "frame_reuse_binding", "ok": reuse_ok,
+                          "detail": {"file": out_frame, **vres}})
+            if reuse_ok:
+                r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
+        if r is None:
             r = subprocess.run([sys.executable, "scripts/scan_frame_escape.py",
                                 "--manifest", args.manifest, "--out", out_frame],
                                cwd=ROOT, capture_output=True, text=True)
-        flagged = None
-        if out_frame is not None:
-            try:
-                flagged = sum(1 for line in open(os.path.join(ROOT, out_frame)))
-            except Exception:
-                flagged = None
-            ok_frame = (r.returncode == 0 and flagged is not None and flagged <= args.frame_max_flagged)
-            steps.append({"step": "frame_escape", "ok": ok_frame,
-                          "detail": {"flagged": flagged, "threshold": args.frame_max_flagged,
-                                     "mode": "strict" if args.frame_max_flagged == 0 else "threshold"}})
+        flagged = n_error = None
+        try:
+            rows = [json.loads(ln) for ln in open(os.path.join(ROOT, out_frame))]
+            n_error = sum(1 for x in rows if x.get("error"))
+            flagged = len(rows)  # 所有行都是 flagged；error 行同样计入（fail-closed）
+        except Exception:
+            pass
+        zero_margin = (flagged is not None and flagged == args.frame_max_flagged)
+        ok_frame = (r.returncode == 0 and flagged is not None
+                    and flagged <= args.frame_max_flagged)
+        steps.append({"step": "frame_escape", "ok": ok_frame,
+                      "detail": {"flagged": flagged, "error_rows": n_error,
+                                 "reused": bool(reuse_ok),
+                                 "threshold": args.frame_max_flagged,
+                                 "zero_margin": zero_margin,
+                                 "mode": "strict" if args.frame_max_flagged == 0 else "threshold"}})
+    # 4d) 三闸（BF-01）：字形级框线 / 无拷贝 provenance / 页级几何（全部严格 0）
+    out_gf = os.path.join("work", "lead", f"glyph-frame-gate-{tag}.json")
+    r = subprocess.run([sys.executable, "scripts/glyph_frame_gate.py", "--font", args.font,
+                        "--manifest", args.manifest, "--out", out_gf,
+                        "--max-flagged", str(args.frame_max_flagged)],
+                       cwd=ROOT, capture_output=True, text=True)
+    try:
+        gfr = json.load(open(os.path.join(ROOT, out_gf)))
+        gf_flagged = len(gfr.get("flagged") or [])
+    except Exception:
+        gf_flagged = None
+    steps.append({"step": "glyph_frame_gate",
+                  "ok": (r.returncode == 0 and gf_flagged is not None
+                         and gf_flagged <= args.frame_max_flagged),
+                  "detail": {"returncode": r.returncode, "flagged": gf_flagged,
+                             "threshold": args.frame_max_flagged, "out": out_gf,
+                             "tail": (r.stdout or "")[-200:]}})
+    stats_path = args.stats or (os.path.splitext(args.font)[0] + ".build_stats.json")
+    out_prov = os.path.join("work", "lead", f"provenance-gate-{tag}.json")
+    r = subprocess.run([sys.executable, "scripts/provenance_gate.py",
+                        "--manifest", args.manifest, "--mapping", args.mapping,
+                        "--stats", stats_path, "--out", out_prov],
+                       cwd=ROOT, capture_output=True, text=True)
+    steps.append({"step": "provenance_gate", "ok": r.returncode == 0,
+                  "detail": {"returncode": r.returncode, "out": out_prov,
+                             "stats": stats_path,
+                             "tail": (r.stdout or "")[-300:]}})
+    out_pg = os.path.join("work", "lead", f"page-geometry-gate-{tag}.json")
+    r = subprocess.run([sys.executable, "scripts/page_geometry_gate.py",
+                        "--manifest", args.manifest, "--mapping", args.mapping,
+                        "--geometry", args.geometry, "--out", out_pg,
+                        "--max-bad-boxes", "0", "--max-missing-quad-chars", "0",
+                        "--max-empty-assign-halves", "0"],
+                       cwd=ROOT, capture_output=True, text=True)
+    steps.append({"step": "page_geometry_gate", "ok": r.returncode == 0,
+                  "detail": {"returncode": r.returncode, "out": out_pg,
+                             "tail": (r.stdout or "")[-300:]}})
+
+    # 4e) finalize 前置条件（正式包不允许跳过；--allow-* 仅调试且写进报告）
+    if args.pkg_dir and not args.no_finalize:
+        missing_scans = (not (args.scan or args.reuse_missing) or
+                         not (args.frame_scan or args.reuse_frame))
+        steps.append({"step": "scans_required",
+                      "ok": (not missing_scans) or args.allow_missing_scans,
+                      "detail": {"scan": bool(args.scan or args.reuse_missing),
+                                 "frame_scan": bool(args.frame_scan or args.reuse_frame),
+                                 "allow_missing_scans": args.allow_missing_scans,
+                                 "note": "正式包必须提供缺件+框线扫描（BF-10）"}})
+        steps.append({"step": "content_baseline_required",
+                      "ok": bool(args.prev) or args.allow_missing_scans,
+                      "detail": {"prev": args.prev,
+                                 "note": "正式包必须有内容闸基线（BF-10）"}})
+        git = inputs.get("git") or {}
+        steps.append({"step": "clean_tree",
+                      "ok": (git.get("dirty") is False) or args.allow_dirty,
+                      "detail": {"git": git, "allow_dirty": args.allow_dirty,
+                                 "note": "正式包必须来自 clean git tree（AGENTS §1）"}})
+
     # 5) 文档校验（gate-report 由 finalize 生成；首次运行未含报告时用 --first-pass 跳过该文件引用）
     if args.pkg_dir:
         cmd = [sys.executable, "scripts/check_release_docs.py",
@@ -213,11 +328,22 @@ def main():
             cmd.append("--allow-missing-attestation")
         steps.append(run(cmd, "doc_check"))
     ok = all(s["ok"] for s in steps)
-    report = {"version": v, "pass": ok, "steps": steps,
+    report = {"version": v, "pass": ok, "inputs": inputs, "steps": steps,
               "attestation": {"finalized": False,
                               "note": "gate-report 计入 SHA256SUMS；通过 shasum -a 256 -c 验证本文件"}}
     out = args.out or os.path.join(ROOT, "work", "lead", f"gate-report-{tag}.json")
     pkg_report = None
+    if args.pkg_dir and not args.no_finalize and not ok:
+        # 审计 GATE-08：失败时绝不改动包（不写包内报告/SHA/zip），只在 work/lead 留失败报告
+        report["attestation"] = {"finalized": False, "package_touched": False,
+                                 "reason": "pre-finalize steps failed"}
+        with open(os.path.join(ROOT, out), "w", encoding="utf-8") as fo:
+            json.dump(report, fo, ensure_ascii=False, indent=1)
+        for st in steps:
+            print(("PASS " if st["ok"] else "FAIL ") + st["step"])
+        print(json.dumps({"pass": False, "report": out, "package_touched": False},
+                         ensure_ascii=False))
+        return 1
     # 6) finalize（顺序固定，审计 P0-2 修正）：
     #    a) 包内字体 sha 校验（审计 P0-1：换包不设防）
     #    b) 预报告（不含 sha 步）→ 写盘 → SHA → 校验
@@ -275,7 +401,7 @@ def main():
 
         # b) 预报告（不含 sha 步）
         pre_ok = all(x["ok"] for x in steps)
-        _write_report({"version": v, "pass": pre_ok, "steps": steps,
+        _write_report({"version": v, "pass": pre_ok, "inputs": inputs, "steps": steps,
                        "attestation": {"finalized": False, "stage": "pre-sha"}})
         files = _rehash()
         sha_ok, sha_lines, sha_failed = _verify_sha()
@@ -284,7 +410,7 @@ def main():
                                  "failed": sha_failed, "covers_gate_report": True}})
         # c) 最终报告（含 sha 步）→ 重算 SHA → 校验
         final_ok = all(x["ok"] for x in steps)
-        _write_report({"version": v, "pass": final_ok, "steps": steps,
+        _write_report({"version": v, "pass": final_ok, "inputs": inputs, "steps": steps,
                        "attestation": {"finalized": True, "sha_algorithm": "sha256",
                                        "sha_covers": len(files), "sha_files": files,
                                        "zip": os.path.relpath(zp, ROOT)}})
@@ -298,7 +424,7 @@ def main():
         # 终态只写 work/lead 报告（不改包内文件，避免破坏已冻结 SHA）
         try:
             with open(os.path.join(ROOT, out), "w", encoding="utf-8") as fo:
-                json.dump({"version": v, "pass": final_ok, "steps": steps,
+                json.dump({"version": v, "pass": final_ok, "inputs": inputs, "steps": steps,
                            "attestation": {"finalized": True,
                                            "sha_final_ok": sha_ok2,
                                            "zip_selfcheck_ok": zip_ok,

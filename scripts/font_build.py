@@ -33,6 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORK = ROOT / "work" / "font"
 sys.path.insert(0, str(WORK / "_pylibs"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # 本仓库 scripts/（不跨目录 import）
+import gate_binding as GB  # noqa: E402  （构建归因：git commit/dirty）
 
 EM = 1000
 FAMILY = "KangXi Kai"
@@ -154,28 +155,12 @@ def build_font(glyphs: dict[str, list], out_path: Path, copyright_text: str = CO
     metrics = {".notdef": (EM, 40)}
 
     per_char = {}
-    from fontTools.ttLib.tables._g_l_y_f import Glyph as _Glyph
     for ch in chars:
         gname = f"uni{ord(ch):04X}"
         contours = glyphs[ch]
-        if isinstance(contours, dict) and "__overlay__" in contours:
-            rec = contours["__overlay__"]
-            g = _Glyph()
-            g.numberOfContours = len(rec["endPts"])
-            from fontTools.ttLib.tables._g_l_y_f import GlyphCoordinates
-            g.coordinates = GlyphCoordinates([(int(p[0]), int(p[1])) for p in rec["points"]])
-            g.flags = bytearray(int(p[2]) for p in rec["points"])
-            g.endPtsOfContours = [int(e) for e in rec["endPts"]]
-            from fontTools.ttLib.tables.ttProgram import Program as _Program
-            g.program = _Program()
-            glyf[gname] = g
-            xs = [int(p[0]) for p in rec["points"]]
-            ys = [int(p[1]) for p in rec["points"]]
-            xmin = min(xs) if xs else 0
-            metrics[gname] = (EM, xmin)
-            per_char[ch] = {"n_contours": g.numberOfContours,
-                            "bbox": [min(xs), min(ys), max(xs), max(ys)] if xs else [0, 0, 0, 0]}
-            continue
+        # BF-43/D20：禁止 restore/overlay 整字拷贝路径（旧字形会把旧框线带回）
+        if isinstance(contours, dict):
+            raise RuntimeError(f"非法字形数据（overlay/dict 通道已禁用）：{ch}")
         tpen = TTGlyphPen(None)
         qpen = Cu2QuPen(tpen, max_err=1.0)
         xmin = ymin = 10 ** 9
@@ -500,31 +485,27 @@ def _worker_page(args):
     return out
 
 
+def clamp_workers(raw: int) -> int:
+    """AGENTS §1：同时最多 10 个 worker；--workers/env 都不能绕过上限。"""
+    n = max(1, min(10, int(raw or 10)))
+    if int(raw or 10) > 10:
+        print(f"[font_build] WARN: workers={raw} 超过上限 10，按 {n} 执行", file=sys.stderr, flush=True)
+    return n
+
+
 def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
-                      progress_every: int = 500, src_map: dict | None = None,
-                      repair_overlay: str | None = None) -> tuple[dict, dict, list]:
+                      progress_every: int = 500, workers: int = 0) -> tuple[dict, dict, list]:
     """全量 mapping（并行版）：按页并行矢量化；缓存读写留在主进程。"""
     import time as _time
     from concurrent.futures import ProcessPoolExecutor
     from font_norm import vectorize_box  # noqa: F401  (worker 内部也会 import)
-    override_path = ROOT / "work" / "lead" / "contours_override.json"
-    override = json.load(open(override_path)) if override_path.exists() else {}
-    src_map = src_map or {}
-    if override and not src_map:
-        print("[font_build] WARN: 存在 contours_override，但未提供 --src-map；override 将不会生效",
-              file=sys.stderr)
-    cache_dir = WORK / "build" / "cache"
+    # BF-43/D20：override/overlay 旧字形拷贝通道已删除（不存在任何读取入口）
+    cache_dir = WORK / "build" / "cache" / _CACHE_VER
     cache_dir.mkdir(parents=True, exist_ok=True)
     use_cache = "--no-cache" not in sys.argv
     glyphs: dict[str, list] = {}
     src: dict[str, dict] = {}
     skipped = []
-    overlay = {}
-    if repair_overlay:
-        for line in open(repair_overlay, encoding="utf-8"):
-            rec = json.loads(line)
-            overlay[rec["char"]] = rec
-        print(f"[font_build] repair overlay: {len(overlay)} glyphs", flush=True)
     t0 = _time.time()
 
     # 先按顺序展开 + 去重（重复字只取第一次），并做 cache 命中
@@ -556,19 +537,6 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                 break
             seen.add(ch)
             n_seen += 1
-            if ch in overlay:
-                glyphs[ch] = {"__overlay__": overlay[ch]}
-                src[ch] = {"page": page, "half": half, "box": box,
-                           "label_source": "repair_overlay", "cached": True}
-                n_cached += 1
-                continue
-            src_tag = str(a.get("label_source") or src_map.get(ch, ""))
-            if ch in override and src_tag == "from_v201_glyph":
-                glyphs[ch] = override[ch]["contours"]
-                src[ch] = {"page": page, "half": half, "box": box, "cached": True,
-                           "override": str(override[ch].get("source", ""))}
-                n_cached += 1
-                continue
             ck = (f"{_CACHE_VER}_{page}{half}_{ch}_"
                   f"{box[0]}_{box[1]}_{box[2]}_{box[3]}").replace("/", "_")
             cpath = cache_dir / f"{ck}.json"
@@ -594,7 +562,7 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
     print(f"[font_build] parallel: pages={len(job_list)} glyphs={len(items)} cached={n_cached}", flush=True)
     results = {}
     done = 0
-    max_workers = int(os.environ.get("FONT_BUILD_WORKERS", "10"))
+    max_workers = clamp_workers(workers or int(os.environ.get("FONT_BUILD_WORKERS", "10") or 10))
     with ProcessPoolExecutor(max_workers=max_workers) as ex:
         for page_res in ex.map(_worker_page, job_list, chunksize=1):
             for (i, ch, res) in page_res:
@@ -623,12 +591,49 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
             Path(it["cpath"]).write_text(json.dumps({"ok": True, "char": ch,
                                                              "contours": res["contours"], "src": m},
                                                             ensure_ascii=False))
-    errs = [x for x in skipped if x.get("error") or x.get("reason", "").startswith("err")]
-    if errs:
-        print(f"[font_build] WARN: {len(errs)} 字构建失败（见 skipped；不允许静默通过）", flush=True)
+    # 硬失败分类：limit 是显式调试截断（合法）；其余（构字失败/重复字/缺字段）都算失败
+    hard_failed = [x for x in skipped if x.get("reason") != "limit"]
+    if hard_failed:
+        print(f"[font_build] ERROR: {len(hard_failed)} 字失败/跳过（skipped 已落盘；"
+              f"--allow-partial 才可放行）", flush=True)
     print(f"[font_build] vectorized {n_new} new glyphs in {_time.time()-t0:.1f}s "
           f"(cached {n_cached}, skipped {len(skipped)})", flush=True)
     return glyphs, src, skipped
+
+
+def _rel_path(p):
+    """仓库内路径写相对；仓库外返回绝对串（不能 relative_to 崩溃，审计 BUILD-10）。"""
+    try:
+        return str(Path(p).resolve().relative_to(ROOT))
+    except Exception:
+        return str(p)
+
+
+def load_from_manifest_jsonl(path: str, workers: int = 0) -> tuple[dict, dict, list]:
+    """--manifest 入口（审计 BUILD-09：原函数未定义，必 NameError）。
+
+    manifest chars 记录自带 page/half/box；转成 mapping 形态的临时 JSONL 复用并行/缓存主链。
+    """
+    import tempfile
+    man = json.load(open(path, encoding="utf-8"))["chars"]
+    rows = {}
+    for ch, r in man.items():
+        if not (r.get("page") and r.get("box")):
+            raise SystemExit(f"manifest 记录缺 page/box: {ch}")
+        rows.setdefault((r["page"], r.get("half", "")), []).append(
+            {"char": ch, "cand": {"box": r["box"]}})
+    fd, tmp = tempfile.mkstemp(suffix=".jsonl", prefix="_manifest_")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fo:
+            for (page, half), assigned in rows.items():
+                fo.write(json.dumps({"page": page, "half": half, "assigned": assigned},
+                                    ensure_ascii=False) + "\n")
+        return load_from_mapping(tmp, workers=workers)
+    finally:
+        try:
+            os.unlink(tmp)
+        except Exception:
+            pass
 
 
 def main():
@@ -646,12 +651,11 @@ def main():
     ap.add_argument("--progress-every", type=int, default=500, help="每 N 字打印一次进度")
     ap.add_argument("--version", default=VERSION, help="字体内部版本号（name 表 / fontRevision）")
     ap.add_argument("--no-cache", action="store_true", default=False, help="禁用字形缓存")
-    ap.add_argument("--src-map", default="", help="union JSON（char→label_source），供 override 门禁")
-    ap.add_argument("--repair-overlay", default="",
-                    help="修复 overlay JSONL（char/endPts/points），优先于缓存使用")
+    ap.add_argument("--workers", type=int, default=0, help="并行 worker 数（硬上限 10）")
+    ap.add_argument("--allow-partial", action="store_true",
+                    help="调试用：允许有失败字仍写出字体（会写失败清单，禁止用于候选）")
+    # BF-43/D20：--src-map（旧 override）与 --repair-overlay（整字拷贝）入口已删除
     args = ap.parse_args()
-    if getattr(args, "repair_overlay", ""):
-        raise SystemExit("D20/E1: overlay/restore 通道已禁用（会把旧架构框线带回）；修复必须回写 mapping 后重切。")
     if not (args.glyphs or args.mapping or args.manifest):
         raise SystemExit("one of --glyphs/--mapping/--manifest required")
     if not args.out:
@@ -664,17 +668,12 @@ def main():
     extra = {}
     if args.mapping:
         pages = {p.strip() for p in args.pages.split(",") if p.strip()} or None
-        src_map = {}
-        if args.src_map:
-            raw = json.load(open(args.src_map, encoding="utf-8"))
-            for _c, _r in raw.items():
-                src_map[_c] = str(_r.get("label_source", "")) if isinstance(_r, dict) else ""
-        glyphs, src, extra["mapping"] = load_from_mapping(
+        glyphs, src, extra["skipped"] = load_from_mapping(
             args.mapping, limit=args.limit, pages=pages,
-            progress_every=args.progress_every, src_map=src_map,
-            repair_overlay=args.repair_overlay or None)
+            progress_every=args.progress_every, workers=args.workers)
     elif args.manifest:
-        glyphs, src, extra["manifest"] = load_from_manifest_jsonl(args.manifest)
+        glyphs, src, extra["skipped"] = load_from_manifest_jsonl(args.manifest,
+                                                                 workers=args.workers)
     else:
         for line in open(args.glyphs):
             r = json.loads(line)
@@ -684,19 +683,47 @@ def main():
             src[r["char"]] = {k: r.get(k) for k in ("key", "page", "box", "layer",
                                                     "label_source", "verified_by",
                                                     "n_contours", "n_segs", "ink_px")}
-    if not glyphs:
-        raise SystemExit("ABORT: no glyphs")
+    skipped_list = extra.get("skipped") or []
+    failed = [x for x in skipped_list if x.get("reason") != "limit"]
     out = Path(args.out)
+    stats_path0 = Path(args.stats) if args.stats else out.with_suffix(".build_stats.json")
+    if failed and not args.allow_partial:
+        stats_path0.parent.mkdir(parents=True, exist_ok=True)
+        stats_path0.write_text(json.dumps({"aborted": True, "reason": "build failures",
+                                           "failed_n": len(failed), "failed": failed,
+                                           "skipped": skipped_list,
+                                           "input": _rel_path(args.mapping or args.manifest)},
+                                          ensure_ascii=False, indent=1))
+        raise SystemExit(f"ABORT: {len(failed)} 字构建失败/跳过（失败清单已写入 {stats_path0}；"
+                         f"调试可用 --allow-partial）")
+    if not glyphs:
+        stats_path0.parent.mkdir(parents=True, exist_ok=True)
+        stats_path0.write_text(json.dumps({"aborted": True, "reason": "no glyphs",
+                                           "skipped": skipped_list,
+                                           "input": _rel_path(args.mapping or args.manifest)},
+                                          ensure_ascii=False, indent=1))
+        raise SystemExit("ABORT: no glyphs（空输入；已写失败报告）")
     if not out.is_absolute():
         out = ROOT / out
     per_char = build_font(glyphs, out, version=args.version,
                           source_date_epoch=args.source_date_epoch)
     digest = sha256(out)
+    cache_dir_now = WORK / "build" / "cache" / _CACHE_VER
+    cache_files = len(list(cache_dir_now.glob("*.json"))) if cache_dir_now.exists() else 0
     stats = {
-        "input_mapping": (str(Path(args.mapping).resolve().relative_to(ROOT)) if args.mapping else None),
+        "cache": {"dir": _rel_path(cache_dir_now), "files": cache_files,
+                  "n_chars": len(glyphs),
+                  "note": "缓存按 _CACHE_VER 分子目录；files 应等于 n_chars（旧 flat 目录不再读取）"},
+        "input_mapping": (_rel_path(args.mapping) if args.mapping else None),
         "input_mapping_sha256": sha256(Path(args.mapping)) if args.mapping else None,
-        "input_manifest": (str(Path(args.manifest).resolve().relative_to(ROOT)) if args.manifest else None),
-        "font": str(out.relative_to(ROOT)) if out.is_relative_to(ROOT) else str(out),
+        "input_manifest": (_rel_path(args.manifest) if args.manifest else None),
+        "input_manifest_sha256": sha256(Path(args.manifest)) if args.manifest else None,
+        "cache_ver": _CACHE_VER,
+        "geometry": {"path": _rel_path(_GEOM_PATH), "sha256": sha256(Path(_GEOM_PATH))
+                     if Path(_GEOM_PATH).exists() else None},
+        "git": GB.git_state(),
+        "workers": clamp_workers(args.workers or int(os.environ.get("FONT_BUILD_WORKERS", "10") or 10)),
+        "font": (_rel_path(out) if out.is_absolute() else str(out)),
         "file_bytes": out.stat().st_size,
         "family": FAMILY, "style": STYLE, "version": args.version, "upm": EM,
         "ascent": ASCENT, "descent": DESCENT,
@@ -707,7 +734,7 @@ def main():
         "glyphs": {ch: {**src[ch], **per_char[ch]} for ch in sorted(glyphs)},
         **extra,                      # mapping/manifest 批处理统计（耗时/缓存/跳过）
     }
-    stats_path = Path(args.stats) if args.stats else out.with_suffix(".build_stats.json")
+    stats_path = stats_path0
     stats_path.parent.mkdir(parents=True, exist_ok=True)
     stats_path.write_text(json.dumps(stats, ensure_ascii=False, indent=1))
     print(f"built {out}  chars={len(glyphs)}  sha256={digest}")

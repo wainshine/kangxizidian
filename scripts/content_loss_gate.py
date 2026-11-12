@@ -64,9 +64,18 @@ def main():
             n_ok_total += n_ok
             rows.extend(res)
     rows.sort(key=lambda r: r.get("ink_ratio", 1.0))
-    json.dump(rows, open(os.path.join(ROOT, out_path), "w"), ensure_ascii=False, indent=1)
-    if n_ok_total < 0.98 * len(chars):
-        print(json.dumps({"ERROR": "覆盖不足", "n_checked": n_ok_total, "n_expected": len(chars),
+    out_abs = out_path if os.path.isabs(out_path) else os.path.join(ROOT, out_path)
+    json.dump(rows, open(out_abs, "w"), ensure_ascii=False, indent=1)
+    # 输入绑定 sidecar（BF-12/BF-44）：复用前校验字体/manifest/脚本一致
+    import gate_binding as GB
+    GB.write_sidecar(out_abs, GB.build_binding(
+        files={"baseline": old_font, "font": new_font, "manifest": man_path},
+        scripts=["content_loss_gate.py", "fidelity_eval.py"]))
+    n_error = sum(1 for r in rows if "error" in r)
+    # 覆盖必须 100%：异常字 = 无法判定，不允许按 98% 覆盖率静默漏样（BF-46）
+    if n_ok_total != len(chars) or n_error:
+        print(json.dumps({"ERROR": "覆盖不足/逐字异常", "n_checked": n_ok_total,
+                          "n_expected": len(chars), "n_error": n_error,
                           "damaged": sum(1 for r in rows if "ink_ratio" in r)}, ensure_ascii=False))
         sys.exit(2)
     rows = [r for r in rows if "ink_ratio" in r]

@@ -116,17 +116,20 @@ R 正式包（里程碑）                                               scripts
 | 字体 QA | `font_qa.py` | 表/cmap==manifest/空字形/bbox(tiny,超 em)/advance/fontRevision/同框=0；**不数孔洞/连通分量**（D21） | PASS（v2.6.1 仅同框 2 对 FAIL） |
 | 内容缺失 | `content_loss_gate.py` | 新旧字形 ink_ratio/IoU（vs v2.5.8） | **35**（阈值 35） |
 | 缺件扫描 | `scan_missing_parts.py` | 源块组件未被字形覆盖（content+block 口径；参考字体=霞鹜文楷 OFL） | **1,200**（旧宋体参考口径；D21 切换后须重扫重定基线） |
-| 框线逃逸 | `scan_frame_escape.py` | 块内贯穿线残留 | **153**（新口径基线） |
-| 快闸 | `fast_gate.py` | QA/版本/字符diff/内容/box均匀/文档/SHA | ≤3min，7 项 |
-| 全闸 | `release_gate.py` | 上述 + **包内 TTF sha == --font** + 缺件/框线复用文件存在校验 + 文档 + SHA + zip（SHA 冻结后重建） | 9/9 PASS（v2.6.1 修复后因同框冲突 font_qa FAIL，属预期） |
+| 框线逃逸（源图级） | `scan_frame_escape.py` | 块内贯穿线残留 | **153**（新口径基线） |
+| 字形级框线闸 | `glyph_frame_gate.py` | 扫 **TTF 输出字形**：细长直线（厚≤3px@256、长≥max(0.5 字宽,128px)）；只用线段几何，不数孔洞（D21） | v2.6.1 **23**（mixed-cache 旧字形；首次全量重建后复测） |
+| 无拷贝 provenance 闸 | `provenance_gate.py` | manifest/mapping/stats 三者自洽；`label_source=="mapping"`；无 `__overlay__`/`repair_overlay`/`contours_override` 标记 | v2.6.1 PASS（同框 2 对为 warning） |
+| 页级几何闸 | `page_geometry_gate.py` | 有 quad 覆盖/manifest box 用 `M` 变换进旋转空间/bad box/空指派半版/2×2 块∩quad | bad_boxes **198**（0 容差 360，与审计一致）、空指派半版 **1,173**（01_0006 L 含「一」） |
+| 快闸 | `fast_gate.py` | QA/版本/字符diff+隔离/内容(binding 复用)/box 均匀(p95)/字形框线/provenance/页几何/文档/SHA；缺参数即 FAIL | 10 项；候选允许已披露的页几何已知债阈值 |
+| 全闸 | `release_gate.py` | 上述 + 缺件/框线扫描（finalize 强制）+ 三闸严格 0 + **包内 TTF sha == --font** + clean-tree + 输入归因 + SHA + zip（SHA 冻结后重建）；**pre-finalize 失败绝不改包** | v2.6.1 会 FAIL（同框/字形框线/页几何/缺扫描均未清零，属未修完） |
 
-- 扫描结果按字体 SHA 缓存于 `work/gates/<sha12>/`；字体不变不重扫；
+- **扫描/闸结果绑定**：输出旁写 `<out>.sha256` sidecar（输入 font/manifest/mapping/geometry/参考字体/脚本 sha + argv + git）；复用前必须校验，输入或脚本变化即 FAIL（BF-12）。内容闸缓存 `work/gates/<font_sha12>/` 同样有 sidecar。
 - `jobrun.sh` 包装后台任务：写 `work/jobs/<name>.status`（START/DONE/KILLED/FAILED + EXIT），pipefail 不再被 `| tail` 掩盖。
 
 ### S5 打包与发布
 
 - `font_package.py`：**freshness**（字体须比 manifest 新）+ **clean-tree**（工作区必须干净，否则 ABORT；调试可 `--allow-dirty`）+ QA + 材料 + SHA + zip；
-- `release_gate.py`：9 步 PASS → 写 gate-report → 重算 SHA（覆盖含报告）→ 终校验 → zip 自检；
+- `release_gate.py`：全部步骤 PASS 才写 gate-report → 重算 SHA（覆盖含报告）→ 终校验 → zip 自检；失败只写 `work/lead` 报告、**不动包**；finalize 前强制 clean git tree + 缺件/框线扫描 + 内容基线；
 - `build_recipe.json` 记录 **git commit / dirty / cache tag / 算法脚本 sha / 扫描数字**，保证可复现；
 - 正式包**只在里程碑**发（`docs/WORKFLOW.md` §7）；候选只给字体+复核包+快闸。
 

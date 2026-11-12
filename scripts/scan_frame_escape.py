@@ -46,8 +46,10 @@ def worker(args):
         quads = fb.get_page_content_quads(page)  # 统一入口（缓存+fallback；审计 P0-3）
         tbb = fb.get_page_text_bbox(page)
         quad = quads.get(half)
-    except Exception:
-        return []
+    except Exception as e:
+        # fail-closed：页级准备失败必须计为 flagged（不能静默丢失覆盖）
+        return [{"char": it["char"], "page": page, "half": half, "box": it["box"],
+                 "error": f"prepare:{str(e)[:100]}"} for it in items]
     for it in items:
         ch, box = it["char"], it["box"]
         try:
@@ -99,10 +101,19 @@ def main():
         for res in ex.map(worker, jobs, chunksize=2):
             rows.extend(res)
     rows.sort(key=lambda r: r["char"])
-    with open(os.path.join(ROOT, args.out), "w", encoding="utf-8") as fo:
+    out_abs = args.out if os.path.isabs(args.out) else os.path.join(ROOT, args.out)
+    with open(out_abs, "w", encoding="utf-8") as fo:
         for r in rows:
             fo.write(json.dumps(r, ensure_ascii=False) + "\n")
-    print(json.dumps({"flagged": len(rows)}, ensure_ascii=False))
+    import gate_binding as GB
+    binding = GB.build_binding(
+        files={"manifest": args.manifest, "geometry": "work/lead/page_geometry.jsonl"},
+        scripts=["scan_frame_escape.py", "font_build.py", "font_norm.py",
+                 "page_frames.py", "detect_blocks.py"])
+    GB.write_sidecar(out_abs, binding)
+    n_error = sum(1 for r in rows if r.get("error"))
+    print(json.dumps({"flagged": len(rows), "error": n_error,
+                      "binding": GB.sidecar_path(out_abs)}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

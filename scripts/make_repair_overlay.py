@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""生成 repair overlay（load-bearing 产物，v2.5.6 起重建必须带它）。
+"""【已停用 2026-11-12 / D20·BF-43】生成 repair overlay（历史工具，输出已无消费者）。
+
+overlay/restore 整字拷贝通道已从主链删除（会把旧架构框线带回，AGENTS §1 禁止恢复）。
+本脚本现在只做「输入校验后立即退出」，保留文件仅为历史方法与证据说明。
+
 
 用法:
   python scripts/make_repair_overlay.py --base <重建基座字体> --final <发布字体> \
@@ -24,6 +28,8 @@ def main():
     ap.add_argument("--manifest", required=True)
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
+    raise SystemExit("D20/BF-43: overlay/restore 通道已删除（产物无消费者）；"
+                     "修复必须回写 mapping 后重切，禁止整字拷贝旧字形。")
     from fontTools.ttLib import TTFont
     base = TTFont(os.path.join(ROOT, args.base))
     final = TTFont(os.path.join(ROOT, args.final))

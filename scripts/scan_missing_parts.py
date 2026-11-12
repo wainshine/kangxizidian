@@ -40,7 +40,9 @@ def worker(args):
         quads = FB.get_page_content_quads(page)
         quad = quads.get(half)
     except Exception as e:
-        return [(it["char"], f"prepare:{e}") for it in items]
+        # fail-closed：页级准备失败要落成 error 行（release_gate 计入 flagged），不能静默丢样
+        return [{"char": it["char"], "page": page, "half": half, "box": it["box"],
+                 "error": f"prepare:{str(e)[:100]}"} for it in items]
     for it in items:
         ch, box = it["char"], it["box"]
         try:
@@ -151,10 +153,22 @@ def main():
         for res in ex.map(worker, jobs, chunksize=2):
             rows.extend(res)
     rows.sort(key=lambda r: str(r.get("char")))
-    with open(out_path, "w", encoding="utf-8") as fo:
+    out_abs = out_path if os.path.isabs(out_path) else os.path.join(ROOT, out_path)
+    with open(out_abs, "w", encoding="utf-8") as fo:
         for r in rows:
             fo.write(json.dumps(r, ensure_ascii=False) + "\n")
-    print(json.dumps({"pages": len(jobs), "flagged": len(rows)}))
+    # 输入绑定 sidecar：复用前必须校验（参考字体/几何/脚本变化都会让旧扫描失效）
+    import gate_binding as GB
+    binding = GB.build_binding(
+        files={"font": font, "manifest": man_path},
+        scripts=["scan_missing_parts.py", "reffont.py", "refgate.py", "font_build.py",
+                 "font_norm.py", "page_frames.py", "fidelity_eval.py"],
+        include_reffont=True)
+    GB.write_sidecar(out_abs, binding)
+    n_missing = sum(1 for r in rows if r.get("missing"))
+    n_error = sum(1 for r in rows if r.get("error"))
+    print(json.dumps({"pages": len(jobs), "flagged": n_missing, "error": n_error,
+                      "rows": len(rows), "binding": GB.sidecar_path(out_abs)}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

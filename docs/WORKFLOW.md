@@ -87,7 +87,7 @@
 | 新增一页锚点/修正一页 | 该页 | 单页增量 | <30 s |
 | 发布前最终确认 | 全量扫一遍 | 全量扫描（不重建） | ~10 min |
 
-**缓存键**（必须显式版本化）：`(geometry_version, page, half, char, box, algorithm_version)`。
+**缓存键**（必须显式版本化）：`<cache_ver>_<page><half>_<char>_<box>`，`cache_ver = sha8(算法脚本) + sha12(page_geometry)`；缓存按 `work/font/build/cache/<cache_ver>/` 分目录（人工 tag 已废）。
 只有键变化才重切；未变字直接命中缓存（当前 ~20 s 完成整字体组装）。
 
 ---
@@ -97,11 +97,15 @@
 | 级别 | 内容 | 耗时 | 何时跑 |
 |---|---|---|---|
 | L0 单元 | 变更字的 mask 变化、空字形、越界 | <10 s | 每次 |
-| L1 快闸 | QA、box 均匀性、几何合法性、内容闸（对比上一正式版） | 2–4 min | 每次构建 |
-| L2 全扫 | 框线逃逸、缺件扫描、mapping 指派审计 | 5–10 min | 候选定稿 / 发布前 |
-| L3 材料 | 文档数字机器校验、SHA、包自检 | 1–2 min | 正式打包 |
+| L1 快闸 | QA、版本、字符差集+隔离清单、内容闸（binding 复用）、box 均匀性（median+p95）、**字形级框线闸**、**provenance 闸**、**页级几何闸**（候选允许已披露已知债阈值）、包文档/SHA | 3–5 min | 每次构建 |
+| L2 全扫 | 缺件扫描、框线逃逸（源图级）、三闸严格阈值、mapping 指派审计 | 5–25 min | 候选定稿 / 发布前 |
+| L3 材料 | 文档数字机器校验、SHA、包自检、输入归因 | 1–2 min | 正式打包 |
 
-**闸必须数字化**：每个闸输出 `{pass, flagged, threshold, sample}`；阈值只允许逐版收紧，放宽必须在报告里写明原因并经 owner 同意。
+**闸必须数字化**：每个闸输出 `{pass, flagged, threshold, sample}`；阈值只允许逐版收紧，放宽必须在报告里写明原因并经 owner 同意。阈值=观测值时必须标 `zero_margin` 并披露。
+
+**闸输入绑定（BF-12）**：扫描/内容闸输出旁必须有 `<out>.sha256` sidecar（输入 font/manifest/mapping/geometry/参考字体/脚本 sha + argv + git）；复用前校验，缺失或不匹配 → FAIL（不再按字体 sha 单一缓存静默复用）。
+
+**finalize 纪律（GATE-08/13）**：release_gate 未全部 PASS 时**绝不改动包**（只写 work/lead 失败报告）；finalize 前强制 clean git tree + 缺件/框线扫描 + 内容基线；`--allow-dirty`/`--allow-missing-scans` 仅调试且写进报告。
 
 ---
 

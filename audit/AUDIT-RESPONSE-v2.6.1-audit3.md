@@ -64,16 +64,16 @@
 > 首版只按主题合并（`audit3-findings-triage.jsonl` 21 行）；本次把 DSH 全部 **86** 条 findings 逐条对到状态与唯一清单，确认无孤儿项。
 
 - 机器可读：`work/lead/audit3-findings-map.jsonl`（86 行；字段 `id/severity/status/bf/round/note`）。
-- 覆盖：**86/86 有归属**；`fixed` 12、`fixed-partial` 6、`accepted` 1、`deferred` 67。`deferred` 仅表示已进唯一清单（`docs/BACKLOG.md`）并有轮次，**不代表已修**。
+- 覆盖：**86/86 有归属**；`fixed` 28、`fixed-partial` 8、`accepted` 1、`deferred` 49（2026-11-12 CS1-A 后更新；CS1-A 修复 16 条 + 4 条转为部分修）。`deferred` 仅表示已进唯一清单（`docs/BACKLOG.md`）并有轮次，**不代表已修**。
 - 按级别的状态分布：
 
 | 级别 | fixed | fixed-partial | accepted | deferred | 合计 |
 |---|---|---|---|---|---|
-| P0 | 4 | 1 | 0 | 1 | 6 |
-| P1 | 5 | 3 | 1 | 26 | 35 |
-| P2 | 2 | 2 | 0 | 24 | 28 |
-| P3 | 1 | 0 | 0 | 16 | 17 |
-| **合计** | **12** | **6** | **1** | **67** | **86** |
+| P0 | 5 | 1 | 0 | 0 | 6 |
+| P1 | 13 | 5 | 1 | 16 | 35 |
+| P2 | 6 | 0 | 0 | 22 | 28 |
+| P3 | 4 | 2 | 0 | 11 | 17 |
+| **合计** | **28** | **8** | **1** | **49** | **86** |
 
 - 首版 BACKLOG 42 条按主题合并；逐条核对发现 9 条 P2/P3 细节无独立归属，已补 **BF-43..51**：
   BF-43 overlay 能力仍可触达（P1）、BF-44 闸/构建归因不可复现（P2）、BF-45 clean-tree/freshness 可绕过（P1）、BF-46 内容闸吞样（P2）、BF-47 audit 现行文档时点（P2）、BF-48 构建入口/缓存卫生（P2）、BF-49 scripts 保留判定（P2）、BF-50 worker 上限（P2）、BF-51 降级路径标记（P2）。

@@ -8,9 +8,9 @@
 
 | 级别 | 数量 | 说明 |
 |---|---|---|
-| P0 | 9 | 3 项闸缺失/契约，2 项映射/几何坐标，1 项内容缺损，1 项重建，2 项流程完整性 |
-| P1 | 22 | 审计 P1（11，含 BF-14 ✅）+ 历史遗留（9：8 未完成 + BF-37 ✅）+ 审计补录（BF-43/45） |
-| P2 | 20 | 审计 P2（8）+ 历史遗留（5）+ 审计补录（BF-44/46/47/48/49/50/51） |
+| P0 | 9（已完成 2） | BF-01/09 ✅；余：映射/坐标 2、内容 1、重建 1、闸契约 1、包 1、框线 1 |
+| P1 | 22（已完成 5） | BF-12/14/37/43/45 ✅；余 17 |
+| P2 | 20（已完成 3） | BF-46/48/50 ✅；余 17（含 BF-44 归因部分完成） |
 | ACCEPT | 4 | 历史文档不改写、v2.6.1 旧包不重打、历史数字不回溯重算、审计报告保留 |
 
 > 第 3 代审计 86 条 findings 的逐条状态见 `work/lead/audit3-findings-map.jsonl`（12 已修 / 6 部分修 / 1 接受 / 67 排期，**0 条无归属**）；汇总见 `audit/AUDIT-RESPONSE-v2.6.1-audit3.md` §5。
@@ -31,7 +31,7 @@
 
 | ID | 问题 | 证据 | 修法 | 验收 | 轮次 |
 |---|---|---|---|---|---|
-| BF-01 | **三闸缺失**：字形级框线闸 / provenance 无拷贝闸 / 页级几何闸 | 审计 DSH P0-3；PIPELINE §4 只有源图级扫描 | 新建 3 个脚本并接 release_gate：①glyph_frame_gate（细长线≥0.5 字宽且厚≤3px；只用线段几何，不数孔洞/连通分量，D21）②provenance_gate（禁止整字拷贝/overlay；构建 recipe 记录）③page_geometry_gate（每页 block 包住主簇/quad 压线/同页 box 恒定） | 三闸存在且能 FAIL；v2.6.0 坏字形可被 glyph_frame_gate 抓住（回归样本） | CS1 |
+| BF-01 | **三闸缺失**：字形级框线闸 / provenance 无拷贝闸 / 页级几何闸 | 审计 DSH P0-3 | 已建三闸并接入快/全闸：`glyph_frame_gate`（TTF 输出字形扫细长直线，只用线段几何，不数孔洞 D21）、`provenance_gate`（manifest/mapping/stats 自洽 + 无拷贝标记）、`page_geometry_gate`（quad 覆盖/box 用 M 变换进旋转空间/空指派/块∩quad） | ✅ **完成（2026-11-12）**：三闸可 FAIL；glyph_frame_gate 抓住 v2.6.0 的 勤 等 10 字（v2.6.1 23、v2.5.8 19，见 `glyph-frame-gate-v26x.json`）；检查 `work/lead/gate-*` | CS1 |
 | BF-02 | **同框冲突 2 对**：沓/𦧟（08_0319 R）、䛱/忠（10_0081 R） | 修复后的 font_qa 实测 `same_box_conflicts` 2 对；审计 DSH P0-5 | 改 mapping 指派（全库同框检测为类规则）；禁止改字形绕过 | 同框=0；font_qa PASS | CS1.5 |
 | BF-03 | **mapping box ∩ quad 坐标系错误**：用原坐标 block 与旋转空间 quad box 求交，audit 报 360/17,007 字 box 越出正文区 | 审计 GLM P0-3/DSH P1；`get_page_content_quads` 返回旋转空间 `box` | 求交前把 block 变换到旋转空间（M），或对 quad 取 Minv 四角得原空间 bbox；统一用同一函数 | 全库 mapping box 100% 在 content 内；238 字/343 页影响面复核 | CS1.5 |
 | BF-04 | **v2.6.1 包不可签收**：旧 finalize（zip 内报告/SHA 旧）、包内 README 数字矛盾（60/700 vs 153/1200）、review tsv 混入 v2.6.0 数据 | 审计 DSH P0-2/P1；本次核对确认 | 不重打 v2.6.1；下一候选重建后按新 finalize 顺序出包；材料由同一数据源生成 | 新包 zip==目录、SHA 覆盖报告、材料数字与 gate-report 一致 | CS1 |
@@ -39,7 +39,7 @@
 | BF-06 | **缺件 1,200**（邻字隔离未修+ref fail-closed 影响） | 审计 E3/P1；本次已修 ref fail-closed，需重扫 | 先修「block 内邻字组件不计入」类规则，重扫得到干净基线 | 缺件数字可解释；已知债清单冻结 | CS3/CS4 |
 | BF-07 | **框线逃逸 153**（源图口径，且非字形级） | `frame_escape_scan_v261.jsonl`；审计 P0-3 | 页级几何（BF-11）+ glyph_frame_gate 双闸；按页修 quad/格点 | 字形级框线=0；源图口径残留在披露范围 | CS2 |
 | BF-08 | **缓存/几何修复后首次全量重建候选** | 本轮修了 cache key/几何路径；旧字体是旧 key 产物 | 全量重建（cache 0 命中）→ 得候选 cYYYYMMDD-1；记录 sha/耗时/内容/框线/缺件数字 | 候选可复现（缓存命中重建 sha 一致）；数字落盘 | CS1 |
-| BF-09 | **构建失败静默**：单字失败仅 WARN，仍 exit 0 | 审计 GLM P1/DSH；本轮只加 WARN | 加硬失败：失败/缺字>0 且无 `--allow-partial` 时 exit≠0；skipped 必须落盘 | 人为注入失败 → 构建退出非 0 | CS1 |
+| BF-09 | **构建失败静默**：单字失败仅 WARN，仍 exit 0 | 审计 GLM P1/DSH | 硬失败：任何 skipped（除 `--limit`）→ 写失败报告（`aborted/failed_n/failed`）并 exit≠0；`--allow-partial` 才放行 | ✅ **完成（2026-11-12）**：注入坏 box → `ABORT: 1 字构建失败` + `/tmp/bad.build_stats.json`，exit 1 | CS1 |
 
 ## 3. P1
 
@@ -47,8 +47,8 @@
 |---|---|---|---|---|---|
 | BF-10 | **闸契约仍可被绕过**：可选闸省略即 PASS；阈值=观测值（35/35、153/153、1200/1200）零余量；`doc_check` 不做数字对账 | 审计 GLM/DSH P1 | 候选/里程碑强制 full gate；阈值模式要求记录「上一版数字+delta」，零余量必须披露；doc_check 校验 README/QA 数字与 gate-report 一致 | 缺项即 FAIL；数字不一致即 FAIL | CS1 |
 | BF-11 | **343 页无 quad / 184 页仅半版**（影响 238 字） | 审计 DSH P0-4 影响面；PROJECT-STATE P1 | 页级几何校验（BF-01③）→ 逐页修 quad（fallback 只能兜底，不能当修复） | 无 quad 页→0；238 字复测 | CS2 |
-| BF-12 | **扫描结果未绑定字体 SHA**（18:06/18:21 扫描早于 18:23 字体；reuse 无校验） | 审计 DSH P1；本次已加 reuse 文件存在校验 | 扫描输出旁写 `<file>.sha256`（字体 sha+几何 sha）；reuse 必须匹配；不匹配重跑 | reuse 侧车缺失/不匹配 → FAIL | CS1 |
-| BF-13 | **页级几何与 pre-cut 不变量冲突**：主链仍调 `strip_border_lines`（形状删线） | 审计 GLM P2-2；`font_norm.py:872` | 二选一：摘除（pre-cut 承担）或在不变量/文档明确边界；改后全量重建回归 | 不变量与代码一致；内容/框线闸无回归 | CS2 |
+| BF-12 | **扫描结果未绑定字体 SHA**（早期扫描早于字体；reuse 无校验） | 审计 DSH P1 | 新增 `gate_binding.py`：扫描/内容输出旁写 `<out>.sha256`（font/manifest/mapping/geometry/参考字体/脚本 sha + argv + git）；快闸/全闸复用前校验，缺失或不匹配 → FAIL | ✅ **完成（2026-11-12）**：`validate_reuse` 单测（换字体→不通过）；内容/缺件/框线闸均已接入 | CS1 |
+| BF-13 | **页级几何与 pre-cut 不变量冲突**：主链仍调 `strip_border_lines`（形状删线） | 审计 GLM P2-2；200 字 A/B 量化（`work/lead/strip-border-ab-v4.json`）：strip 改动 56/200（删 11,263px；仅 2/200 改变轮廓数），页面级 frame mask 对样本 0 作用；块边带（3px）会误删真笔画 | 结论：**CS1-B 暂保留 strip**（现页面几何下它仍承担块边界界行/框线清理）；CS2 先修页级几何/pre-cut，再按同 A/B 复测摘除 strip + 用 `glyph_frame_gate` 归零验收 | 摘除后 glyph_frame_gate=0 且内容/缺件闸无回归 | CS2 |
 | BF-14 | **Songti 专有字体依赖** | 审计 E8；2026-11-12 全管线替换完成 | 新增 `scripts/reffont.py`（唯一参考字体：霞鹜文楷 OFL）并替换 font_qa/refgate/refgate2/scan_distort/fidelity_eval/scan_missing_parts/font_norm/review_sheet/owner_defect_sheet + 3 个 legacy 标注脚本；font_qa 孔洞对照删除（D21） | 构建/闸/报告脚本无 Songti/Hiragino 依赖 | ✅ 完成（2026-11-12） |
 | BF-15 | **fontRevision 公式 v2.10+ 崩坏**（4 处同错） | 审计 GLM P1-6 | 统一共享函数 `major + minor/100 + patch/10000`；下一版本重盖章 | 用 v2.10 假设单测通过；闸与构建同源 | 下一候选 |
 | BF-16 | **高频缺 23 口径**：审计称仅 16 字在目标缺口内（在/教/清等因异体口径不在目标表） | 审计 DSH P1；2026-11-12 复核：23 字均不在 mapping，且已验证 01_0006 L（一的字头页）有 quad 无 mapping 行 | 逐字核对 canonical/目标表口径；按页复查这 23 字是否属映射遗漏（真迹重新检测优先，禁止补假字）；更新名单与披露 | 名单与差集脚本一致；遗漏页有处置结论 | CS4 |
@@ -56,8 +56,8 @@
 | BF-18 | **changesets/version-artifacts 三件套未强制** | 审计 GLM P1-1；本轮已补 v2.6.1 回溯文件 | release_gate finalize 检查三件套存在（新版本必须有 cs-\* + version-artifacts） | 缺失即 FAIL | CS1 |
 | BF-19 | **mapping 生成链未脚本化**（仅数据+碎片脚本） | SCRIPTS/PROJECT-STATE 已知债 | 长期：用 charalign 脚本重建成可复现链；短期保留全部 map JSON 证据 | 能从 canonical + 扫描件重跑出 mapping（报告一致性） | 长期 |
 | BF-20 | **fast_gate char_diff 不拦截 removed**（release_gate 有一致性检查） | 审计 GLM P2-8 | fast_gate 增加 quarantine 对账；removed>0 且不在隔离清单 → FAIL | 删字必须声明 | CS1 |
-| BF-43 | **禁止能力仍可触达**：主链保留 restore/overlay 整字拷贝代码路径与缓存 `__overlay__` 分支；CLI 已 hard-error，但能力未移除，与 AGENTS 硬约束「已删除、禁止恢复」不完全一致 | 审计 BUILD-07/DOCS-10；`font_build.py` 仍接受 `repair_overlay`/`__overlay__` | 从主链删除 overlay 分支与内部参数；文档/缓存格式同步；构建遇 overlay 数据即报错 | 全仓库无 overlay/restore 可执行路径；构建测试注入 → 非 0 | CS1 |
-| BF-45 | **clean-tree/freshness 闸可绕过**：`--allow-dirty` 全绕过、被 gitignore 的构建输入（mapping/manifest 等）不进 provenance | 审计 GATE-13 | `--allow-dirty` 只允许调试并写入报告；正式 finalize 拒绝脏树；gitignored 输入 sha 写入 build_recipe | 脏树/输入变更 → 正式包 finalize FAIL；provenance 覆盖全部输入 | CS1 |
+| BF-43 | **禁止能力仍可触达**：主链保留 restore/overlay 整字拷贝代码路径与缓存 `__overlay__` 分支 | 审计 BUILD-07/DOCS-10 | 删除主链 overlay 分支/`--repair-overlay`/`--src-map`/`contours_override` 读取；构建遇 dict 轮廓即报错；`make_repair_overlay.py` 停用 | ✅ **完成（2026-11-12）**：注入 `__overlay__` 字形 → RuntimeError exit 1；overlay 生成器 exit 1 | CS1 |
+| BF-45 | **clean-tree/freshness 闸可绕过**：`--allow-dirty` 全绕过、被 gitignore 的构建输入不进 provenance | 审计 GATE-13 | finalize 前置 `clean_tree` 步（脏树 FAIL，`--allow-dirty` 仅调试且记录）；输入 sha 进 gate-report `inputs` | ✅ **完成（2026-11-12）**：临时包副本跑全闸 → `FAIL clean_tree`（dirty=true）且 `package_touched=false` | CS1 |
 
 ## 4. P2
 
@@ -72,11 +72,11 @@
 | BF-27 | audit triage 与 backlog 的同步靠人工 | 每轮结束自动从 findings jsonl 生成 backlog 摘要（脚本） | 流程 |
 | BF-28 | release 清单中 v2.6.1 状态未标「不可签收」 | 更新 RELEASE-INVENTORY/README 状态列 | 文档 |
 | BF-44 | **闸/构建归因不可复现**：gate-report 无输入 sha/命令行/git commit；build_recipe 算法 sha 与记录的 commit/tag 不符；jobrun 不记命令行与日志 | 审计 GATE-09/12/21、DATA-06、DOCS-08 | gate-report 记录 font/manifest/扫描输入 sha + argv + git commit；build_recipe 的算法 sha 与构建 commit 同源；jobrun 落命令行与日志路径 | 同命令可从报告复现；归因字段齐全 | CS1 |
-| BF-46 | **内容闸吞样**：异常字不计 damaged，覆盖下限 98% 可静默漏约 340 字 | 审计 GATE-17 | 异常字计数并单列；n_checked/覆盖率下限不满足 → FAIL | 人为制造异常 → FAIL 或显式计数 | CS3 |
+| BF-46 | **内容闸吞样**：异常字不计 damaged，覆盖下限 98% 可静默漏约 340 字 | 审计 GATE-17 | 覆盖率要求 100%：`n_ok != len(chars)` 或存在 error 行 → exit 2（不再按 98% 静默漏样）；error 单列 | ✅ **完成（2026-11-12）**：v2.6.1 全量 17,007/17,007 通过覆盖检查 | CS3 |
 | BF-47 | **audit/ 顶层「现行」文档阶段过期且互相矛盾**：SELF-AUDIT/README 时点缺失，`_history/README` 把归档标现行 | 审计 DOCS-07/13/26 | 每份标 status/时点/被替代关系；过期移入 `_history/`；索引同步 | 顶层文档与索引一致、无过期结论当现行 | CS1 |
-| BF-48 | **构建入口/边界缺陷与缓存卫生**：`--manifest` 入口 `load_from_manifest_jsonl` 未定义；仓库外路径写 stats 崩溃；测试条目污染生产缓存（17,010≠17,007） | 审计 BUILD-09/10/11、DATA-15 | 修入口与路径边界；缓存命名空间/来源校验，清污染条目；加 smoke test | 三个入口均可跑；缓存数=字体字形数 | CS1 |
+| BF-48 | **构建入口/边界缺陷与缓存卫生**：`--manifest` 入口未定义；仓库外路径写 stats 崩溃；测试条目污染生产缓存 | 审计 BUILD-09/10/11、DATA-15 | 实现 `load_from_manifest_jsonl`（复用 mapping 主链）；`_rel_path` 容错；缓存按 `_CACHE_VER` 分子目录（旧 flat 目录不再读取），stats 增 `cache` 计数 | ✅ **完成（2026-11-12）**：三入口均可跑；缓存目录 `b7441e3f…`/`fbe518ed…` 各 2 文件（limit 测试）；旧 flat 的甲/乙/丙不再被读取，待清理（不影响新构建） | CS1 |
 | BF-49 | **scripts/ 保留判定缺失**：4 个已宣布归档的「切后擦线」死脚本仍在现行目录且可互 import；14 个脚本无调用方无判定 | 审计 DOCS-12/27 | 每脚本标 keep/archive（README 清单）；死脚本移 `scripts/_archive/` 或加 guard；主链不得 import | 现行 scripts 无未标注/不可判定脚本 | CS2 |
-| BF-50 | **worker 上限未强制**：`--workers`/`FONT_BUILD_WORKERS` 无 clamp（999 可绕过 ≤10），线程 env 只覆盖部分 | 审计 BUILD-05 | clamp ≤10 并打印；线程 env 统一在入口设置 | workers=999 → 实际 10 且告警 | CS1 |
+| BF-50 | **worker 上限未强制**：`--workers`/`FONT_BUILD_WORKERS` 无 clamp（999 可绕过 ≤10） | 审计 BUILD-05 | `clamp_workers`：`--workers`/env 都 clamp ≤10 并告警 | ✅ **完成（2026-11-12）**：`clamp_workers(999)` → 10 + WARN | CS1 |
 | BF-51 | **构建降级路径无标记**：geometry/quad/lattice 异常只打日志继续，可在无 content clip/块掩膜下完成构建 | 审计 BUILD-08 | 降级次数/类型写 stats 并进闸；超阈值 FAIL | 人为降级 → stats 可见且闸失败 | CS2 |
 
 ## 5. 非审计遗留（历史欠账，2026-11-12 补录）
@@ -123,7 +123,7 @@
 5. **CS3**：BF-05 内容 35→0 + BF-06 缺件（新参考口径）；
 6. **CS4/CS5**：BF-16/BF-15 + 历史硬条件 BF-29/30/31/32/33 + 流程 BF-38/39 + 策略 BF-41/42 → 1–2 天。
 
-> 合计未完成 **49 条**（P0 9 + P1 20 + P2 20；BF-14/BF-37 已完成）。其中 CS1 范围 21 条，是当前唯一阻塞链（审计 86 条 findings 中 67 条 deferred 映射到这些 BF，其余 19 条已修/部分修/接受）。
+> 合计未完成 **41 条**（P0 7 + P1 17 + P2 17；已完成 10：BF-01/09/12/14/37/43/45/46/48/50）。CS1 剩余：BF-04/08/10/17/18/20/22/23/24/25/44/47 + 三闸验收（在 CS1-B 重建后复测）。审计 86 条 findings 现 28 fixed / 8 fixed-partial / 1 accepted / 49 deferred。
 
 ## 9. 维护规则
 

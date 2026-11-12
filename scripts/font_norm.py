@@ -415,7 +415,7 @@ def render_pdf_crop(page_key: str, box: list, pad150: int = 6, dpi: int = 300) -
 
 
 def strip_border_lines(ink: np.ndarray, band: float = 0.18, min_len: float = 0.45,
-                       max_thick: float = 0.10) -> np.ndarray:
+                       max_thick: float = 0.10, report: list | None = None) -> np.ndarray:
     """移除「版面框线 / 注文引用框线」长直线组件。
 
     两类判据（任一命中即删）：
@@ -463,6 +463,11 @@ def strip_border_lines(ink: np.ndarray, band: float = 0.18, min_len: float = 0.4
         rule_b = straight
         if rule_a or rule_b:
             out[lab == i] = 0
+            if report is not None:
+                report.append({"area": int(a), "bbox": [int(x), int(y), int(x + ww), int(y + hh)],
+                               "long": int(long_dim), "thick": int(thick),
+                               "rule": "A" if rule_a else "B",
+                               "isolated": bool(isolated)})
     return out.astype(ink.dtype)
 
 
@@ -848,7 +853,10 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    block_rect: tuple[int, int, int, int] | None = None,
                    erase_rects_list: list[tuple[int, int, int, int]] | None = None,
                    frame_mask: "np.ndarray | None" = None,
-                   clip_mask: "np.ndarray | None" = None) -> dict:
+                   clip_mask: "np.ndarray | None" = None,
+                   strip_border: bool = True,
+                   strip_report: dict | None = None,
+                   block_band300: float = 0.0) -> dict:
     """灰度图 -> 归一化轮廓（font_norm 主链路）。center=crop 内字身框像素坐标。"""
     if enable_edge_strip or enable_line_swt or enable_ref_filter:
         # v2.4.16–19 P0 事故根因：这类「按尺寸/位置删组件」开关已禁用；
@@ -866,8 +874,32 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
     if frame_mask is not None:
         ink[frame_mask > 0] = 0
     ink = mask_to_block(ink, block_rect)
+    if block_rect is not None and block_band300 > 0:
+        # pre-cut：块边缘带排除（界行/栏线残段恰好压在 2×2 块边界上，
+        # 几何上先挖掉窄带，替代「切后按形状删线」的 strip_border_lines）
+        b = int(round(block_band300))
+        x0, y0, x1, y1 = [int(v) for v in block_rect]
+        hh, ww = ink.shape
+        if b > 0:
+            for yy0, yy1 in ((max(0, y0), min(hh, y0 + b)),
+                             (max(0, y1 - b), min(hh, y1))):
+                if yy1 > yy0:
+                    ink[yy0:yy1, max(0, x0):min(ww, x1)] = False
+            for xx0, xx1 in ((max(0, x0), min(ww, x0 + b)),
+                             (max(0, x1 - b), min(ww, x1))):
+                if xx1 > xx0:
+                    ink[max(0, y0):min(hh, y1), xx0:xx1] = False
     ink = remove_specks(ink)
-    ink = strip_border_lines(ink)
+    if strip_border:
+        _before = int(ink.sum())
+        _removed = [] if strip_report is not None else None
+        ink = strip_border_lines(ink, report=_removed)
+        if strip_report is not None:
+            _after = int(ink.sum())
+            strip_report.update(before_px=_before, after_px=_after,
+                                removed_px=_before - _after,
+                                removed_frac=round((_before - _after) / max(1, _before), 4),
+                                removed=_removed)
     if enable_line_swt:
         ink = strip_straight_lines_swt(ink)
     if enable_ref_filter and char:
@@ -908,7 +940,9 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                   block150: tuple[float, float, float, float] | None = None,
                   erase150: list[tuple[int, int, int, int]] | None = None,
                   frame_mask: "np.ndarray | None" = None,
-                  content_quad=None) -> dict:
+                  content_quad=None, strip_border: bool = True,
+                  strip_report: dict | None = None,
+                  block_edge_band150: float = 0.0) -> dict:
     """150dpi box -> 灰度 crop -> 归一化轮廓（自适应 pad）。block150=2×2 格块（150dpi）。
 
     先按小 pad（6px@150dpi）渲染；若最大连通域触 crop 边界（说明框偏紧、
@@ -956,10 +990,12 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
         fm = None
         if frame_mask is not None:
             import numpy as _np
-            x0 = box[0] - pad150; y0 = box[1] - pad150
+            # box 为 float（150dpi 坐标）；frame_mask 是页坐标 int 网格，必须先取整再切片
+            x0 = int(round(box[0] - pad150)); y0 = int(round(box[1] - pad150))
             mh, mw = frame_mask.shape
             sx0 = max(0, x0); sy0 = max(0, y0)
-            sx1 = min(mw, x0 + gray.shape[1] // 2); sy1 = min(mh, y0 + gray.shape[0] // 2)
+            sx1 = min(int(mw), x0 + gray.shape[1] // 2)
+            sy1 = min(int(mh), y0 + gray.shape[0] // 2)
             if sx1 > sx0 and sy1 > sy0:
                 sub = frame_mask[sy0:sy1, sx0:sx1]
                 fm = cv2.resize(sub, (gray.shape[1], gray.shape[0]), interpolation=cv2.INTER_NEAREST)
@@ -970,7 +1006,9 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                              enable_edge_strip=enable_edge_strip,
                              block_rect=block_rect,
                              erase_rects_list=erase_rects_crop,
-                             frame_mask=fm, clip_mask=cm)
+                             frame_mask=fm, clip_mask=cm,
+                             strip_border=strip_border, strip_report=strip_report,
+                             block_band300=float(block_edge_band150) * 2.0)
         res["pad150"] = pad150
         res["clipped"] = bool(clipped)
         last = res
