@@ -106,6 +106,7 @@ def worker(args):
             block_ink = int(src[by0:by1, bx0:bx1].sum())
             total = max(1, block_ink)
             miss = []
+            ref_unavailable = 0
             for (x0, y0, x1, y1, a) in cs:
                 if a < 0.010 * total:
                     continue

@@ -115,13 +115,13 @@ R 正式包（里程碑）                                               scripts
 |---|---|---|---|
 | 字体 QA | `font_qa.py` | 表/cmap==manifest/空字形/bbox(tiny,超 em)/advance/fontRevision/同框=0；**不数孔洞/连通分量**（D21） | PASS（v2.6.1 仅同框 2 对 FAIL） |
 | 内容缺失 | `content_loss_gate.py` | 新旧字形 ink_ratio/IoU（vs v2.5.8） | **35**（阈值 35） |
-| 缺件扫描 | `scan_missing_parts.py` | 源块组件未被字形覆盖（content+block 口径；参考字体=霞鹜文楷 OFL） | **1,200**（旧宋体参考口径；D21 切换后须重扫重定基线） |
-| 框线逃逸（源图级） | `scan_frame_escape.py` | 块内贯穿线残留 | **153**（新口径基线） |
+| 缺件扫描 | `scan_missing_parts.py` | 源块组件未被字形覆盖（content+block 口径；参考字体=霞鹜文楷 OFL） | **1,153**（霞鹜文楷口径，2026-11-13 全量重扫；旧 1,200 为宋体口径不可比） |
+| 框线逃逸（源图级） | `scan_frame_escape.py` | 块内贯穿线残留 | **153**（2026-11-13 复测不变）；字形级框线已 0（E27） |
 | 字形级框线闸 | `glyph_frame_gate.py` | 扫 **TTF 输出字形**：细长直线（厚≤3px@256、长≥max(0.5 字宽,128px)）；只用线段几何，不数孔洞（D21） | v2.6.1 **23**（mixed-cache 旧字形；首次全量重建后复测） |
 | 无拷贝 provenance 闸 | `provenance_gate.py` | manifest/mapping/stats 三者自洽；`label_source=="mapping"`；无 `__overlay__`/`repair_overlay`/`contours_override` 标记 | v2.6.1 PASS（同框 2 对为 warning） |
 | 页级几何闸 | `page_geometry_gate.py` | 有 quad 覆盖/manifest box 用 `M` 变换进旋转空间/bad box/空指派半版/2×2 块∩quad | bad_boxes **198**（0 容差 360，与审计一致）、空指派半版 **1,173**（01_0006 L 含「一」） |
 | 快闸 | `fast_gate.py` | QA/版本/字符diff+隔离/内容(binding 复用)/box 均匀(p95)/字形框线/provenance/页几何/文档/SHA；缺参数即 FAIL | 10 项；候选允许已披露的页几何已知债阈值 |
-| 全闸 | `release_gate.py` | 上述 + 缺件/框线扫描（finalize 强制）+ 三闸严格 0 + **包内 TTF sha == --font** + clean-tree + 输入归因 + SHA + zip（SHA 冻结后重建）；**pre-finalize 失败绝不改包** | v2.6.1 会 FAIL（同框/字形框线/页几何/缺扫描均未清零，属未修完） |
+| 全闸（候选基线） | `release_gate.py` | 上述 + 缺件/框线扫描（finalize 强制）+ 三闸严格 0 + **包内 TTF sha == --font** + clean-tree + 输入归因 + SHA + zip（SHA 冻结后重建）；**pre-finalize 失败绝不改包** | v2.6.1 会 FAIL（同框/字形框线/页几何/缺扫描均未清零，属未修完） |
 
 - **扫描/闸结果绑定**：输出旁写 `<out>.sha256` sidecar（输入 font/manifest/mapping/geometry/参考字体/脚本 sha + argv + git）；复用前必须校验，输入或脚本变化即 FAIL（BF-12）。内容闸缓存 `work/gates/<font_sha12>/` 同样有 sidecar。
 - `jobrun.sh` 包装后台任务：写 `work/jobs/<name>.status`（START/DONE/KILLED/FAILED + EXIT），pipefail 不再被 `| tail` 掩盖。
@@ -187,8 +187,8 @@ FONT_BUILD_WORKERS=10 .venv/bin/python scripts/font_build.py \
 | 基本区覆盖 | 10,267 / 20,992 = **48.91%**；目标字表 10,267 / 16,567 = **61.97%** |
 | 缺口 | **6,300**（其中高频 23 + 忠 待重新定位） |
 | 隔离 | 9（刃/榍/法/紆/総/荹/仟/禦/絞） |
-| 全量构建 | 17,005 字 / **402s**（无页 mask）/ **636s**（含页级 pre-cut mask）；缓存命中 **232s**（10 workers） |
-| 闸（v2.6.2 候选） | font_qa **PASS**（同框 0）；字形级框线 **23** FAIL；内容 35（阈值）PASS；provenance PASS；页级几何 198/1,173（候选阈值）；缺件 1,200（旧参考口径待重扫） |
+| 全量构建 | 17,005 字 / **402s**（无页 mask）/ **634s**（含页级 pre-cut mask，最新）；缓存命中 **232s**（10 workers） |
+| 闸（v2.6.2 候选） | font_qa **PASS**（同框 0）；字形级框线 **23** FAIL；内容 35（阈值）PASS；provenance PASS、页级几何 198/1,173（候选阈值，里程碑严格 0）；缺件 1,153（霞鹜口径）、框线 153（源图级） |
 | 已知结构债 | 343 页无 content_quad；缺件扫描邻字隔离待修正；页级几何按页修；09–11/13 卷锚点；100 字签核 |
 
 ---

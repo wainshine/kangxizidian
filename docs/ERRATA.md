@@ -187,3 +187,39 @@
   不能用它直接做 ROI。下一步：由**字形自身 thick ink**（腐蚀掉细线后的墨迹 bbox）反推 keep 区（二次 pass），
   并以内容闸 0 damaged 为硬条件。
 - 产物：`mapping_block_v272.jsonl`（verified_box，留作后续；候选仍用 v271）；失败构建 d960daeb/cb586213 弃用。
+
+
+## E26. 由 thick ink 反推 ROI：同样失败并回退（2026-11-13）
+
+- 目的（BF-53）：细线 mask 只在「字形厚墨 ROI」外应用，清掉框内残线而保护笔画。
+- 实现：`font_norm.thick_roi()`（distanceTransform 取厚墨最大连通域 bbox+margin），`vectorize_box(use_thick_roi=...)`；全量重建（sha 3ab7001d…）。
+- 结果：字形框线 15（未清零），**内容闸 2,596 damaged**（大量字掉墨 ~50%）。
+  根因：**细笔画本来就不在 thick mask 里**（厚墨腐蚀后细撇/细横被排除），因此 thin-line mask 会把字头细笔画当框线删掉——方法自相矛盾。
+- 处置：`use_thick_roi` 默认 **False**；候选恢复 `eec49c4e…`（14 字框线、内容安全、内容闸 33/35）。
+- 结论：单字层「ROI + 细线 mask」两条路线（verified box / thick ink）都不可行（E25/E26）。
+  剩余 14 字改走**页级几何**：修这些字所在页的 content quad / text bbox（框线/界行应在 quad/裁切带外），
+  属 BF-11/CS2 的按页几何修复，不做单字补丁。
+
+
+## E27. 页级「已验证线条带」清掉最后 14 处框线（CS2 v3，2026-11-13）
+
+- 前两轮单字 ROI（E25/E26）失败后改数据驱动：把 14 个残留线段的**页坐标 rect** 反算出来
+  （用 glyph_frame_gate 的 line bbox + 该字归一化参数逆变换 → 页 150dpi 坐标），核对后写成
+  `work/lead/page_line_bands.json`（页级、14 个 rect，含来源字与朝向）。
+- 构建时 `font_build` 读该表，把这些 rect 并入页级 line mask（pre-cut 清零，只影响这 14 页）。
+- 结果（sha `19d103cc…`，全量 10m34s）：
+  - glyph_frame_gate **0 flagged PASS**（14→0）；
+  - content_loss_gate（上一候选→本候选）**0 damaged**；
+  - fast_gate **8/8 PASS**（含 content 33/35、provenance、页几何候选阈值）——**首个全过快闸的候选**。
+- 说明：这是「页级几何数据修复」而非单字补丁；rect 由残线本身反算、页级作用域；后续若页级几何（quad/text bbox）修好，
+  这些 bands 可删除并复测 glyph_frame=0。
+
+
+## E28. 全闸首次基线（v2.6.2 候选，2026-11-13）
+
+- `release_gate`（不打包，候选基线）：**8 PASS / 3 FAIL**。
+  - PASS：font_qa、version_stamp、char_diff、content_loss_gate（33/35）、missing_reuse_binding、frame_reuse_binding、**glyph_frame_gate（0）**、provenance_gate；
+  - FAIL：`scan_missing_parts` **1,153**、`frame_escape` **153**、`page_geometry_gate`（198@1px / 1,173 空指派，严格 0）。
+- 缺件数字口径已变：**1,153 是霞鹜文楷参考口径**（D21 后第一次全量重扫），与旧宋体口径 1,200 **不可直接比较**；旧值仅作历史。
+- 框线逃逸 153 是**源图块内**扫描（非字形级）；字形级已是 0（E27）。
+- 报告：`work/lead/gate-report-v262.json`；扫描 sidecar 已生成（missing/frame），复用校验 PASS。

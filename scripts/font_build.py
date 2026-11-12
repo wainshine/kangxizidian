@@ -489,6 +489,28 @@ def get_page_line_mask(page_key: str, dilate: int = 3):
         return None
 
 
+_LINE_BANDS = None
+
+
+def get_page_line_bands(page_key: str):
+    """页级「已验证线条带」数据（work/lead/page_line_bands.json，150dpi 页坐标）。
+
+    来源：glyph_frame_gate 残线反算到页坐标后人工核对的 rect；只用于这些页，
+    在 pre-cut 阶段把 rect 内像素清零。数据驱动（非启发式），页级作用域。
+    """
+    global _LINE_BANDS
+    if _LINE_BANDS is None:
+        _LINE_BANDS = {}
+        try:
+            p = ROOT / "work" / "lead" / "page_line_bands.json"
+            if p.exists():
+                _LINE_BANDS = json.loads(p.read_text())
+        except Exception as e:
+            print("[line-bands] load fail", e, flush=True)
+            _LINE_BANDS = {}
+    return _LINE_BANDS.get(page_key.replace("_", "_"), []) or []
+
+
 def get_page_thin_line_mask(page_key: str):
     """页级「细短直线」mask（注文引文小框 / 短界行段；150dpi 页坐标 0/1）。
 
@@ -528,6 +550,20 @@ def _worker_page(args):
         tbb = get_page_text_bbox(page)
         quads = get_page_content_quads(page)
         line_mask = get_page_line_mask(page) if os.environ.get("FONT_PAGE_LINE_MASK", "1") != "0" else None
+        _bands = get_page_line_bands(page)
+        if _bands:
+            if line_mask is None:
+                try:
+                    from detect_blocks import page_gray as _pg
+                    _g = _pg(page[:2], int(page[3:]))
+                    line_mask = _g.copy()
+                    line_mask[:] = 0
+                except Exception:
+                    line_mask = None
+            if line_mask is not None:
+                for rec in _bands:
+                    x0, y0, x1, y1 = [int(round(v)) for v in rec["rect"]]
+                    line_mask[max(0, y0):max(0, y1) + 1, max(0, x0):max(0, x1) + 1] = 1
         thin_mask = get_page_thin_line_mask(page) if os.environ.get("FONT_PAGE_THIN_MASK", "1") != "0" else None
     except Exception as e:
         return [(it["idx"], None, {"ok": False, "reason": f"page prepare: {e}"}) for it in items]

@@ -844,6 +844,39 @@ def apply_reference_filter(ink: np.ndarray, ch: str, dilate: int = 25,
     return out.astype(ink.dtype)
 
 
+def thick_roi(gray: np.ndarray, dist_min: float = 4.0, margin: int = 12):
+    """由字形自身「厚墨」反推 keep ROI（300dpi crop 坐标）。
+
+    原理：框线/注文框线是细线（300dpi 下厚度 ~6–14px，distanceTransform ≤ ~7），
+    字头笔画更厚（厚度 ≥ ~15px）；先取厚墨最大连通域 bbox，再外扩 margin。
+    细线 mask 只在 ROI 之外应用 → 不会误删笔画，又能清掉框内残线（框线落在 ROI 内则保留，
+    属可接受残差，交 glyph_frame_gate 记录）。
+    """
+    import numpy as np
+    import cv2
+    try:
+        ink = binarize(gray)
+        dist = cv2.distanceTransform(ink.astype(np.uint8), cv2.DIST_L2, 5)
+        thick = (dist > dist_min).astype(np.uint8)
+        if int(thick.sum()) == 0:
+            return None
+        n, lab, st, _ = cv2.connectedComponentsWithStats(thick, 8)
+        if n <= 1:
+            return None
+        areas = [(int(st[i, cv2.CC_STAT_AREA]), i) for i in range(1, n)]
+        a, i = max(areas)
+        if a < 40:
+            return None
+        x, y = int(st[i, cv2.CC_STAT_LEFT]), int(st[i, cv2.CC_STAT_TOP])
+        w, h = int(st[i, cv2.CC_STAT_WIDTH]), int(st[i, cv2.CC_STAT_HEIGHT])
+        hh, ww = gray.shape
+        x0 = max(0, x - margin); y0 = max(0, y - margin)
+        x1 = min(ww, x + w + margin); y1 = min(hh, y + h + margin)
+        return (x0, y0, x1, y1)
+    except Exception:
+        return None
+
+
 def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    center: tuple[int, int, int, int] | None = None,
                    char: str | None = None, enable_line_swt: bool = False,
@@ -945,7 +978,8 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                   block_edge_band150: float = 0.0,
                   frame_mask_outer: "np.ndarray | None" = None,
                   outer_keep_margin150: float = 4.0,
-                  keep_box150: tuple | None = None) -> dict:
+                  keep_box150: tuple | None = None,
+                  use_thick_roi: bool = False) -> dict:
     """150dpi box -> 灰度 crop -> 归一化轮廓（自适应 pad）。block150=2×2 格块（150dpi）。
 
     先按小 pad（6px@150dpi）渲染；若最大连通域触 crop 边界（说明框偏紧、
@@ -1003,8 +1037,8 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                 sub = frame_mask[sy0:sy1, sx0:sx1]
                 fm = cv2.resize(sub, (gray.shape[1], gray.shape[0]), interpolation=cv2.INTER_NEAREST)
         if frame_mask_outer is not None:
-            # 细短直线 mask（注文引文框/短界行段）：只应用在 keep 区之外，
-            # keep 区 = 字身 box ± outer_keep_margin150；保护字头细笔画。
+            # 细短直线 mask（注文引文框/短界行段）：只应用在「字形厚墨 ROI」之外。
+            # ROI 由本 crop 的 thick ink 反推（不依赖检测框/verified 框，避免片段框误删笔画）。
             mh2, mw2 = frame_mask_outer.shape
             ox0 = max(0, x0); oy0 = max(0, y0)
             ox1 = min(int(mw2), x0 + gray.shape[1] // 2)
@@ -1013,16 +1047,21 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                 sub2 = frame_mask_outer[oy0:oy1, ox0:ox1]
                 fm2 = cv2.resize(sub2, (gray.shape[1], gray.shape[0]),
                                  interpolation=cv2.INTER_NEAREST)
-                mm = int(round(outer_keep_margin150 * 2))
-                # keep 区：优先用 verified tight ink bbox（没有则退回 block box）
-                kr = keep_box150 if keep_box150 is not None else box
-                # crop 坐标 = (page150 - (box - pad150)) * 2
-                kx0 = max(0, int(round((kr[0] - (box[0] - pad150)) * 2)) - mm)
-                ky0 = max(0, int(round((kr[1] - (box[1] - pad150)) * 2)) - mm)
-                kx1 = min(gray.shape[1], int(round((kr[2] - (box[0] - pad150)) * 2)) + mm)
-                ky1 = min(gray.shape[0], int(round((kr[3] - (box[1] - pad150)) * 2)) + mm)
-                if kx1 > kx0 and ky1 > ky0:
-                    fm2[ky0:ky1, kx0:kx1] = 0
+                if use_thick_roi:
+                    roi = thick_roi(gray)
+                    if roi is not None:
+                        rx0, ry0, rx1, ry1 = roi
+                        fm2[ry0:ry1, rx0:rx1] = 0
+                else:
+                    # 默认：keep 区 = 字身 box（或传入 keep_box）± margin，区内不应用细线 mask
+                    mm = int(round(outer_keep_margin150 * 2))
+                    kr = keep_box150 if keep_box150 is not None else box
+                    kx0 = max(0, int(round((kr[0] - (box[0] - pad150)) * 2)) - mm)
+                    ky0 = max(0, int(round((kr[1] - (box[1] - pad150)) * 2)) - mm)
+                    kx1 = min(gray.shape[1], int(round((kr[2] - (box[0] - pad150)) * 2)) + mm)
+                    ky1 = min(gray.shape[0], int(round((kr[3] - (box[1] - pad150)) * 2)) + mm)
+                    if kx1 > kx0 and ky1 > ky0:
+                        fm2[ky0:ky1, kx0:kx1] = 0
                 fm = fm2 if fm is None else np.maximum(fm, fm2)
         res = vectorize_gray(gray, long_side=long_side, center=center, char=char,
                              enable_line_swt=enable_line_swt,
