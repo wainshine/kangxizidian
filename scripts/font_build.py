@@ -260,7 +260,9 @@ def _cache_version():
             algo.update(open(os.path.join(str(ROOT), "scripts", f), "rb").read())
         except Exception:
             pass
-    return f"{algo.hexdigest()[:8]}_{_sha12(_GEOM_PATH)}"
+    tag = os.environ.get("FONT_CACHE_TAG", "")
+    bands = os.path.join(str(ROOT), "work", "lead", "page_line_bands.json")
+    return f"{algo.hexdigest()[:8]}_{_sha12(_GEOM_PATH)}_{_sha12(bands)}{tag}"
 
 
 _CACHE_VER = _cache_version()
@@ -578,7 +580,10 @@ def _worker_page(args):
                                 block150=block, content_quad=quads.get(half),
                                 frame_mask=line_mask, frame_mask_outer=thin_mask,
                                 outer_keep_margin150=2.0,
-                                keep_box150=tuple(it["vbox"]) if it.get("vbox") else None)
+                                keep_box150=tuple(it["vbox"]) if it.get("vbox") else None,
+                                # D22：pre-cut（页 mask/线条带）已验证可独立做到 glyph_frame=0（E29），
+                                # 切后形状删线 strip_border_lines 已从主链移除（默认关；env 仅留 A/B 复现）。
+                                strip_border=(os.environ.get("FONT_STRIP_BORDER", "0") == "1"))
         except Exception as e:
             res = {"ok": False, "reason": str(e)[:120]}
         out.append((it["idx"], ch, res))

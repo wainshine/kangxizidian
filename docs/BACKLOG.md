@@ -48,7 +48,7 @@
 | BF-10 | **闸契约仍可被绕过**：可选闸省略即 PASS；阈值=观测值（35/35、153/153、1200/1200）零余量；`doc_check` 不做数字对账 | 审计 GLM/DSH P1 | 候选/里程碑强制 full gate；阈值模式要求记录「上一版数字+delta」，零余量必须披露；doc_check 校验 README/QA 数字与 gate-report 一致 | 缺项即 FAIL；数字不一致即 FAIL | CS1 |
 | BF-11 | **343 页无 quad / 184 页仅半版**（影响 238 字） | 审计 DSH P0-4 影响面；PROJECT-STATE P1 | 页级几何校验（BF-01③）→ 逐页修 quad（fallback 只能兜底，不能当修复） | 无 quad 页→0；238 字复测 | CS2 |
 | BF-12 | **扫描结果未绑定字体 SHA**（早期扫描早于字体；reuse 无校验） | 审计 DSH P1 | 新增 `gate_binding.py`：扫描/内容输出旁写 `<out>.sha256`（font/manifest/mapping/geometry/参考字体/脚本 sha + argv + git）；快闸/全闸复用前校验，缺失或不匹配 → FAIL | ✅ **完成（2026-11-12）**：`validate_reuse` 单测（换字体→不通过）；内容/缺件/框线闸均已接入 | CS1 |
-| BF-13 | **页级几何与 pre-cut 不变量冲突**：主链仍调 `strip_border_lines`（形状删线） | 审计 GLM P2-2；200 字 A/B 量化（`work/lead/strip-border-ab-v4.json`）：strip 改动 56/200（删 11,263px；仅 2/200 改变轮廓数），页面级 frame mask 对样本 0 作用；块边带（3px）会误删真笔画 | 结论：**CS1-B 暂保留 strip**（现页面几何下它仍承担块边界界行/框线清理）；CS2 先修页级几何/pre-cut，再按同 A/B 复测摘除 strip + 用 `glyph_frame_gate` 归零验收 | 摘除后 glyph_frame_gate=0 且内容/缺件闸无回归；内部 pad 实验已回退（ERRATA E21，归入 v2.6.2） | CS2 |
+| BF-13 | **页级几何与 pre-cut 不变量冲突**：主链仍调 `strip_border_lines`（形状删线） | 200 字 A/B（`strip-border-ab-v4.json`）；E29 全量 A/B：strip 关→12 处框线→并入页级线条带（26 rect）后 glyph_frame=0、内容 0 回归 | 按 D22 原定路径：pre-cut 达标后摘除 strip，`FONT_STRIP_BORDER` 仅留复现口 | ✅ **完成（2026-11-13，E29/D22）**：strip 默认关闭；候选 sha `f901c9d4…`；fast_gate 8/8 PASS | CS2 |
 | BF-14 | **Songti 专有字体依赖** | 审计 E8；2026-11-12 全管线替换完成 | 新增 `scripts/reffont.py`（唯一参考字体：霞鹜文楷 OFL）并替换 font_qa/refgate/refgate2/scan_distort/fidelity_eval/scan_missing_parts/font_norm/review_sheet/owner_defect_sheet + 3 个 legacy 标注脚本；font_qa 孔洞对照删除（D21） | 构建/闸/报告脚本无 Songti/Hiragino 依赖 | ✅ 完成（2026-11-12） |
 | BF-15 | **fontRevision 公式 v2.10+ 崩坏**（4 处同错） | 审计 GLM P1-6 | 统一共享函数 `major + minor/100 + patch/10000`；下一版本重盖章 | 用 v2.10 假设单测通过；闸与构建同源 | 下一候选 |
 | BF-16 | **高频缺 23 口径**：审计称仅 16 字在目标缺口内（在/教/清等因异体口径不在目标表） | 审计 DSH P1；2026-11-12 复核：23 字均不在 mapping，且已验证 01_0006 L（一的字头页）有 quad 无 mapping 行 | 逐字核对 canonical/目标表口径；按页复查这 23 字是否属映射遗漏（真迹重新检测优先，禁止补假字）；更新名单与披露 | 名单与差集脚本一致；遗漏页有处置结论 | CS4 |
@@ -124,7 +124,7 @@
 5. **CS3**：BF-05 内容 35→0 + BF-06 缺件（新参考口径）；
 6. **CS4/CS5**：BF-16/BF-15 + 历史硬条件 BF-29/30/31/32/33 + 流程 BF-38/39 + 策略 BF-41/42 → 1–2 天。
 
-> 合计未完成 **36 条**（P0 4 + P1 16 + P2 16；已完成 15：BF-01/02/07/08/09/12/14/22/37/43/45/46/48/50/53）。下一步：全闸重扫 + 页几何严格化（BF-03/BF-11）+ 摘 strip（D22）+ CS3（BF-04/05/06/10/17/18/20/23/24/25/44/47）。审计 86 条 findings 现 28 fixed / 8 fixed-partial / 1 accepted / 49 deferred。
+> 合计未完成 **35 条**（P0 4 + P1 16 + P2 15；已完成 16：BF-01/02/07/08/09/12/13/14/22/37/43/45/46/48/50/53）。下一步：全闸重扫 + 页几何严格化（BF-03/BF-11）+ 摘 strip（D22）+ CS3（BF-04/05/06/10/17/18/20/23/24/25/44/47）。审计 86 条 findings 现 28 fixed / 8 fixed-partial / 1 accepted / 49 deferred。
 
 ## 9. 维护规则
 

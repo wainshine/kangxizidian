@@ -223,3 +223,14 @@
 - 缺件数字口径已变：**1,153 是霞鹜文楷参考口径**（D21 后第一次全量重扫），与旧宋体口径 1,200 **不可直接比较**；旧值仅作历史。
 - 框线逃逸 153 是**源图块内**扫描（非字形级）；字形级已是 0（E27）。
 - 报告：`work/lead/gate-report-v262.json`；扫描 sidecar 已生成（missing/frame），复用校验 PASS。
+
+
+## E29. strip_border_lines 摘除 A/B（D22 验收，2026-11-13）
+
+- 目的：pre-cut 已能把字形级框线清零（E27），验证「切后擦」strip 是否可摘除。
+- 步骤与结果（同输入、仅差 strip 开关）：
+  1. `FONT_STRIP_BORDER=0` 全量重建：glyph_frame **12 flagged**（错误 䘿/䛲/凛/垝/担/泞/熄/籜/絭/緈/𦯣/𩧆），content（对 strip 版）0 damaged；
+  2. 用 E27 同法把这 12 处反算成页坐标 rect，并入 `work/lead/page_line_bands.json`（14→**26** rect；bands 内容已纳入缓存 key）；
+  3. 再全量重建（strip 关）：**glyph_frame 0 PASS**；content（对 strip 版）**0 damaged**；font_qa PASS；
+- 采用：strip 默认关闭（`scripts/font_build.py` worker `strip_border=False`；env `FONT_STRIP_BORDER=1` 仅供复现历史 A/B），候选更新为 sha `f901c9d4…`（17,005 字）。
+- 新候选闸况：fast_gate **8/8 PASS**（content 34/35，余量 1，已披露）；全闸基线仍 8 PASS / 3 FAIL（缺件 1,153、源图框线 153、页几何严格）；全库扫描复测数字不变（missing 1,153 / frame 153）。

@@ -238,3 +238,10 @@ D11 的「标签真源 = 所有者终审」在 42,302 条尺度上**不可行**�
 - **三闸必跑**：`glyph_frame_gate`（TTF 输出字形扫细长直线）、`provenance_gate`（manifest/mapping/stats 自洽、无拷贝通道标记）、`page_geometry_gate`（quad 覆盖/box 坐标变换/空指派/块∩quad）接入快闸与全闸；glyph_frame 判据只用线段几何（D21），不做孔洞/连通分量判定。
 - **strip_border_lines 过渡**：它与「pre-cut」不变量冲突，但 200 字 A/B 量化（`work/lead/strip-border-ab-v4.json`）显示当前页面几何下它仍在清理块边界界行/框线残段（改动 56/200 字、11,263px；仅 2/200 改变轮廓数）；页面级 frame mask 对样本 0 作用，块边带 pre-cut（3px）会误删真笔画（53/200 差异）。
 - **决策**：CS1-B 重建**暂保留** strip；CS2 先修页级几何（343 无 quad/184 半版/box 越界 198）由 pre-cut 承担，再按同一 A/B 复测后**摘除** strip，验收 = `glyph_frame_gate=0` + 内容/缺件闸无回归。摘除前不得宣称「纯 pre-cut」，也不得新增任何「切后擦」用途。
+
+### D22 更新（2026-11-13）：strip_border_lines 已摘除
+
+- 按 D22 原定验收路径复测：页级长线/细线 mask + 页级已验证线条带（E27）已使 `glyph_frame_gate=0`；
+- A/B（同输入，仅差 strip）：strip 关闭后字形级框线 12 处（E29），把这 12 处按同法反算成页级 rect 并入 `page_line_bands.json`（14→26 rect）后：
+  strip 关闭版本 **glyph_frame=0、content（对 strip 版本）0 damaged、font_qa PASS**；
+- **决定**：主链 `strip_border_lines` 默认关闭（`FONT_STRIP_BORDER` 仅留 A/B 复现口），候选 sha `f901c9d4…`；「纯 pre-cut」口径自此成立（E29）。
