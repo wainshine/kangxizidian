@@ -322,7 +322,14 @@ def get_page_content_quads(page_key: str):
         return _QUAD_CACHE[page_key]
     geom = _load_geom().get(page_key)
     if geom and geom.get("quads"):
-        quads = dict(geom["quads"])
+        quads = {}
+        for k, q in geom["quads"].items():
+            qq = dict(q)
+            if qq.get("M") is not None:
+                import numpy as _np
+                qq["M"] = _np.asarray(qq["M"], dtype=_np.float32)
+                qq["Minv"] = _np.asarray(qq["Minv"], dtype=_np.float32)
+            quads[k] = qq
         # 兜底：缺半版 → 用 lattice + 小字中心 bbox 估计正文区（类级规则）
         if len(quads) < 2 and geom.get("lattice"):
             try:
@@ -524,7 +531,7 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                            "override": str(override[ch].get("source", ""))}
                 n_cached += 1
                 continue
-            ck = (f"v340_{page}{half}_{ch}_"
+            ck = (f"v341_{page}{half}_{ch}_"
                   f"{box[0]}_{box[1]}_{box[2]}_{box[3]}").replace("/", "_")
             cpath = cache_dir / f"{ck}.json"
             if use_cache and cpath.exists():
