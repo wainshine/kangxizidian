@@ -66,7 +66,7 @@
 | v2.6.0 | 2026-11-12 12:25 | 架构重构（切前排除框线+block mapping） | 第七十二节、切前排除框线（架构级）+ v2.6.0 | COUNTS §1077 | 已删除 |
 | v2.5.9 | 2026-11-12 | 修补（后处理擦线） | 框线后处理擦除候选，方法层错误被撤回 | — | 已删除（_withdrawn） |
 | v2.6.1 | 2026-11-12 18:27 | **结构（重构后首版）** | 删除 restore/overlay；block mapping（框=2×2块∩正文区，面积统一）；切前排除框线；首次全量重建+全量扫描；gate 分层；clean-tree 打包闸；build_recipe 记 git commit | `docs/PIPELINE.md` | **保留（当前基线）** |
-| v2.6.2 | 2026-11-12 | 结构（CS1-A/CS1-B/CS1.5：三闸+构建硬化+全量重建+同块修复） | 三闸接入 + 扫描输入绑定 + 构建硬化；新缓存键全量重建 **17,005 字**（0 命中 6m42s；命中 3m52s；同块修复后增量 3m50s，sha `dae5c507…`）；内部 pad 实验因掉墨回退（E21）；同块 2 对清除（E23，沓/忠 入缺口）；fast_gate 余**字形框线 23**（CS2 清） | `work/changesets/cs-20261112-cs1a.json`、`cs-20261112-cs1b.json`、`cs-20261112-cs1p5-sameblock.json` | 候选（fast_gate 仅 1 项已知 FAIL；不进 release） |
+| v2.6.2 | 2026-11-12 | 结构（CS1-A/CS1-B/CS1.5：三闸+构建硬化+全量重建+同块修复） | 三闸接入 + 扫描输入绑定 + 构建硬化；新缓存键全量重建 **17,005 字**（首次 0 命中 6m42s；同块修复后增量 3m50s；CS2 页级 pre-cut mask 全量 **10m36s**，sha `eec49c4e…`）；内部 pad 实验因掉墨回退（E21）；同块 2 对清除（E23，沓/忠 入缺口）；页级直线 mask 使字形框线 **23→14**、内容闸 35→33（E24）；fast_gate 余**字形框线 14**（框内残线，CS2 v2 继续） | `work/changesets/cs-20261112-cs1a.json`、`cs-20261112-cs1b.json`、`cs-20261112-cs1p5-sameblock.json` | 候选（fast_gate 仅 1 项已知 FAIL；不进 release） |
 
 ## 按阶段归纳
 

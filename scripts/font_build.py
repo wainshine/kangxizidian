@@ -459,6 +459,65 @@ def get_page_frame_mask(page_key: str):
     return mask
 
 
+def get_page_line_mask(page_key: str, dilate: int = 3):
+    """页级长直线 mask（版框 / 界行 / 栏线；150dpi 页坐标 0/1）。
+
+    与 get_page_frame_mask 的区别：阈值更低（竖 0.10×页高、横 0.12×页宽），
+    专门抓「被大字打断成段」的界行/框线；仍远长于字头笔画（2×2 块 ≈ 0.06 页高），
+    所以不会误伤字头笔画。在裁切前（pre-cut）把 mask 像素清零，替代单字层按形状删线。
+    """
+    import numpy as np
+    import cv2
+    from detect_blocks import page_gray, binarize
+    try:
+        g = page_gray(page_key[:2], int(page_key[3:]))
+        ink = binarize(g).astype(np.uint8)
+        h, w = ink.shape
+        closed = cv2.morphologyEx(ink, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+        lv = max(40, int(0.10 * h))
+        lh = max(40, int(0.12 * w))
+        vert = cv2.morphologyEx(closed, cv2.MORPH_OPEN, np.ones((lv, 1), np.uint8))
+        horiz = cv2.morphologyEx(closed, cv2.MORPH_OPEN, np.ones((1, lh), np.uint8))
+        lines = ((vert > 0) | (horiz > 0)).astype(np.uint8)
+        if int(lines.sum()) == 0:
+            return None
+        k = max(1, int(dilate))
+        lines = cv2.dilate(lines, np.ones((k, k), np.uint8))
+        return lines
+    except Exception as e:
+        print("[line-mask] FAIL", page_key, e, flush=True)
+        return None
+
+
+def get_page_thin_line_mask(page_key: str):
+    """页级「细短直线」mask（注文引文小框 / 短界行段；150dpi 页坐标 0/1）。
+
+    厚度由距离变换限制（≤~4px@150dpi），长度下限 0.02 页（~33px）；
+    只用于**字身 keep 区之外**（调用方在 vectorize_box 里按 box+margin 清空 keep 区），
+    避免误删字头细笔画。
+    """
+    import numpy as np
+    import cv2
+    from detect_blocks import page_gray, binarize
+    try:
+        g = page_gray(page_key[:2], int(page_key[3:]))
+        ink = binarize(g)
+        h, w = ink.shape
+        dist = cv2.distanceTransform(ink.astype(np.uint8), cv2.DIST_L2, 5)
+        thin = ((ink > 0) & (dist <= 2.2)).astype(np.uint8)
+        lv2 = max(20, int(0.02 * h))
+        lh2 = max(20, int(0.02 * w))
+        thin_v = cv2.morphologyEx(thin, cv2.MORPH_OPEN, np.ones((lv2, 1), np.uint8))
+        thin_h = cv2.morphologyEx(thin, cv2.MORPH_OPEN, np.ones((1, lh2), np.uint8))
+        lines = ((thin_v > 0) | (thin_h > 0)).astype(np.uint8)
+        if int(lines.sum()) == 0:
+            return None
+        return cv2.dilate(lines, np.ones((3, 3), np.uint8))
+    except Exception as e:
+        print("[thin-line-mask] FAIL", page_key, e, flush=True)
+        return None
+
+
 def _worker_page(args):
     """单页任务：该页所有（cache-miss）字一次性矢量化，页级 lattice/frame mask 只算一次。"""
     page, items = args
@@ -468,6 +527,8 @@ def _worker_page(args):
         lat_all = get_page_lattice(page)
         tbb = get_page_text_bbox(page)
         quads = get_page_content_quads(page)
+        line_mask = get_page_line_mask(page) if os.environ.get("FONT_PAGE_LINE_MASK", "1") != "0" else None
+        thin_mask = get_page_thin_line_mask(page) if os.environ.get("FONT_PAGE_THIN_MASK", "1") != "0" else None
     except Exception as e:
         return [(it["idx"], None, {"ok": False, "reason": f"page prepare: {e}"}) for it in items]
     for it in items:
@@ -478,7 +539,8 @@ def _worker_page(args):
                 block = (max(block[0], tbb[0]), max(block[1], tbb[1]),
                          min(block[2], tbb[2]), min(block[3], tbb[3]))
             res = vectorize_box(page, box, enable_edge_strip=False,
-                                block150=block, content_quad=quads.get(half))
+                                block150=block, content_quad=quads.get(half),
+                                frame_mask=line_mask, frame_mask_outer=thin_mask)
         except Exception as e:
             res = {"ok": False, "reason": str(e)[:120]}
         out.append((it["idx"], ch, res))

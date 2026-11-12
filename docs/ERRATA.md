@@ -159,3 +159,16 @@
   其余删除并写 residual 声明（`work/lead/v262_sameblock_residual.json`）；
   沓/忠 进入缺口（目标区 10,269→10,267，缺口 6,298→6,300），交给 CS3 从对应部首页重新定位。
 - 结果：mapping 17,007→17,005 字；`font_qa` 同框=0 **PASS**；重建（17,005 cached）耗时 3m50s。
+
+
+## E24. 页级 pre-cut 直线 mask（CS2 v1，2026-11-12）
+
+- 新增 `font_build.get_page_line_mask`（长直线：竖 ≥0.10 页高 / 横 ≥0.12 页宽，全局）
+  与 `get_page_thin_line_mask`（细短直线：厚 ≤~4px@150dpi、长 ≥0.02 页，仅用于字身 box+margin 之外）。
+  在 `vectorize_box` 裁切阶段按页 mask 清零（pre-cut），不按字形形状删线。
+- 效果（23 字字形级框线 → 14）：修复 9 字（哺/廋/犇/由/輮/逗/訏/𥻍/𦆍 等页面底部框线）；
+  `content_loss_gate`（上一候选→本候选）**0 damaged**；vs v2.5.8 damaged 35→**33**。
+- 待办：剩余 14 字（㰹/勿/喀/挕/捕/敦/敭/曀/瓶/磴/葡/驏/𡾜/𥰭）的残线在**检测框内部**，
+  页级 mask 不能碰（会误伤字身）；下一步用 verified tight ink bbox 作为 keep 区
+  （块框只用于 2×2 掩膜），或修这些页的 content quad。
+- 构建耗时：全量 17,005 字 **636s（10m36s）**（含每页一次 page_gray 渲染）；缓存命中重建预计 ~4–5 分钟。

@@ -942,7 +942,9 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                   frame_mask: "np.ndarray | None" = None,
                   content_quad=None, strip_border: bool = True,
                   strip_report: dict | None = None,
-                  block_edge_band150: float = 0.0) -> dict:
+                  block_edge_band150: float = 0.0,
+                  frame_mask_outer: "np.ndarray | None" = None,
+                  outer_keep_margin150: float = 4.0) -> dict:
     """150dpi box -> 灰度 crop -> 归一化轮廓（自适应 pad）。block150=2×2 格块（150dpi）。
 
     先按小 pad（6px@150dpi）渲染；若最大连通域触 crop 边界（说明框偏紧、
@@ -999,6 +1001,26 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
             if sx1 > sx0 and sy1 > sy0:
                 sub = frame_mask[sy0:sy1, sx0:sx1]
                 fm = cv2.resize(sub, (gray.shape[1], gray.shape[0]), interpolation=cv2.INTER_NEAREST)
+        if frame_mask_outer is not None:
+            # 细短直线 mask（注文引文框/短界行段）：只应用在 keep 区之外，
+            # keep 区 = 字身 box ± outer_keep_margin150；保护字头细笔画。
+            mh2, mw2 = frame_mask_outer.shape
+            ox0 = max(0, x0); oy0 = max(0, y0)
+            ox1 = min(int(mw2), x0 + gray.shape[1] // 2)
+            oy1 = min(int(mh2), y0 + gray.shape[0] // 2)
+            if ox1 > ox0 and oy1 > oy0:
+                sub2 = frame_mask_outer[oy0:oy1, ox0:ox1]
+                fm2 = cv2.resize(sub2, (gray.shape[1], gray.shape[0]),
+                                 interpolation=cv2.INTER_NEAREST)
+                mm = int(round(outer_keep_margin150 * 2))
+                # crop 坐标 = (page150 - (box - pad150)) * 2；keep 区 = box ± margin
+                kx0 = max(0, int(round(2 * pad150)) - mm)
+                ky0 = max(0, int(round(2 * pad150)) - mm)
+                kx1 = min(gray.shape[1], int(round((box[2] - box[0] + pad150) * 2)) + mm)
+                ky1 = min(gray.shape[0], int(round((box[3] - box[1] + pad150) * 2)) + mm)
+                if kx1 > kx0 and ky1 > ky0:
+                    fm2[ky0:ky1, kx0:kx1] = 0
+                fm = fm2 if fm is None else np.maximum(fm, fm2)
         res = vectorize_gray(gray, long_side=long_side, center=center, char=char,
                              enable_line_swt=enable_line_swt,
                              enable_ref_filter=enable_ref_filter,
