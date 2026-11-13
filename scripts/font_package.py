@@ -361,11 +361,21 @@ def render_readme(stats: dict, prov_counts: dict, version: str, ttf_name: str,
     )
 
 
+def _iter_pkg_files(out: Path):
+    """包内全部文件（递归；review/ 等子目录必须进 SHA256SUMS 与 zip）。"""
+    for root, dirs, files in os.walk(out):
+        dirs.sort()
+        for f in sorted(files):
+            yield Path(root) / f
+
+
 def write_sha256sums(out: Path) -> list[tuple[str, str]]:
     rows = []
-    for p in sorted(out.iterdir()):
-        if p.is_file() and p.name != "SHA256SUMS":
-            rows.append((sha256(p), p.name))
+    for p in _iter_pkg_files(out):
+        rel = p.relative_to(out).as_posix()
+        if rel == "SHA256SUMS":
+            continue
+        rows.append((sha256(p), rel))
     (out / "SHA256SUMS").write_text(
         "\n".join(f"{h}  {n}" for h, n in rows) + "\n", encoding="utf-8")
     return rows
@@ -586,8 +596,9 @@ def main():
         if zip_path.exists():
             zip_path.unlink()
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for p in sorted(out.iterdir()):
-                zf.write(p, arcname=f"{out.name}/{p.name}")
+            for p in _iter_pkg_files(out):
+                rel = p.relative_to(out).as_posix()
+                zf.write(p, arcname=f"{out.name}/{rel}")
         verify_zip(zip_path)
 
     summary = {

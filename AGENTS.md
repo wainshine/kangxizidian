@@ -28,7 +28,7 @@
 
 ## 2. 当前状态（2026-11-13，E37 后）
 
-- 当前基线：**v2.6.2 工程候选**（`work/font/build/KangXiKai-v2.6.2.ttf`，sha `a8bb87d9…`（owner 复核反馈修复 E37 后）；**fast_gate 8/8 PASS**）；**v2.6.2 正式发布候选**：README/LICENSE/OFL/版本指标（`docs/RELEASE-METRICS.md`）/已知债披露（`docs/KNOWN-DEBTS-v2.6.2.md`）已补齐，待 owner **提交后 clean-tree 打包 + finalize**（3 项披露阈值待 owner 确认）。小修进 v2.6.x，里程碑计划 **v2.6.3**（`docs/PLAN-v2.6.3.md`）。`release/` 现保留 v2.5.8（重构前基线）与 v2.6.1（过程版）；v2.6.2 包在 commit 后生成。
+- 当前基线：**v2.6.2 工程候选**（`work/font/build/KangXiKai-v2.6.2.ttf`，sha `a8bb87d9…`（owner 复核反馈修复 E37 后）；**fast_gate 8/8 PASS**）；**v2.6.2 正式包已出（2026-11-14）**：`release/KangXiKai-v2.6.2/` + `.zip`，font sha `a8bb87d9…`，finalize 17/17 PASS（zip sha 见 `release/RELEASE-INVENTORY.tsv`）；披露阈值：内容 35 / 缺件 165 / empty 1,173 / 框线 0。小修进 v2.6.x，里程碑计划 **v2.6.3**（`docs/PLAN-v2.6.3.md`）。`release/` 现含 v2.5.8（重构前基线）、v2.6.1（过程版）、**v2.6.2（正式包，2026-11-14）**。
 - 字形 **17,005**（headword-only 真迹；同块冲突剔除 沓/忠）；基本区 10,267/20,992 = **48.91%**；目标字表 10,267/16,567 = **61.97%**；缺口 **6,300**（高频缺 23 + 忠 待重新定位）。
 - 闸（v2.6.2 候选）：font_qa **PASS**（同框 0）；字形级框线 **0 PASS**（E27 页级线条带）；内容 **18**（阈值 35）PASS——大部分归因为跨架构归一化差异（E31，非真实缺笔；待 D23 确认源墨保真度判据）；provenance PASS；页级几何 **bad_boxes 0** / empty_assign 1,173（唯一严格 FAIL，mapping 缺口）；源图框线 **0**、缺件 **165**（E37 后：细笔画恢复与 prune 边缘清理的下一轮口径问题）。
 - 构建：`work/lead/mapping_block_v271.jsonl`（同块修复后；v270 留档）+ `work/lead/page_geometry.jsonl` + **自动缓存版本**（算法 sha8+几何 sha12）；实测全量重建 **6m42s**（0 命中，无页 mask）/ **10m36s**（含页级 pre-cut mask）；缓存命中重建 **3m50–3m52s**（17,005 cached，10 workers）。

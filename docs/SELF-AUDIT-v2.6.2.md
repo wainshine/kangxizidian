@@ -25,6 +25,7 @@
 | 脚本 | `_filter_line_mask_to_crossing` 非 uint8 分支返回类型不一致；`make_readme_images` 有未用死函数 | 统一返回 uint8；删除死函数；`release_metrics` 空值输出「—」并注明口径 |
 | 模板占位符 | `{version}/{file}/{sha256}/{real}/{built_at_utc}` 需与包 stats 对齐 | 用包 stats 校验：5 个占位符全部存在（missing=[]）；新增覆盖占位符 `{target_coverage_pct}` 等 |
 | 正式包清单 | 旧打包链缺 WORKFLOW §8 的固定文件（manifest/coverage-detail/qa-report/PROVENANCE/QA/gate-report 等），`check_release_docs` FAIL | 新增 `scripts/make_release_extras.py`（自动生成清单文件）+ `font_package --extra-dir`；干跑包 `check_release_docs` **PASS** |
+| 打包递归 | `font_package` 的 SHA256SUMS/zip 只扫包根目录，`review/` 复核快照未进 zip/SHA（首次正式包发现） | 改为递归（`_iter_pkg_files`）：SHA 25→32 文件、zip 含 review/ 7 文件；zip 自校验 PASS |
 
 ## 2. 复核通过的检查
 
@@ -46,7 +47,15 @@
 7. **发布包图片**附入、version-artifacts 刷新、RELEASE-INVENTORY 状态列 → 打包时执行；
 8. **BF-49 脚本 keep/archive 判定**、release_gate 披露阈值测试用例 → v2.6.3。
 
-## 4. 复算命令
+## 4. 正式发布结果（2026-11-14）
+
+- clean tree：`c199945`（dirty=false）；`release/KangXiKai-v2.6.2/` + `KangXiKai-v2.6.2.zip`；
+- 字体 sha256 **`a8bb87d9c4a623d5fe88ae55c2f710a36827052c7cd3594fe70113f56ca18d5b`**；
+- finalize **17/17 PASS**（`sha_final_ok=true`、`zip_ok=true`、doc_check PASS、clean_tree PASS）；
+- 披露阈值：内容 35（实际 18）、缺件 165（阈值=观测值）、empty 1,173、框线 0（严格）；
+- 打包器递归修复后：包内 **32 个 SHA 文件**（含 `review/` 7 文件），zip sha 以 `release/RELEASE-INVENTORY.tsv` / zip 为准；SHA256SUMS 自校验 OK。
+
+## 5. 复算命令
 
 ```bash
 .venv/bin/python scripts/font_qa.py --font work/font/build/KangXiKai-v2.6.2.ttf \
