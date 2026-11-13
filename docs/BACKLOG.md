@@ -40,7 +40,7 @@
 | BF-03 | **页几何残差**：box 越界 198@1px/360@0、max 8.8px | 已复核为 quad 偏紧非坐标错；E30 用 quad 扩张覆盖全部 box 修复 | `expand_quads_to_cover_boxes.py`（只扩不缩，+0.5px） | ✅ **完成（2026-11-13，E30）**：bad_boxes 198→0、零容差 360→0、max overflow 0；内容 34→32 | CS2 |
 | BF-04 | **v2.6.1 包不可签收**：旧 finalize（zip 内报告/SHA 旧）、包内 README 数字矛盾（60/700 vs 153/1200）、review tsv 混入 v2.6.0 数据 | 审计 DSH P0-2/P1；本次核对确认 | 不重打 v2.6.1；下一候选重建后按新 finalize 顺序出包；材料由同一数据源生成 | 新包 zip==目录、SHA 覆盖报告、材料数字与 gate-report 一致 | CS1 |
 | BF-05 | **内容闸 34→32**；32 字归因为跨架构归一化差异（E31：12/32 旧字形长宽比偏差>15%，非真实缺笔） | `content-aspect-analysis-v262.json` / `content-triage-v262.json` | 提案 **D23**：内容判据改「源墨保真度」（字形 vs 自身 source ink 配准 IoU）；旧字体 delta 只作回归告警 | 里程碑内容判据经 owner 确认 + 源墨保真度基线披露 | CS3 |
-| BF-06 | **缺件扫描 32**（E36 配准重写后；原 1,200→1,153→827） | `work/lead/missing_scan_v262.jsonl`（sidecar 含 build_stats sha）+ `missing-32-triage.json` | 32 = **11 edge_pruned + 22 sliver，interior 0**（未发现字身内部真实缺笔）；剩余口径：里程碑是否排除 prune-by-design 边缘碎片（BF-10/D23 类决策） | 口径经 owner 确认后定阈值/披露；known-debt 清单冻结 | CS3/CS4 |
+| BF-06 | **缺件扫描 165**（E37 修复后：原来被删的块内细笔画恢复后，prune_edge_contours 在字墨 bbox 边缘又删掉的组件；32/827 为历史口径） | `work/lead/missing_scan_v262.jsonl` + `missing-32-triage.json` | 32 = **11 edge_pruned + 22 sliver，interior 0**（未发现字身内部真实缺笔）；剩余口径：里程碑是否排除 prune-by-design 边缘碎片（BF-10/D23 类决策） | 口径经 owner 确认后定阈值/披露；known-debt 清单冻结 | CS3/CS4 |
 | BF-07 | **框线逃逸/字形级框线** | 字形级 23→0（E27）；源图级 1 仍在（㨜 3px 界行残边 known debt） | 页级 pre-cut mask + 页级已验证线条带（`work/lead/page_line_bands.json`，数据驱动） | ✅ **完成（2026-11-13）**：glyph_frame_gate 0 PASS；源图口径待重扫后披露 | CS2 |
 | BF-08 | **缓存/几何修复后首次全量重建候选** | 本轮修了 cache key/几何路径；旧字体是旧 key 产物 | 全量重建（0 命中）→ v2.6.2；回退实验后 v2.6.2 候选 | ✅ **完成（2026-11-12）**：v2.6.2 全量 6m42s（sha `58fd9235…`）；缓存命中重建（3m52s）sha 一致 —— 可复现；数字见 `fast-gate-v264.json` | CS1 |
 | BF-09 | **构建失败静默**：单字失败仅 WARN，仍 exit 0 | 审计 GLM P1/DSH | 硬失败：任何 skipped（除 `--limit`）→ 写失败报告（`aborted/failed_n/failed`）并 exit≠0；`--allow-partial` 才放行 | ✅ **完成（2026-11-12）**：注入坏 box → `ABORT: 1 字构建失败` + `/tmp/bad.build_stats.json`，exit 1 | CS1 |
@@ -81,6 +81,7 @@
 | BF-48 | **构建入口/边界缺陷与缓存卫生**：`--manifest` 入口未定义；仓库外路径写 stats 崩溃；测试条目污染生产缓存 | 审计 BUILD-09/10/11、DATA-15 | 实现 `load_from_manifest_jsonl`（复用 mapping 主链）；`_rel_path` 容错；缓存按 `_CACHE_VER` 分子目录（旧 flat 目录不再读取），stats 增 `cache` 计数 | ✅ **完成（2026-11-12）**：三入口均可跑；缓存目录 `b7441e3f…`/`fbe518ed…` 各 2 文件（limit 测试）；旧 flat 的甲/乙/丙不再被读取，待清理（不影响新构建） | CS1 |
 | BF-49 | **scripts/ 保留判定缺失**：4 个已宣布归档的「切后擦线」死脚本仍在现行目录且可互 import；14 个脚本无调用方无判定 | 审计 DOCS-12/27 | 每脚本标 keep/archive（README 清单）；死脚本移 `scripts/_archive/` 或加 guard；主链不得 import | 现行 scripts 无未标注/不可判定脚本 | CS2 |
 | BF-50 | **worker 上限未强制**：`--workers`/`FONT_BUILD_WORKERS` 无 clamp（999 可绕过 ≤10） | 审计 BUILD-05 | `clamp_workers`：`--workers`/env 都 clamp ≤10 并告警 | ✅ **完成（2026-11-12）**：`clamp_workers(999)` → 10 + WARN | CS1 |
+| BF-54 | **标签错配（owner 复核 X 类）**：11 字「字与 Unicode 不对应」（如 04_0014 R 标「愈」实为注文「愈孟」；06_0080 R 标「急」实为「滓」类） | `work/lead/review-feedback-v262.json`（X_error 11 格）；标签审计脚本输出噪声大（参考 IoU 4,675 flagged，不可直接用） | v2.6.3 mapping 审计：按页重定位真迹字头（禁止补假字）；可用 OCR 交叉核对（work/lead/ocr_*）替代参考 IoU | 11 字全部重定位或移出字表并披露；审计方法可复算 | v2.6.3 |
 | BF-53 | **框内残线**：剩余 14 字细线在检测块框内；单字层 ROI 路线已两次失败（E25/E26） | E24–E27 实验 | 页级已验证线条带方案：残线反算页坐标 rect（`page_line_bands.json`），并入 pre-cut mask；页级作用域、数据驱动 | ✅ **完成（2026-11-13）**：glyph_frame 14→0；内容闸（上候选→本候选）0 damaged；fast_gate 8/8 PASS | CS2 |
 | BF-51 | **构建降级路径无标记**：geometry/quad/lattice 异常只打日志继续，可在无 content clip/块掩膜下完成构建 | 审计 BUILD-08 | 降级次数/类型写 stats 并进闸；超阈值 FAIL | 人为降级 → stats 可见且闸失败 | CS2 |
 
@@ -138,6 +139,15 @@
 - 新审计/新缺陷先入本表再动手；
 - 任何「阈值放宽」必须在本表与发布报告中同时披露，不得只改代码。
 
+## 9bis. v2.7.0 / 发布材料新增条目（2026-11-13 owner 指示）
+
+| ID | 事项 | 说明 | 轮次 |
+|---|---|---|---|
+| BF-55 | **v2.7.0：GAN 生成字形实现**（参考 guangeti `scripts/21_train_gan.py`、`22_eval_gan.py`、`33_struct_metrics.py`） | 真迹 pair 训练 + 结构闸门 + provenance=gan；生成字不覆盖真迹 | v2.7.0 |
+| BF-56 | **v2.7.0：带状扫掠（ribbon）生成/回退**（参考 guangeti `scripts/brush_lib.py`、`generate_lib.py`、`36_fill_fallback.py`） | 骨架→笔宽→变宽渲染；GAN 输出不过结构闸门时回退 ribbon | v2.7.0 |
+| BF-57 | **发布材料三件套**：项目 README、LICENSE/OFL、版本对比指标（`scripts/release_metrics.py` + `docs/RELEASE-METRICS.md`） | ✅ 完成（2026-11-13） | 已完成 |
+| BF-58 | **release_gate 页几何披露阈值**：支持 `--page-geometry-max-empty-assign/bad-boxes` 并在报告披露 | ✅ 完成（2026-11-13） | 已完成 |
+
 ## 10. 2026-11-13 梳理：剩余执行清单（权威）
 
 > 依据：BACKLOG 52 条 + 第 3 代审计 86 findings（`work/lead/audit3-findings-map.jsonl`）+ E24–E34 落地结果 + 当前候选闸况。
@@ -188,5 +198,8 @@
 1. CS3-A：empty_assign 669 半版补映射（先 01_0006 L「一」）→ 覆盖/缺口重算；
 2. CS3-B：缺件 827 triage → 真实缺笔 mapping 修复；
 3. D23 owner 决策（内容判据）→ 实现源墨保真度基线；
-4. BF-10/44/51/47/25/49/36/28 等闸/流程/材料项随轮次清理；
+4. BF-10/44/51/47/25/49/36/28 等闸/流程/材料项随轮次清理；**里程碑复核包已生成**：`work/review/round-003-v262/`（617 变化字/6 类抽样/盲抽 100，待 owner 勾选）；
 5. CS4/CS5 硬条件（隔离 9、100 字签核、锚点、精度、许可）→ 里程碑严格全闸 → 复核包 → 正式包。
+
+> **2026-11-13**：v2.6.2 已出**工程预览包**（`release/_preview/…`，非正式发布；未达 WORKFLOW §7 标准）。
+> 上述剩余项全部纳入 **v2.6.3**，验收清单见 `docs/PLAN-v2.6.3.md`；v2.6.2 不再打正式包。

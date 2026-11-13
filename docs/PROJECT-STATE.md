@@ -6,6 +6,8 @@
 
 ## 0. 三十秒快速开始
 
+- **v2.6.2 已出工程预览包**（`release/_preview/KangXiKai-v2.6.2-preview`，zip 自检 PASS，**非正式发布**）；
+  正式发布标准未达（WORKFLOW §7），正式包计划 **v2.6.3**（`docs/PLAN-v2.6.3.md`）。
 - 当前基线：**v2.6.2 工程候选**（`work/font/build/KangXiKai-v2.6.2.ttf`，sha `b73e9f01…`，
   17,005 字）：**fast_gate 8/8 PASS**；全闸基线 8 PASS / 3 FAIL
   （缺件扫描 **827**、源图框线 **1**、页几何 empty_assign **1,173**）。
@@ -29,6 +31,7 @@
 | 产物 | 路径 | 状态 |
 |---|---|---|
 | 当前候选字体 | `work/font/build/KangXiKai-v2.6.2.ttf`（sha `b73e9f01…`） | **fast_gate 8/8 PASS**；全闸 3 项已知债；不发布 |
+| **v2.6.2 预览包** | `release/_preview/KangXiKai-v2.6.2-preview`（+ `.zip`，sha256 `a2a62dd4…`） | 工程预览（非正式发布）；内含 PREVIEW-NOTES/闸报告/已知债清单；供效果评估 |
 | 构建输入·mapping | `work/lead/mapping_block_v271.jsonl`（17,005 字；v270 留档） | 唯一真源 |
 | 构建输入·几何 | `work/lead/page_geometry.jsonl`（E30 扩张版；原版 `page_geometry_v1.jsonl`） | 唯一真源 |
 | 构建输入·线条带 | `work/lead/page_line_bands.json`（26 rect，页级数据驱动） | pre-cut 数据 |
@@ -36,7 +39,9 @@
 | 参考字体 | `scripts/reffont.py` → 霞鹜文楷 LXGW WenKai（OFL，不随包分发） | 唯一参考 |
 | 闸报告 | `work/lead/fast-gate-v262.json`、`gate-report-v262.json`、`glyph-frame-gate-v262.json`、`page-geometry-gate-v262.json` | 现行 |
 | 扫描 | `work/lead/missing_scan_v262.jsonl`（827）、`frame_scan_v262.jsonl`（1） | 带 sidecar 绑定 |
-| 分析数据 | `empty-assign-triage-v262.json`、`content-triage-v262.json`、`content-aspect-analysis-v262.json`、`frame43-triage.json` | CS3 输入 |
+| 分析数据 | `empty-assign-triage-v262.json`、`content-triage-v262.json`、`content-aspect-analysis-v262.json`、`frame43-triage.json`、`missing-32-triage.json` | CS3 输入 |
+| 里程碑复核包（第 1 轮） | `work/review/round-003-v262/`（617 变化字/6 类抽样/盲抽 100） | owner 已标注（77 格）→ `review-feedback-v262.json` |
+| **修复验证包（第 2 轮）** | `work/review/round-004-v262fix/`（71 个上轮标注字重渲 + 类样本 + 同种子 100） | E37 修复后待 owner 复看 |
 | 过程包 | `release/KangXiKai-v2.6.1/`（旧 finalize，按现行闸会 FAIL） | 不签收、不重打（ACCEPT） |
 | 重构前基线 | `release/KangXiKai-v2.5.8/`（8 项闸 PASS） | 内容闸基线 |
 | 历史版本 | `audit/RELEASE-HISTORY.jsonl` + `audit/release-evidence/` | 52 版元数据 + 4 版闸证据 |

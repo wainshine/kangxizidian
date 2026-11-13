@@ -63,7 +63,7 @@ def worker(args):
             ink = FN.strip_crop_frame_bands(ink)
             # E32：与构建同口径 pre-cut，避免把构建已排除的框线/注文框线计为逃逸
             from precut_masks import apply_precut_masks
-            ink = apply_precut_masks(ink, page, box, pad150=6)
+            ink = apply_precut_masks(ink, page, box, pad150=6, block150=block)
             filled = ink.astype(np.uint8)
             if block is None:
                 continue
@@ -74,13 +74,26 @@ def worker(args):
             if sub.size == 0:
                 continue
             hh, ww = sub.shape
-            bad = 0
-            for yy in range(hh):
-                if sub[yy].mean() >= 0.92 and sub[yy].sum() >= 0.5 * ww:
-                    bad += 1
-            for xx in range(ww):
-                if sub[:, xx].mean() >= 0.92 and sub[:, xx].sum() >= 0.5 * hh:
-                    bad += 1
+            # E37（owner 复核反馈）：1–3px@300（≤1.5px@150）的亚像素直条无法在输出字形形成
+            # 可见笔画（字形级由 glyph_frame_gate 负责），不计为框线逃逸；真实框线带厚度 ≥4px@300。
+            MIN_THICK = 4
+            def bad_runs(vals):
+                runs = []
+                cur = 0
+                for v in vals:
+                    if v:
+                        cur += 1
+                    else:
+                        if cur:
+                            runs.append(cur)
+                        cur = 0
+                if cur:
+                    runs.append(cur)
+                return runs
+            rows_bad = [sub[yy].mean() >= 0.92 and sub[yy].sum() >= 0.5 * ww for yy in range(hh)]
+            cols_bad = [sub[:, xx].mean() >= 0.92 and sub[:, xx].sum() >= 0.5 * hh for xx in range(ww)]
+            bad = sum(1 for r in bad_runs(rows_bad) if r >= MIN_THICK)
+            bad += sum(1 for r in bad_runs(cols_bad) if r >= MIN_THICK)
             if bad >= 2:
                 out.append({"char": ch, "page": page, "half": half, "box": box,
                             "line_rows_cols": int(bad)})

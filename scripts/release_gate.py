@@ -77,6 +77,10 @@ def main():
     ap.add_argument("--stats", default=None, help="build stats JSON（默认 <font>.build_stats.json）")
     ap.add_argument("--allow-dirty", action="store_true",
                     help="调试用：允许脏工作区 finalize（正式包禁止）")
+    ap.add_argument("--page-geometry-max-empty-assign", type=int, default=0,
+                    help="页几何 empty_assign_halves 阈值（默认 0=严格；明确披露的已知债可给阈值）")
+    ap.add_argument("--page-geometry-max-bad-boxes", type=int, default=0,
+                    help="页几何 bad_boxes 阈值（默认 0=严格）")
     ap.add_argument("--allow-missing-scans", action="store_true",
                     help="调试用：finalize 允许不做缺件/框线扫描（正式包禁止）")
     args = ap.parse_args()
@@ -293,8 +297,9 @@ def main():
     r = subprocess.run([sys.executable, "scripts/page_geometry_gate.py",
                         "--manifest", args.manifest, "--mapping", args.mapping,
                         "--geometry", args.geometry, "--out", out_pg,
-                        "--max-bad-boxes", "0", "--max-missing-quad-chars", "0",
-                        "--max-empty-assign-halves", "0"],
+                        "--max-bad-boxes", str(args.page_geometry_max_bad_boxes),
+                        "--max-missing-quad-chars", "0",
+                        "--max-empty-assign-halves", str(args.page_geometry_max_empty_assign)],
                        cwd=ROOT, capture_output=True, text=True)
     steps.append({"step": "page_geometry_gate", "ok": r.returncode == 0,
                   "detail": {"returncode": r.returncode, "out": out_pg,

@@ -486,6 +486,8 @@ def get_page_line_mask(page_key: str, dilate: int = 3):
         # （E33 实测 961 字掉墨 40–60%）。改用「横向/纵向 opening 去掉宽≥3px 结构后的残渣」，
         # 残渣只含窄结构（细线/亚像素残边），再用长核过滤成长直线，不与笔画边界重叠。
         try:
+            if os.environ.get("FONT_LINE_ULTRA", "1") == "0":
+                print("[line-mask-ultra] off", page_key) if False else None
             # 竖细线：先用水平 opening (1,3) 去掉宽≥3 的结构，残渣（宽≤2 的竖线）再做竖长 opening
             ink_u8 = ink.astype(np.uint8)
             op_h = cv2.morphologyEx(ink_u8, cv2.MORPH_OPEN, np.ones((1, 3), np.uint8))
@@ -520,6 +522,8 @@ def get_page_line_bands(page_key: str):
     在 pre-cut 阶段把 rect 内像素清零。数据驱动（非启发式），页级作用域。
     """
     global _LINE_BANDS
+    if os.environ.get("FONT_LINE_BANDS", "1") == "0":
+        return []
     if _LINE_BANDS is None:
         _LINE_BANDS = {}
         try:
@@ -572,19 +576,18 @@ def _worker_page(args):
         quads = get_page_content_quads(page)
         line_mask = get_page_line_mask(page) if os.environ.get("FONT_PAGE_LINE_MASK", "1") != "0" else None
         _bands = get_page_line_bands(page)
+        band_mask = None
         if _bands:
-            if line_mask is None:
-                try:
-                    from detect_blocks import page_gray as _pg
-                    _g = _pg(page[:2], int(page[3:]))
-                    line_mask = _g.copy()
-                    line_mask[:] = 0
-                except Exception:
-                    line_mask = None
-            if line_mask is not None:
+            try:
+                from detect_blocks import page_gray as _pg
+                _g = _pg(page[:2], int(page[3:]))
+                band_mask = _g.copy()
+                band_mask[:] = 0
                 for rec in _bands:
                     x0, y0, x1, y1 = [int(round(v)) for v in rec["rect"]]
-                    line_mask[max(0, y0):max(0, y1) + 1, max(0, x0):max(0, x1) + 1] = 1
+                    band_mask[max(0, y0):max(0, y1) + 1, max(0, x0):max(0, x1) + 1] = 1
+            except Exception:
+                band_mask = None
         thin_mask = get_page_thin_line_mask(page) if os.environ.get("FONT_PAGE_THIN_MASK", "1") != "0" else None
     except Exception as e:
         return [(it["idx"], None, {"ok": False, "reason": f"page prepare: {e}"}) for it in items]
@@ -597,7 +600,8 @@ def _worker_page(args):
                          min(block[2], tbb[2]), min(block[3], tbb[3]))
             res = vectorize_box(page, box, enable_edge_strip=False,
                                 block150=block, content_quad=quads.get(half),
-                                frame_mask=line_mask, frame_mask_outer=thin_mask,
+                                frame_mask=line_mask, frame_mask_extra=band_mask,
+                                frame_mask_outer=thin_mask,
                                 outer_keep_margin150=2.0,
                                 keep_box150=tuple(it["vbox"]) if it.get("vbox") else None,
                                 # D22：pre-cut（页 mask/线条带）已验证可独立做到 glyph_frame=0（E29），

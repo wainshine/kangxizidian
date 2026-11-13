@@ -62,7 +62,7 @@ def worker(args):
             src = FN.strip_crop_frame_bands(src)
             # E32：与构建同口径 pre-cut（页级长线/细线 mask + 已验证线条带），避免把已排除框线当缺件
             from precut_masks import apply_precut_masks
-            src = apply_precut_masks(src, page, box, pad150=pad)
+            src = apply_precut_masks(src, page, box, pad150=pad, block150=block)
             bx0 = int(round((block[0] - (box[0] - pad)) * 2)) if block else 0
             by0 = int(round((block[1] - (box[1] - pad)) * 2)) if block else 0
             bx1 = int(round((block[2] - (box[0] - pad)) * 2)) if block else src.shape[1]

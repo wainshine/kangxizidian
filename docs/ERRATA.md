@@ -325,3 +325,31 @@
   - 分类报告：`work/lead/missing-32-triage.json`。
 - 遗留：缺件数字的里程碑口径（是否把 prune-by-design 边缘碎片排除）归入 BF-06/D23 类口径决策；
   当前按 **32** 披露，不宣称清零。
+
+
+## E37. owner 复核反馈驱动的三类缺陷修复（2026-11-13，v2.6.2 内）
+
+- 输入：owner 在 `work/review/round-003-v262/` 上标注 77 格，反馈三类：
+  1. **边角料混入**（49 格）：成品字形含注文/邻墨小碎片（例 䘿 顶部残笔、檀 底部残笔）；
+  2. **过滤多了 / 切丢部件**（17 格）：上下都圈，多为上下结构中较细的横画被删（頁/言/辰 类）；
+  3. **字和 Unicode 对不上**（11 格，打 ❌）：映射标签错误（例 急→实际滓/滎类、愈→注文「愈孟」）。
+  标注解析：`work/lead/review-feedback-v262.json`（红色标注按格归类；编号经 ledger 翻回字/页/框）。
+- 诊断（`work/lead/defect-diagnostics-v262.json`）：17 个「过滤多了」字在**关闭 ultra-thin 线 mask** 后 ink 全部恢复
+  → 根因 = E33 的极细直线 pass 把字身内部细横画当页级直线删除（它在块内，不应删）。
+- 修复（类级，均在 pre-cut/主链，无单字补丁）：
+  1. **细线只删「穿越字身块边界」的组件**：`font_norm._filter_line_mask_to_crossing`——页级直线 mask 组件
+     若完全落在 2×2 块内部（含 2px 余量），视为字身笔画保留；只有贴/穿块边界的线才删；
+  2. **page_line_bands 与 crossing filter 解耦**：新增 `vectorize_box(frame_mask_extra=...)`，已验证线条带
+     （27 rect，新增 萩 一处）无条件应用，不受 crossing filter 影响；
+  3. **clean_ink 增「远离主体碎片」规则**：非主体、面积 <5% 主体、距主体 bbox >15px 的孤立成分剔除
+     （修 49 格边角料；例 䘿/檀/呈 的注文残笔消失）。
+- 结果（新候选 sha `a8bb87d9…`，17,005 字，全量约 10m40s）：
+  - `glyph_frame_gate` **0 PASS**（修复后未引入新的字形级框线）；
+  - content（上一候选→本候选）**0 damaged**；vs v2.5.8 damaged **29 → 18**（细笔画恢复使更多字形贴近旧基线）；
+  - font_qa PASS；`frame_escape` 口径同时收紧：厚度 ≤3px@300 的亚像素线不计（见扫描脚本 MIN_THICK=4）。
+- 修复后全库数字：font_qa PASS、glyph_frame **0**、frame_escape **0**（新口径）、content vs v2.5.8 **18**/35；
+  缺件扫描 165（=把 165 字在块内细笔画恢复后，prune_edge_contours 又在字墨 bbox 边缘删掉的组件；
+  属「恢复 vs 边缘清理」的下一轮口径问题，已入 v2.6.3，见 PLAN §2-B）。
+- **未修（进 v2.6.3）**：11 个「字与 Unicode 不对应」= mapping 标签错误（例：04_0014 R 标注「愈」的框实为注文
+  「愈孟」两小字；06_0080 R 标注「急」的框实为「滓」）。修复需按页重定位真迹字头（禁止补假字）——
+  归入 v2.6.3 mapping 审计（BF-16 扩展）；本候选不宣称此 11 字已解决。

@@ -45,7 +45,7 @@ def _page_masks(page):
     return _MASK_CACHE[page]
 
 
-def apply_precut_masks(ink, page, box, pad150=6, keep_margin150=2.0):
+def apply_precut_masks(ink, page, box, pad150=6, keep_margin150=2.0, block150=None):
     """对 crop 二值 ink 应用构建同口径 pre-cut 掩膜（原地修改并返回）。
 
     - 页级长直线 mask：全局清零；
@@ -58,6 +58,18 @@ def apply_precut_masks(ink, page, box, pad150=6, keep_margin150=2.0):
     lm_page, tm_page, bands_page = _page_masks(page)
     lm = _to_crop(lm_page, box, pad150, ink.shape)
     if lm is not None:
+        # E37：与构建同口径——只删穿越字身块边界的线，块内细长笔画保留
+        if block150 is not None:
+            try:
+                sys.path.insert(0, os.path.join(ROOT, "scripts"))
+                import font_norm as _FN
+                bx = (int(round((block150[0] - (box[0] - pad150)) * 2)),
+                      int(round((block150[1] - (box[1] - pad150)) * 2)),
+                      int(round((block150[2] - (box[0] - pad150)) * 2)),
+                      int(round((block150[3] - (box[1] - pad150)) * 2)))
+                lm = _FN._filter_line_mask_to_crossing(lm.astype(np.uint8), bx) > 0
+            except Exception:
+                pass
         ink[lm] = False
 
     for rec in bands_page:

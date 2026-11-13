@@ -141,6 +141,13 @@ def clean_ink(ink: np.ndarray, min_area: int = 40,
             if inside_main:
                 keep[i] = True
             continue
+        # v13（2026-11-13，owner 复核反馈）：注文/邻墨小碎片 = 非主体、面积 <5% 主体、
+        # 距主体 bbox >15px 的孤立成分（例：䘿 上方残留注文小笔画）；字身点/挑通常贴近主体。
+        dx = max(mx - (x + ww), x - (mx + mw), 0)
+        dy = max(my - (y + hh), y - (my + mh), 0)
+        md2 = (dx * dx + dy * dy) ** 0.5
+        if area < max(min_area, 0.05 * main_area) and md2 > 15.0:
+            continue
         keep[i] = True
     if not keep.any():
         keep[main] = True
@@ -877,6 +884,34 @@ def thick_roi(gray: np.ndarray, dist_min: float = 4.0, margin: int = 12):
         return None
 
 
+def _filter_line_mask_to_crossing(mask: np.ndarray, block_rect) -> np.ndarray:
+    """E37：只保留「穿越块边界」的直线 mask 组件。
+
+    页级直线 mask 会把字身内部的细长笔画（如 頁/言 的细横）也算作「直线」；
+    若这些组件完全落在 2×2 块内，它们是字身笔画，不能删。只有延伸出块边界
+    （块外仍有该线像素）的组件才是版框/界行/邻墨残线，保留。
+    """
+    if mask is None or block_rect is None:
+        return mask
+    import numpy as np
+    import cv2
+    m = (mask > 0).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(m, 8)
+    if n <= 1:
+        return mask
+    bx0, by0, bx1, by1 = [float(v) for v in block_rect]
+    h, w = m.shape
+    keep = np.zeros((h, w), np.uint8)
+    for i in range(1, n):
+        x, y, ww, hh, area = (int(st[i, 0]), int(st[i, 1]), int(st[i, 2]), int(st[i, 3]), int(st[i, 4]))
+        if area < 6:
+            continue
+        # 只有「贴/穿块边界」的线组件才删；完全落在块内部（含 2px 余量）的细长组件是字身笔画
+        if (x <= bx0 + 2 or y <= by0 + 2 or x + ww >= bx1 - 2 or y + hh >= by1 - 2):
+            keep[lab == i] = 1
+    return np.maximum(mask.astype(np.uint8), 0) * keep if mask.dtype == np.uint8 else keep
+
+
 def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    center: tuple[int, int, int, int] | None = None,
                    char: str | None = None, enable_line_swt: bool = False,
@@ -979,7 +1014,8 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                   frame_mask_outer: "np.ndarray | None" = None,
                   outer_keep_margin150: float = 4.0,
                   keep_box150: tuple | None = None,
-                  use_thick_roi: bool = False) -> dict:
+                  use_thick_roi: bool = False,
+                  frame_mask_extra: "np.ndarray | None" = None) -> dict:
     """150dpi box -> 灰度 crop -> 归一化轮廓（自适应 pad）。block150=2×2 格块（150dpi）。
 
     先按小 pad（6px@150dpi）渲染；若最大连通域触 crop 边界（说明框偏紧、
@@ -1036,6 +1072,20 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
             if sx1 > sx0 and sy1 > sy0:
                 sub = frame_mask[sy0:sy1, sx0:sx1]
                 fm = cv2.resize(sub, (gray.shape[1], gray.shape[0]), interpolation=cv2.INTER_NEAREST)
+                # E37：仅当线组件穿越字身块边界时才删除（块内细长笔画=字身笔画，保留）
+                fm = _filter_line_mask_to_crossing(fm, block_rect)
+        if frame_mask_extra is not None:
+            # 页级「已验证线条带」（page_line_bands）：数据驱动，无条件应用（E37）
+            mh3, mw3 = frame_mask_extra.shape
+            ex0 = int(round(box[0] - pad150)); ey0 = int(round(box[1] - pad150))
+            sx0e = max(0, ex0); sy0e = max(0, ey0)
+            sx1e = min(int(mw3), ex0 + gray.shape[1] // 2)
+            sy1e = min(int(mh3), ey0 + gray.shape[0] // 2)
+            if sx1e > sx0e and sy1e > sy0e:
+                sub3 = frame_mask_extra[sy0e:sy1e, sx0e:sx1e]
+                fm3 = cv2.resize(sub3, (gray.shape[1], gray.shape[0]),
+                                 interpolation=cv2.INTER_NEAREST)
+                fm = fm3 if fm is None else np.maximum(fm, fm3)
         if frame_mask_outer is not None:
             # 细短直线 mask（注文引文框/短界行段）：只应用在「字形厚墨 ROI」之外。
             # ROI 由本 crop 的 thick ink 反推（不依赖检测框/verified 框，避免片段框误删笔画）。
