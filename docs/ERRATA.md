@@ -298,3 +298,30 @@
 
 - E32 后扫描每页多算一次页级 mask（长线/细线/线条带），全库双扫描约 **20–25 分钟**（原 3.5 分钟）。
 - 优化方向（未做）：页级 mask 落盘缓存（按 page_geometry+bands sha 命名）；或用 `FONT_PAGE_LINE_MASK=0` 时跳过。
+
+
+## E35. 缺件扫描配准错误（827 的来源，2026-11-13）
+
+- 背景：E32/E33 后缺件仍 827。BF-06 triage 发现 827 中 **707 个字符只有 edge_sliver/line_like 组件**、
+  74 个含「likely_stroke」组件；进一步复核发现扫描的**配准**有结构性错误：
+  - 扫描用「最大单组件」把输出字形配准到源图。pre-cut mask 会把源图字身切成多块（细线穿过处），
+    最大单组件只对应其中一块 → 字形被放大错位，其余块被误判「缺件」。
+- 第一次修正（main-cluster bbox 配准）后全量 824，但与旧集合仅 35 重叠（换了一批误报）→ 说明配准仍不精确。
+- 结论：缺件扫描必须复刻构建的**最终墨迹链**才能可靠比较（见 E36）。
+
+## E36. 缺件扫描按构建最终墨迹链重写（827 → 32，2026-11-13）
+
+- 重写内容（`scripts/scan_missing_parts.py`）：
+  1. 用 build_stats 的逐字 `pad150` 渲染同一 crop；
+  2. 复刻构建的最终墨迹链：`mask_to_block → remove_specks → clean_cluster(box=box 矩形) → clean_ink(center=box 矩形)`
+     （此前漏了 `center=(pad_px,…,size-pad_px)` 的 box 口径，导致误删组件）；
+  3. 配准用「TTF glyph bbox → 256 画布 bbox」反推画布变换，再把 **stats bbox（normalize 口径，prune 前）**
+     映射到 ink_final bbox，处理 `prune_edge_contours` 造成的 bbox 差；
+  4. 只把「**fin_frac ≥ 0.6**（组件像素被 ink_final 保留）」的组件算缺件；管线按设计丢弃的块内邻墨/注文不算。
+- 结果（全量 5,695 页半版，8 workers）：
+  - 缺件 **827 → 32**（`work/lead/missing_scan_v262.jsonl`；sidecar 绑定新增 build_stats sha）；
+  - 32 个全部可解释：**11 个 edge_pruned**（组件贴 ink bbox 边，`prune_edge_contours` 按设计删除的边缘碎片）
+    + **22 个 sliver**（宽或高 ≤20px 的小碎片）；**interior=0**——未发现「字身内部真实缺笔」；
+  - 分类报告：`work/lead/missing-32-triage.json`。
+- 遗留：缺件数字的里程碑口径（是否把 prune-by-design 边缘碎片排除）归入 BF-06/D23 类口径决策；
+  当前按 **32** 披露，不宣称清零。

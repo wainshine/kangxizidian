@@ -4,17 +4,21 @@
 > 规则：每项写清「证据 / 修法 / 验收 / 轮次」；修复后改状态为 ✅ 并注明 commit/证据，不删除记录。
 > 状态：`P0` 阻塞发布 / `P1` 下一轮必修 / `P2` 可随轮次修 / `ACCEPT` 明确接受不修。
 
-## 0. 总览
+## 0. 总览（2026-11-13 梳理后）
 
-| 级别 | 数量 | 说明 |
+| 口径 | 数量 | 说明 |
 |---|---|---|
-| P0 | 9（已完成 6） | BF-01/02/03/07/08/09 ✅；余：BF-05（提案 D23 待确认）、BF-06、BF-04 |
-| P1 | 22（已完成 6） | BF-12/14/37/43/45/53 ✅；余 16 |
-| P2 | 20（已完成 4） | BF-22/46/48/50 ✅；余 16（含 BF-44 部分完成） |
-| ACCEPT | 4 | 历史文档不改写、v2.6.1 旧包不重打、历史数字不回溯重算、审计报告保留 |
+| 条目总数 | **52**（BF-01…BF-53；BF-52 未使用） | 逐条状态见各表 |
+| 已完成 | **18** | BF-01/02/03/07/08/09/12/13/14/20/22/37/43/45/46/48/50/53 |
+| 未完成 | **34** | 分类与顺序见 **§10**（2026-11-13 梳理） |
+| 里程碑阻塞/硬条件 | 11 | BF-04/05/06/11/16/29/30/31/32/33/41（多需 owner 决策或数据动作） |
+| 闸/流程/材料（可执行） | 21 | BF-10/15/17/18/19/21/24/25/26/27/28/34/36/38/39/40/42/44/47/49/51 |
+| 暂缓/研究 | 2 | BF-23（LRU 计时）、BF-35（旧方法 A/B） |
+| ACCEPT（不修） | 4 | 历史文档不改写、v2.6.1 旧包不重打、历史数字不回溯、审计报告保留原文 |
 
-> 第 3 代审计 86 条 findings 的逐条状态见 `work/lead/audit3-findings-map.jsonl`（12 已修 / 6 部分修 / 1 接受 / 67 排期，**0 条无归属**）；汇总见 `audit/AUDIT-RESPONSE-v2.6.1-audit3.md` §5。
-> BF-01..42 为 2026-11-12 首版；BF-43..51 为同日按 86 条 findings 逐条核对后补录的孤儿项（此前只按主题合并，存在归属缺口）。
+> 第 3 代审计（86 条 findings）逐条状态：`work/lead/audit3-findings-map.jsonl`；
+> 2026-11-13 已把因 E24–E34 落地而解决的 findings 更新为 fixed/covered（见 §10-C）。
+> 本表是**唯一待办清单**；旧汇总里的 35/35、153/153、1,200、343 页影响 238 字等数字已失效，见 §10-C。
 
 ## 1. 轮次与门
 
@@ -36,7 +40,7 @@
 | BF-03 | **页几何残差**：box 越界 198@1px/360@0、max 8.8px | 已复核为 quad 偏紧非坐标错；E30 用 quad 扩张覆盖全部 box 修复 | `expand_quads_to_cover_boxes.py`（只扩不缩，+0.5px） | ✅ **完成（2026-11-13，E30）**：bad_boxes 198→0、零容差 360→0、max overflow 0；内容 34→32 | CS2 |
 | BF-04 | **v2.6.1 包不可签收**：旧 finalize（zip 内报告/SHA 旧）、包内 README 数字矛盾（60/700 vs 153/1200）、review tsv 混入 v2.6.0 数据 | 审计 DSH P0-2/P1；本次核对确认 | 不重打 v2.6.1；下一候选重建后按新 finalize 顺序出包；材料由同一数据源生成 | 新包 zip==目录、SHA 覆盖报告、材料数字与 gate-report 一致 | CS1 |
 | BF-05 | **内容闸 34→32**；32 字归因为跨架构归一化差异（E31：12/32 旧字形长宽比偏差>15%，非真实缺笔） | `content-aspect-analysis-v262.json` / `content-triage-v262.json` | 提案 **D23**：内容判据改「源墨保真度」（字形 vs 自身 source ink 配准 IoU）；旧字体 delta 只作回归告警 | 里程碑内容判据经 owner 确认 + 源墨保真度基线披露 | CS3 |
-| BF-06 | **缺件扫描 827**（E32/E33 后；原 1,155） | `work/lead/missing_scan_v262.jsonl` + sidecar | triage 827：区分「注文/邻字组件」「真实缺笔」；真实缺笔走 mapping 修复 | 缺件数字可解释；已知债清单冻结 | CS3/CS4 |
+| BF-06 | **缺件扫描 32**（E36 配准重写后；原 1,200→1,153→827） | `work/lead/missing_scan_v262.jsonl`（sidecar 含 build_stats sha）+ `missing-32-triage.json` | 32 = **11 edge_pruned + 22 sliver，interior 0**（未发现字身内部真实缺笔）；剩余口径：里程碑是否排除 prune-by-design 边缘碎片（BF-10/D23 类决策） | 口径经 owner 确认后定阈值/披露；known-debt 清单冻结 | CS3/CS4 |
 | BF-07 | **框线逃逸/字形级框线** | 字形级 23→0（E27）；源图级 1 仍在（㨜 3px 界行残边 known debt） | 页级 pre-cut mask + 页级已验证线条带（`work/lead/page_line_bands.json`，数据驱动） | ✅ **完成（2026-11-13）**：glyph_frame_gate 0 PASS；源图口径待重扫后披露 | CS2 |
 | BF-08 | **缓存/几何修复后首次全量重建候选** | 本轮修了 cache key/几何路径；旧字体是旧 key 产物 | 全量重建（0 命中）→ v2.6.2；回退实验后 v2.6.2 候选 | ✅ **完成（2026-11-12）**：v2.6.2 全量 6m42s（sha `58fd9235…`）；缓存命中重建（3m52s）sha 一致 —— 可复现；数字见 `fast-gate-v264.json` | CS1 |
 | BF-09 | **构建失败静默**：单字失败仅 WARN，仍 exit 0 | 审计 GLM P1/DSH | 硬失败：任何 skipped（除 `--limit`）→ 写失败报告（`aborted/failed_n/failed`）并 exit≠0；`--allow-partial` 才放行 | ✅ **完成（2026-11-12）**：注入坏 box → `ABORT: 1 字构建失败` + `/tmp/bad.build_stats.json`，exit 1 | CS1 |
@@ -46,16 +50,16 @@
 | ID | 问题 | 证据 | 修法 | 验收 | 轮次 |
 |---|---|---|---|---|---|
 | BF-10 | **闸契约仍可被绕过**：可选闸省略即 PASS；阈值=观测值（35/35、153/153、1200/1200）零余量；`doc_check` 不做数字对账 | 审计 GLM/DSH P1 | 候选/里程碑强制 full gate；阈值模式要求记录「上一版数字+delta」，零余量必须披露；doc_check 校验 README/QA 数字与 gate-report 一致 | 缺项即 FAIL；数字不一致即 FAIL | CS1 |
-| BF-11 | **343 页无 quad / 184 页仅半版**（影响 238 字） | 审计 DSH P0-4 影响面；PROJECT-STATE P1 | 页级几何校验（BF-01③）→ 逐页修 quad（fallback 只能兜底，不能当修复） | 无 quad 页→0；238 字复测 | CS2 |
+| BF-11 | **有 quad 但 0 指派的半版 1,173**（原条目「343 页无 quad/影响 238 字」已失效：`missing_quad_chars=0`，无字形落无 quad 页） | `page-geometry-gate-v262.json`、`empty-assign-triage-v262.json` | 669 个 vol 01–12 半版重跑检测/映射（含 01_0006 L「一」）；504 个 vol 00/13 口径待 owner；40 无 lattice 半版待核 | empty_assign→0 或经 owner 同意的披露；覆盖/缺口重算 | CS3 |
 | BF-12 | **扫描结果未绑定字体 SHA**（早期扫描早于字体；reuse 无校验） | 审计 DSH P1 | 新增 `gate_binding.py`：扫描/内容输出旁写 `<out>.sha256`（font/manifest/mapping/geometry/参考字体/脚本 sha + argv + git）；快闸/全闸复用前校验，缺失或不匹配 → FAIL | ✅ **完成（2026-11-12）**：`validate_reuse` 单测（换字体→不通过）；内容/缺件/框线闸均已接入 | CS1 |
 | BF-13 | **页级几何与 pre-cut 不变量冲突**：主链仍调 `strip_border_lines`（形状删线） | 200 字 A/B（`strip-border-ab-v4.json`）；E29 全量 A/B：strip 关→12 处框线→并入页级线条带（26 rect）后 glyph_frame=0、内容 0 回归 | 按 D22 原定路径：pre-cut 达标后摘除 strip，`FONT_STRIP_BORDER` 仅留复现口 | ✅ **完成（2026-11-13，E29/D22）**：strip 默认关闭；候选 sha `f901c9d4…`；fast_gate 8/8 PASS | CS2 |
 | BF-14 | **Songti 专有字体依赖** | 审计 E8；2026-11-12 全管线替换完成 | 新增 `scripts/reffont.py`（唯一参考字体：霞鹜文楷 OFL）并替换 font_qa/refgate/refgate2/scan_distort/fidelity_eval/scan_missing_parts/font_norm/review_sheet/owner_defect_sheet + 3 个 legacy 标注脚本；font_qa 孔洞对照删除（D21） | 构建/闸/报告脚本无 Songti/Hiragino 依赖 | ✅ 完成（2026-11-12） |
 | BF-15 | **fontRevision 公式 v2.10+ 崩坏**（4 处同错） | 审计 GLM P1-6 | 统一共享函数 `major + minor/100 + patch/10000`；下一版本重盖章 | 用 v2.10 假设单测通过；闸与构建同源 | 下一候选 |
-| BF-16 | **高频缺 23 口径**：审计称仅 16 字在目标缺口内（在/教/清等因异体口径不在目标表） | 审计 DSH P1；2026-11-12 复核：23 字均不在 mapping，且已验证 01_0006 L（一的字头页）有 quad 无 mapping 行 | 逐字核对 canonical/目标表口径；按页复查这 23 字是否属映射遗漏（真迹重新检测优先，禁止补假字）；更新名单与披露 | 名单与差集脚本一致；遗漏页有处置结论 | CS4 |
+| BF-16 | **高频缺 23**：一/件/你/內/合/在/多/張/教/樣/氣/法/清/為/王/相/種/臺/與/被/裡/都/間（**16 在目标缺口**，7 不在 canonical 目标表=异体口径） | 2026-11-13 复核 `work/lead/high_freq_gap.json`（285 常用表，23 缺） | 与 empty_assign 一起重定位（真迹优先，禁止补假字）；7 字异体口径需 owner 确认是否映射 | 23 字全部有结论（入字体/异体映射/披露） | CS3/CS4 |
 | BF-17 | **包材料数字同源**：README/QA/coverage 由不同手写模板产生 | 审计 DSH P1（60/700 vs 153/1200） | 材料模板从 gate-report/coverage JSON 生成；禁止手写数字 | 机器生成、doc_check 校验 | CS1 |
 | BF-18 | **changesets/version-artifacts 三件套未强制** | 审计 GLM P1-1；本轮已补 v2.6.1 回溯文件 | release_gate finalize 检查三件套存在（新版本必须有 cs-\* + version-artifacts） | 缺失即 FAIL | CS1 |
 | BF-19 | **mapping 生成链未脚本化**（仅数据+碎片脚本） | SCRIPTS/PROJECT-STATE 已知债 | 长期：用 charalign 脚本重建成可复现链；短期保留全部 map JSON 证据 | 能从 canonical + 扫描件重跑出 mapping（报告一致性） | 长期 |
-| BF-20 | **fast_gate char_diff 不拦截 removed**（release_gate 有一致性检查） | 审计 GLM P2-8 | fast_gate 增加 quarantine 对账；removed>0 且不在隔离清单 → FAIL | 删字必须声明 | CS1 |
+| BF-20 | **fast_gate char_diff 不拦截 removed**（release_gate 有一致性检查） | 审计 GLM P2-8 | fast_gate 增加 quarantine 对账；removed>0 且不在隔离清单 → FAIL | ✅ **完成（2026-11-12~13）**：fast_gate `char_diff` 步已拦截；v2.6.2 的 沓/忠 声明在 `v262_sameblock_residual.json`，未声明 removed 即 FAIL（实测生效） | CS1 |
 | BF-43 | **禁止能力仍可触达**：主链保留 restore/overlay 整字拷贝代码路径与缓存 `__overlay__` 分支 | 审计 BUILD-07/DOCS-10 | 删除主链 overlay 分支/`--repair-overlay`/`--src-map`/`contours_override` 读取；构建遇 dict 轮廓即报错；`make_repair_overlay.py` 停用 | ✅ **完成（2026-11-12）**：注入 `__overlay__` 字形 → RuntimeError exit 1；overlay 生成器 exit 1 | CS1 |
 | BF-45 | **clean-tree/freshness 闸可绕过**：`--allow-dirty` 全绕过、被 gitignore 的构建输入不进 provenance | 审计 GATE-13 | finalize 前置 `clean_tree` 步（脏树 FAIL，`--allow-dirty` 仅调试且记录）；输入 sha 进 gate-report `inputs` | ✅ **完成（2026-11-12）**：临时包副本跑全闸 → `FAIL clean_tree`（dirty=true）且 `package_touched=false` | CS1 |
 
@@ -65,7 +69,7 @@
 |---|---|---|---|
 | BF-21 | coverage JSON 字段命名含混（`basic_coverage_pct` 实为目标表口径） | 改名/加注（`target_set_coverage_pct`），旧字段保留一版 | 材料 |
 | BF-22 | 缓存命中重建耗时（审计测得 242–251s） | 几何路径已修，重建后实测；更新 PIPELINE/AGENTS 的 ~20s 声明 | ✅ **完成（2026-11-12）**：全量 402s、缓存命中 232s（装配占大头）；文档已更正（ERRATA E22） | CS1 验证 |
-| BF-23 | fidelity LRU 缓存效果未测 | 扫描重复运行计时对比 | CS1 |
+| BF-23 | fidelity LRU 缓存效果未测 | 扫描重复运行计时对比 | 暂缓（非关键路径；当前瓶颈是扫描页级 mask 计算，见 E34） |
 | BF-24 | 包内 `01-changes.tsv` 混入 v2.6.0 的框线 60 条数据 | 下一版由当前扫描结果重新生成 | CS1 |
 | BF-25 | **文档一致性清理批次**：15 条已删除路径/占位符引用、DATA.md 残留 v2.4.5 段、docs 索引/规模漂移、12 vs 14 PDF 口径、扫描耗时矛盾、NFC/NFD sha 说明、.gitignore 许可文本规则、`release/_withdrawn` 引用、PIPELINE content clip 时序描述 | 审计 DOCS-14/15/16/18/20/21/23/24/28、DATA-13/14/16、BUILD-13 | 过期段删除或标「已过期/时点」；路径改现行；数字按现行口径重写；.gitignore 规则顺序修正 | docs 无过期数字/死路径；索引与文件一致 | 文档/CS1 |
 | BF-26 | GLM 审计报告仅存在于对话 | 归档为 `audit/AUDIT-REPORT-v2.6.1-audit3-GLM.md` | 文档 |
@@ -91,14 +95,14 @@
 | BF-31 | **部界锚点口径不可全信**：39/39 系循环论证；09–11/13 卷锚点缺失 | SCRIPTS §8-3；PROJECT-STATE | 严格版锚点重校验（`validate_anchors3` 思路，禁止块内取墨再判块内）；补 4 卷锚点 | 严格校验 PASS；锚点作为 mapping 回归基线 | CS2/CS5 |
 | BF-32 | **标签精度敞口**：VLM top-1 84.6%（n=13，宽 CI）→ 约 1,400–1,500 字级风险 | OCR-OPTIONS/历史记录；PROVENANCE 精度说明 | 独立抽样验证（扩大 n，按卷/部首分层）；高风险字进隔离或复核 | 抽样报告落盘；敞口区间更新并披露 | CS5（里程碑硬条件） |
 | BF-33 | **DATA 源扫描件来源/许可信息**（渠道已确认=书格 shuge.org；影印出版者/扫描者/条款细节待补） | owner 2026-11-12 确认渠道；docs/DATA.md §1 已写 | 补影印出版/扫描者信息与站点条款；进包 PROVENANCE | DATA §1 完整；许可声明可追溯 | CS5/材料（部分完成） |
-| BF-34 | **D19 缺口分桶清单旧口径**：`v245_gan_targets.json`=6,214 vs 当前缺口 6,298 | SCRIPTS §8-5 | 用 `lead_gan_targets.py` 重生成（若仍采用 D19 分桶策略） | 清单与当前缺口一致，随包 | P2（策略相关） |
-| BF-35 | **SCRIPTS §8 的 6 处旧方法 A/B 未做**（重点：`layout_thick_detect` 独立字头候选、`snap_box` 参考评分选块 μ 未实现） | SCRIPTS §8/§7.3 | 至少完成 2 个建议项的 A/B（固定样本 + 内容/缺件闸）；其余记录取舍理由 | A/B 报告 + 决策记录（DECISIONS 追加） | P2（研究） |
+| BF-34 | **D19 缺口分桶清单旧口径**：`v245_gan_targets.json`=6,214 vs 当前缺口 **6,300** | SCRIPTS §8-5 | 若仍采用 D19 分桶策略，用 `lead_gan_targets.py` 重生成 | 清单与当前缺口一致，随包 | P2（策略相关） |
+| BF-35 | **SCRIPTS §8 的 6 处旧方法 A/B 未做** | SCRIPTS §8/§7.3 | 暂缓：方法与现架构（pre-cut/源码 bbox 归一）无关；如恢复研究再排期 | 决策记录（DECISIONS 追加） | P2（研究，暂缓） |
 | BF-36 | **代码-文档不一致**：`detect_blocks` docstring「留边≥4%」实现未设阈值 | SCRIPTS §8-1 | 改代码实现阈值或改 docstring；不得留双口径 | 文档=行为 | P2 |
 | BF-37 | **复核包脚本化**：已简化为 3 件（`01-changes` / `02-random100` / `ledger.tsv`），`scripts/make_round_pack.py` 一条命令生成；其余图按需 | WORKFLOW §6；`work/review/round-002/` | 保持 3 件不膨胀 | 任一轮一条命令生成 3 件 | ✅ 完成（2026-11-12） |
 | BF-38 | **术语检查器缺失**（GLOSSARY 未落地为检查；版本命名/禁用词） | PROJECT-AUDIT §4；馆阁体对照 | `scripts/check_terms.py`：检查 docs/代码/包内文档禁用词与命名；接进快闸 | 检查器存在且 0 违规（或白名单） | P1（流程） |
 | BF-39 | **里程碑治理未机器化**：无「里程碑条件文件」，release_gate 不校验收否满足 | WORKFLOW §7 | 增加 `milestone.json`（P0 清零/已知债冻结/owner 签核/结构冻结）+ gate 校验 | 缺 milestone.json 或条件不满足 → 拒发正式包 | P1（流程） |
-| BF-40 | **lsb/归一化口径历史差异未声明**：v2.5.6 曾 974 字 lsb 重算（1–129 units）；当前由轮廓决定 | SCRIPTS §8bis | 一次性核对当前构建 lsb 分布；在 PIPELINE/QA 记录归一化与 lsb 规则 | 文档写明；抽样验证 | P2 |
-| BF-41 | **缺口 6,298 的处理策略未定**：headword-only 不补假字 vs D19 重定位/GAN 目标 | DECISIONS D19；PROJECT-STATE | owner 决定是否/如何补缺口；若做，先定验收与许可 | 策略记录（DECISIONS 追加） | P1（策略） |
+| BF-40 | **lsb/归一化口径历史差异未声明**：v2.5.6 曾 974 字 lsb 重算；当前由轮廓决定（PIPELINE §S3 已改为现行口径说明，BUILD-12） | SCRIPTS §8bis | 核对当前构建 lsb 分布并写入 QA 基线；文书已完成 | 抽样验证 + QA 记录 | P2 |
+| BF-41 | **缺口 6,300 的处理策略未定**：headword-only 不补假字 vs D19 重定位/GAN 目标 | DECISIONS D19；PROJECT-STATE | owner 决定是否/如何补缺口；若做，先定验收与许可 | 策略记录（DECISIONS 追加） | P1（策略，待 owner） |
 | BF-42 | **候选版本流程三件套的自动化**（与 BF-18 代码检查配套）：目前手工写 cs/version-artifacts | WORKFLOW §10bis | 提供 `new_candidate.py` 模板生成三件套骨架 | 新版本三件套由工具生成 | P2（流程） |
 
 ## 6. 合并说明（历史遗留 → 已有条目）
@@ -124,10 +128,65 @@
 5. **CS3**：BF-05 内容 35→0 + BF-06 缺件（新参考口径）；
 6. **CS4/CS5**：BF-16/BF-15 + 历史硬条件 BF-29/30/31/32/33 + 流程 BF-38/39 + 策略 BF-41/42 → 1–2 天。
 
-> 合计未完成 **34 条**（P0 3 + P1 16 + P2 15；已完成 17：BF-01/02/03/07/08/09/12/13/14/22/37/43/45/46/48/50/53）。下一步 CS3：empty_assign 1,173 + 缺件 1,155 + 框线 158 + 内容 32→0。下一步：全闸重扫 + 页几何严格化（BF-03/BF-11）+ 摘 strip（D22）+ CS3（BF-04/05/06/10/17/18/20/23/24/25/44/47）。审计 86 条 findings 现 28 fixed / 8 fixed-partial / 1 accepted / 49 deferred。
+> 合计未完成 **34 条**（见 §0 与 §10）。当前候选 sha `b73e9f01…`（17,005 字）：fast_gate 8/8 PASS；全闸 8 PASS / 3 FAIL
+> （缺件 827、源图框线 1、页几何 empty_assign 1,173）。下一步：CS3-A empty_assign 669 半版补映射（含 01_0006 L「一」）→
+> CS3-B 缺件 827 triage → D23 owner 决策 → CS4/CS5 硬条件 → 里程碑严格全闸。
 
 ## 9. 维护规则
 
 - 每轮开始从本表认领（写 `work/changesets/cs-*.json` 引用 BF-ID）；结束把状态改为 ✅ + 证据路径；
 - 新审计/新缺陷先入本表再动手；
 - 任何「阈值放宽」必须在本表与发布报告中同时披露，不得只改代码。
+
+## 10. 2026-11-13 梳理：剩余执行清单（权威）
+
+> 依据：BACKLOG 52 条 + 第 3 代审计 86 findings（`work/lead/audit3-findings-map.jsonl`）+ E24–E34 落地结果 + 当前候选闸况。
+
+### 10-A 需执行 · 里程碑阻塞（多需 owner 决策或数据动作）
+
+| ID | 事项 | 状态/证据 | 下一步 |
+|---|---|---|---|
+| BF-11 | **empty_assign 1,173**：有 quad 无 mapping 行；vol 01–12 669（652 有 lattice，含 01_0006 L「一」）、vol 00/13 504、无 lattice 40 | `empty-assign-triage-v262.json`；页几何唯一严格 FAIL | 669 个重跑检测/映射（真迹）；504 口径待 owner；40 待核 |
+| BF-06 | **缺件 32**（E36 后；旧 1,200/1,153/827 不计） | `missing_scan_v262.jsonl`、`missing-32-triage.json`（11 edge_pruned+22 sliver，interior 0） | triage 已完成：无字身内部真实缺笔；仅余口径决策（是否排除 prune-by-design 边缘碎片） |
+| BF-05 | **内容判据 D23（待 owner）**：content 29/35；E31 证明大部分是跨架构归一化差异 | `content-aspect-analysis-v262.json` | owner 确认改「源墨保真度」后实现 gate v2 |
+| BF-16 | **高频缺 23**：16 在目标缺口、7 异体口径 | `high_freq_gap.json`（2026-11-13 复核） | 与 empty_assign 合并处理；7 字口径 owner |
+| BF-41 | **缺口 6,300 策略** | 与 D23/BF-16 联动 | owner 决策 |
+| BF-04/17/18/24 | 新包材料/finalize：材料数字同源、三件套、01-changes 重生成 | BF-04 旧包不可签收（ACCEPT）；新包未做 | 里程碑前一次性生成 |
+| BF-29/30/31/32/33 | 硬条件：隔离 9、100 字签核、锚点、精度敞口、DATA 许可 | 见 §5 | CS4/CS5 |
+
+### 10-B 需执行 · 闸/流程/材料（无 owner 依赖，可立即做）
+
+| ID | 事项 | 说明 |
+|---|---|---|
+| BF-10 | 闸契约：缺项即 FAIL、阈值零余量披露、doc_check 数字对账 | 当前全闸已强制扫描；阈值披露待完善 |
+| BF-44 | gate-report/build_recipe 归因（argv/commit/输入 sha） | 部分已做（gate-report inputs+git），build_recipe 待接 |
+| BF-51 | 构建降级路径标记（geometry/quad/lattice 异常） | stats 需记降级计数并进闸 |
+| BF-47/25/26/27/28/34 | 文档/审计/索引/GLM 报告归档/RELEASE-INVENTORY 状态 | 本轮已修 PROJECT-STATE/DATA/PIPELINE 主要数字；SCRIPTS/README 索引待清 |
+| BF-49 | scripts keep/archive 判定（顶层仍有死脚本） | 逐脚本标注 |
+| BF-36 | detect_blocks docstring 与实现不一致 | 二选一改齐 |
+| BF-38/39/42 | check_terms.py / milestone.json / new_candidate.py | 流程工具 |
+| BF-15 | fontRevision 公式统一（下一版本重盖章） | 与 gate 同源 |
+| BF-19 | mapping 生成链脚本化 | 长期项，本轮不动 |
+| BF-21/40 | coverage JSON 字段命名、lsb 口径基线 | 材料前清理 |
+
+### 10-C 已完成 / 失效 / 改写（不再重复执行）
+
+1. **已完成待勾销（E24–E34）**：BF-03（E30 quad 扩张 bad_boxes→0）、BF-07（E27/E33 字形框线→0；源图框线 153→1）、BF-13（E29 strip 摘除）、BF-20（char_diff quarantine）、BF-53（E27 线条带）、BF-01/02/08/09/12/14/22/37/43/45/46/48/50（早期）。
+2. **已完成待勾销（E35/E36，2026-11-13）**：缺件扫描配准重写（复刻构建最终墨迹链；827→32，interior 0；sidecar 绑定 build_stats）。
+3. **失效数字/说法（已改写）**：
+   - 「缺件 1,200 / 1,153 / 1,155 / 827」→ **32**（E32/E33 口径 + E36 配准重写；旧口径不可比；32 全为 edge/sliver，interior 0）；
+   - 「框线逃逸 153 / 158 / 43」→ **1**（字形级早已 0；E33 后源图级仅 㨜 known debt）；
+   - 「内容闸 35 / 34 / 33 / 32」→ **29**（阈值 35；且 E31 归因跨架构差异，D23 待定）；
+   - 「343 页无 quad 影响 238 字」→ **失效**：`missing_quad_chars=0`，无字形落这些页；真实缺口是 empty_assign 1,173（BF-11 已改写）；
+   - 「阈值=观测值 35/35、153/153、1200/1200」→ 现状 29<35、frame 1（严格 0 仍 FAIL）、empty 1,173<1,200；披露方式仍需 BF-10 统一；
+   - 「缺口 6,298 / 分桶 6,214」→ **6,300**；
+   - 「BUILD-04/DATA-07 坐标系矛盾、DATA-10 字形级框线盲区」→ 已修（BF-03/BF-01），findings-map 已更新。
+4. **暂缓（明确不排期）**：BF-23（fidelity LRU 计时）、BF-35（旧方法 A/B，与现架构无关）。
+
+### 10-D 建议顺序
+
+1. CS3-A：empty_assign 669 半版补映射（先 01_0006 L「一」）→ 覆盖/缺口重算；
+2. CS3-B：缺件 827 triage → 真实缺笔 mapping 修复；
+3. D23 owner 决策（内容判据）→ 实现源墨保真度基线；
+4. BF-10/44/51/47/25/49/36/28 等闸/流程/材料项随轮次清理；
+5. CS4/CS5 硬条件（隔离 9、100 字签核、锚点、精度、许可）→ 里程碑严格全闸 → 复核包 → 正式包。

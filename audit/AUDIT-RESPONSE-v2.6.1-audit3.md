@@ -59,21 +59,23 @@
   4. 扫描-字体 SHA 绑定 + 文档数字对账。
 - 已建立审计 findings 的机器可读对照：`work/lead/audit3-findings-map.jsonl`（86/86 逐条；旧 `triage.jsonl` 仅保留主题级 21 行）；汇总见 §5。
 
-## 5. findings 逐条对照（2026-11-12 补全）
+## 5. findings 逐条对照（2026-11-12 补全；2026-11-13 更新）
 
 > 首版只按主题合并（`audit3-findings-triage.jsonl` 21 行）；本次把 DSH 全部 **86** 条 findings 逐条对到状态与唯一清单，确认无孤儿项。
 
-- 机器可读：`work/lead/audit3-findings-map.jsonl`（86 行；字段 `id/severity/status/bf/round/note`）。
-- 覆盖：**86/86 有归属**；`fixed` 30、`fixed-partial` 7、`accepted` 1、`deferred` 48（2026-11-12 CS1-A/CS1-B 后更新）。`deferred` 仅表示已进唯一清单（`docs/BACKLOG.md`）并有轮次，**不代表已修**。
+- 机器可读：`work/lead/audit3-findings-map.jsonl`（86 行；字段 `id/severity/status/bf/round/note/update_note`）。
+- **2026-11-13 更新**：E24–E34 落地（字形框线 23→0、strip 摘除、quad 扩张 bad_boxes→0、扫描 pre-cut 口径对齐、极细线 pre-cut：缺件 1,200→827、框线 153→1、内容 35→29）后，18 条 findings 状态上修：
+  `fixed` **32**、`fixed-partial` **17**、`accepted` **1**、`deferred` **36**。
+  `deferred` 仍表示已进唯一清单（`docs/BACKLOG.md` §10）并有轮次，**不代表已修**。
 - 按级别的状态分布：
 
 | 级别 | fixed | fixed-partial | accepted | deferred | 合计 |
 |---|---|---|---|---|---|
 | P0 | 5 | 1 | 0 | 0 | 6 |
-| P1 | 14 | 4 | 1 | 16 | 35 |
-| P2 | 7 | 0 | 0 | 21 | 28 |
-| P3 | 4 | 2 | 0 | 11 | 17 |
-| **合计** | **30** | **7** | **1** | **48** | **86** |
+| P1 | 14 | 7 | 1 | 13 | 35 |
+| P2 | 8 | 4 | 0 | 16 | 28 |
+| P3 | 5 | 5 | 0 | 7 | 17 |
+| **合计** | **32** | **17** | **1** | **36** | **86** |
 
 - 首版 BACKLOG 42 条按主题合并；逐条核对发现 9 条 P2/P3 细节无独立归属，已补 **BF-43..51**：
   BF-43 overlay 能力仍可触达（P1）、BF-44 闸/构建归因不可复现（P2）、BF-45 clean-tree/freshness 可绕过（P1）、BF-46 内容闸吞样（P2）、BF-47 audit 现行文档时点（P2）、BF-48 构建入口/缓存卫生（P2）、BF-49 scripts 保留判定（P2）、BF-50 worker 上限（P2）、BF-51 降级路径标记（P2）。

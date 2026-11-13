@@ -1,87 +1,98 @@
-# PROJECT-STATE · 项目状态与交接（2026-11-12）
+# PROJECT-STATE · 项目状态与交接（2026-11-13）
 
-> 新会话读这一页即可知道「现在到哪了、什么是真的、下一步干什么」。细节分别见：
-> `PIPELINE.md`（怎么做）、`WORKFLOW.md`（怎么走流程）、`VERSION-HISTORY.md`（从哪来）、`WORK-MAP.md`（work/ 里有什么）、`ERRATA.md`（哪些旧说法作废）。
+> 新会话读这一页即可知道「现在到哪了、什么是真的、下一步干什么」。细节见：
+> `PIPELINE.md`（怎么做）、`WORKFLOW.md`（怎么走流程）、`VERSION-HISTORY.md`（从哪来）、
+> `WORK-MAP.md`（work/ 里有什么）、`ERRATA.md`（哪些旧说法作废）、`BACKLOG.md`（唯一待办清单）。
 
 ## 0. 三十秒快速开始
 
-- 当前基线：**v2.6.2 工程候选**（sha `eec49c4e…`；fast_gate 仅字形框线 **14** 一项 FAIL：框内残线；同框 0、内容 33/35）；`release/` 仍只保留 v2.5.8（重构前基线）与 v2.6.1（过程版）。
-- 字形 **17,007**（headword-only 真迹）；基本区 10,269/20,992 = **48.92%**；目标字表 10,269/16,567 = **61.98%**；缺口 **6,298**。
-- 闸（候选 v2.6.2）：font_qa 同框 2 对 FAIL；字形级框线 **23** FAIL；内容闸 **33**（阈值 35）PASS；provenance PASS；页级几何 bad_boxes 198@1px/空指派 1,173（候选阈值 PASS，里程碑严格 0）；缺件 1,200（旧参考口径，待重扫）。
-- 构建：`mapping_block_v270` + `page_geometry` + 自动缓存版本（算法 sha8+几何 sha12）；全量 ~9.3 分钟（修复前记录）；缓存命中耗时待重建实测（BF-22），**不再引用旧「~20 秒」声明**。
-- 隔离 9 字：刃/榍/法/紆/総/荹/仟/禦/絞；高频缺 23 字（一/在/為/你…）。
+- 当前基线：**v2.6.2 工程候选**（`work/font/build/KangXiKai-v2.6.2.ttf`，sha `b73e9f01…`，
+  17,005 字）：**fast_gate 8/8 PASS**；全闸基线 8 PASS / 3 FAIL
+  （缺件扫描 **827**、源图框线 **1**、页几何 empty_assign **1,173**）。
+- 覆盖：基本区 10,267/20,992 = **48.91%**；目标字表 10,267/16,567 = **61.97%**；缺口 **6,300**。
+- 闸（候选）：font_qa **PASS**（同框 0）；字形级框线 **0 PASS**；内容 **29**（阈值 35，E31 归因为跨架构归一化差异）；
+  provenance PASS；页几何 bad_boxes **0**、唯一严格 FAIL = empty_assign 1,173（mapping 覆盖缺口）。
+- 构建：mapping `work/lead/mapping_block_v271.jsonl` + geometry `work/lead/page_geometry.jsonl`（E30 扩张版）
+  + 页级线条带 `work/lead/page_line_bands.json`（26 rect）+ 自动缓存版本；全量重建约 **10m30s**（10 workers）。
+- 关键口径：只收字头真迹（D15）；2×2 格块；pre-cut 排除版面（D22，strip 已摘除 E29）；参考字体唯一 = 霞鹜文楷 OFL（D21）。
+- 未决 owner 决策：**D23 内容判据**（改源墨保真度？）、**00/13 卷是否入字表**、**缺口 6,300 策略（BF-41）**。
 
 ## 1. 目标与已确认决策
 
-- 目标：从《康熙字典》康熙五十五年内府刊本扫描件重建**只收字头真迹**的楷书字体，覆盖 CJK 基本区；缺口不补假字形（D15）。
-- 关键决策：`docs/DECISIONS.md` D1–D21 + 更正注记。不要另立口径。
-- 字头 = 2×2 小字格块；框面积应均匀（当前块宽 99–103、高 95–100，同页 σ≈0.4px）。
+- 目标：从《康熙字典》康熙五十五年内府刊本扫描件（书格 shuge.org，14 PDF / 3,869 页）重建**只收字头真迹**的楷书字体。
+- 字表基准：`work/seq/canonical.jsonl` 正集 42,302 条 / 唯一基本区字 **16,567**（D19 口径；勿与 kx_full 16,791 混用）。
+- 决策：`docs/DECISIONS.md` D1–D22 + **D22 更新**（strip 摘除）+ E24–E34 更正；D23 为**提案**，待 owner 确认。
+- 字头 = 2×2 小字格块；框面积均匀（块宽 99–103、高 95–100，同页 σ≈0.4px）。
 
-## 2. 当前交付物
+## 2. 当前交付物与真源
 
 | 产物 | 路径 | 状态 |
 |---|---|---|
-| 当前候选 | `work/font/build/KangXiKai-v2.6.2.ttf`（sha `58fd9235…`） | CS1-B 重建；缓存命中重建已验证（3m52s，与 v2.6.2 字形一致）；未过闸 |
-| 过程基线 | `work/font/build/KangXiKai-v2.6.1.ttf`（sha `c73c3023…`） | 旧缓存 key 产物，仅历史 |
-| 重构前基线 | `release/KangXiKai-v2.5.8/` | 8 项闸 PASS；内容闸基线 |
-| 当前过程包 | `release/KangXiKai-v2.6.1/`（旧 finalize 产物；按现行闸会 FAIL） | 过程版本，不签收；不重打（ACCEPT） |
-| 构建输入 | `work/lead/page_geometry.jsonl`、`mapping_verified_all33.jsonl`、`mapping_block_v270.jsonl`、`manifest_v261.json` | 唯一真源；不可从零重建 mapping |
-| 缺陷/复核 | `work/review/defect-history-v260/`、`round-001`、owner 核验表 | 供 owner 标记 |
+| 当前候选字体 | `work/font/build/KangXiKai-v2.6.2.ttf`（sha `b73e9f01…`） | **fast_gate 8/8 PASS**；全闸 3 项已知债；不发布 |
+| 构建输入·mapping | `work/lead/mapping_block_v271.jsonl`（17,005 字；v270 留档） | 唯一真源 |
+| 构建输入·几何 | `work/lead/page_geometry.jsonl`（E30 扩张版；原版 `page_geometry_v1.jsonl`） | 唯一真源 |
+| 构建输入·线条带 | `work/lead/page_line_bands.json`（26 rect，页级数据驱动） | pre-cut 数据 |
+| 构建输入·manifest | `work/font/build/manifest_v262.json` | 由 build_stats 生成 |
+| 参考字体 | `scripts/reffont.py` → 霞鹜文楷 LXGW WenKai（OFL，不随包分发） | 唯一参考 |
+| 闸报告 | `work/lead/fast-gate-v262.json`、`gate-report-v262.json`、`glyph-frame-gate-v262.json`、`page-geometry-gate-v262.json` | 现行 |
+| 扫描 | `work/lead/missing_scan_v262.jsonl`（827）、`frame_scan_v262.jsonl`（1） | 带 sidecar 绑定 |
+| 分析数据 | `empty-assign-triage-v262.json`、`content-triage-v262.json`、`content-aspect-analysis-v262.json`、`frame43-triage.json` | CS3 输入 |
+| 过程包 | `release/KangXiKai-v2.6.1/`（旧 finalize，按现行闸会 FAIL） | 不签收、不重打（ACCEPT） |
+| 重构前基线 | `release/KangXiKai-v2.5.8/`（8 项闸 PASS） | 内容闸基线 |
 | 历史版本 | `audit/RELEASE-HISTORY.jsonl` + `audit/release-evidence/` | 52 版元数据 + 4 版闸证据 |
 
 ## 3. 已知缺陷（按严重度）
 
-| 级别 | 缺陷 | 现状/计划 |
+| 级别 | 缺陷 | 现状 / 计划 |
 |---|---|---|
-| P0 类 | 框线逃逸 **153**；内容闸 **35** | CS2 页级几何 / CS3 mapping 指派；**不得用单字补丁** |
-| P0 类 | 门禁盲区：缺字形级框线闸、无 provenance 闸、无页级几何闸 | CS1 补三个闸 |
-| P0 类 | v2.6.1 有 2 对同框冲突（沓/𦧟、䛱/忠）→ 修复后的 font_qa 会 FAIL | CS1.5 改 mapping（不得改字形绕过） |
-| 已完成 | 第 3 代审计的 14 项修复（缓存版本化/几何路径/fail-closed/换包闸/finalize 顺序/同框闸/limit 等） | 见 `audit/AUDIT-RESPONSE-v2.6.1-audit3.md` |
-| 已完成 | **三闸**（glyph_frame/provenance/page_geometry）+ 扫描输入绑定 + 构建硬化（失败即非 0/worker clamp/overlay 删除/缓存命名空间/clean-tree/finalize 不改包） | CS1-A，2026-11-12；证据见 BACKLOG BF-01/09/12/43/45/46/48/50 |
-| P0 待重建 | 字形级框线 **23** 字（v2.6.1，mixed cache 旧字形）；首次全量重建后复测 | CS1-B |
-| P1 已知债 | 页级几何：bad_boxes **198@1px**（0 容差 360）、空指派半版 **1,173**（01_0006 L=「一」） | CS2/CS3 triage |
-| P1 | 缺件扫描 1,200（含邻字组件；**旧宋体参考口径**，D21 换霞鹜文楷后须重扫重定基线） | CS1 修扫描-参考字体 SHA 绑定后重扫 |
-| P1 | 高频缺 23 含最常用字 一/王/法；**已验证** 01_0006 L 为一之字头页（有 quad）但无 mapping 行；其余 22 字均不在 mapping | CS3 增加「有 quad 但 0 指派」覆盖检查；命中页重新检测（真迹），不补假字 |
-| P1 | mapping 生成链未脚本化（仅数据保留） | 长期：补脚本或用 charalign 重跑；当前保留全部 map JSON |
-| P1 | 343 页无 content_quad（走兜底） | 页级几何校验时按页修 |
-| P1 | 高频缺 23、隔离 9、100 字签核未完成 | 里程碑前处理 |
-| ✅ 已解决 | 参考字体统一霞鹜文楷（OFL，`scripts/reffont.py`）；孔洞/连通分量判据已删除（D21） | 2026-11-12；QA 重跑 v2.6.1 仅同框 2 对 FAIL |
-| P2 | 09–11/13 卷锚点缺失 | 记录在案 |
+| P0·里程碑 | **empty_assign 1,173**：有 quad 无 mapping 行的半版（vol 01–12 **669**，其中 652 有 lattice；vol 00/13 **504**；40 无 lattice）；含 01_0006 L「一」 | CS3：669 个需重跑检测/映射（真迹，不补假字）；00/13 口径待 owner |
+| P0·里程碑 | **缺件扫描 32**（E36 重写后；旧 1,200/1,153/827 不可比）：11 edge_pruned + 22 sliver，**interior=0** | BF-06 口径收尾：是否排除 prune-by-design 边缘碎片待 owner；未发现字身内部真实缺笔 |
+| P0·里程碑 | **内容判据 D23（待 owner）**：content 29（阈值 35）大部分是跨架构归一化差异（E31：12/32 旧字形长宽比偏差>15%），非真实缺笔 | 提案改「源墨保真度」（字形投影 vs 自身 source ink 配准 IoU） |
+| P0·里程碑 | **v2.6.1 包不可签收**（旧 finalize/材料数字矛盾/混入 v2.6.0 数据） | 不重打；下一候选按新 finalize 出包（BF-04/17/18/24） |
+| P0·里程碑 | 硬条件未闭环：隔离 **9 字**（刃/榍/法/紆/総/荹/仟/禦/絞）、**100 字签核**、部界锚点（09–11/13 卷缺）、标签精度敞口（VLM top-1 84.6%, n=13）、DATA 许可细节 | CS4/CS5（BF-29/30/31/32/33） |
+| P1 | 高频缺 **23**（一/件/你/內/合/在/多/張/教/樣/氣/法/清/為/王/相/種/臺/與/被/裡/都/間）：16 在目标缺口内，7 不在 canonical 目标表（异体口径） | BF-16/41：与 empty_assign 一并处理；口径需 owner |
+| P1 | mapping 生成链未脚本化（数据+证据保留） | BF-19 长期项 |
+| P1 | 343 页无 content_quad：**对当前字体 0 影响**（无字形落这些页）；真实缺口是 empty_assign | BF-11 已改写为 empty_assign |
+| P1 | 闸契约/材料/归因（BF-10/17/18/44/47/51/49/25/28） | 输出包前必须闭环 |
+| P2 | 文档数字清理（DATA/PIPELINE/BACKLOG 仍有旧口径引用）、脚本 keep/archive 判定、研究项 BF-35、GAN 分桶清单 BF-34 | 随轮次清理 |
+| ✅ 已解决 | 三闸缺失（BF-01）、同框 2 对（BF-02）、页几何 box 越界 198/360（BF-03/E30）、strip 切后擦（BF-13/E29）、Songti 依赖（BF-14）、字形框线 23→0（E24/E27/E29）、内容 35→29、缺件 1,200→827、框线 153→1 | 见 ERRATA E21–E34 |
 
-## 4. 下一步（按顺序；唯一清单见 `docs/BACKLOG.md`）
+## 4. 下一步（唯一清单见 `docs/BACKLOG.md` §10）
 
-0. **CS0（度量与依据层）✅ 2026-11-12**：参考字体唯一化霞鹜文楷（OFL，`scripts/reffont.py`）；font_qa 删除孔洞/连通分量判据（D21）；
-1. **CS1-A ✅ 2026-11-12**：三闸 + 输入绑定 + 构建硬化（BF-01/09/12/43/45/46/48/50）；剩余 BF-10/17/18/20/44 部分项；
-2. **CS1-B ✅ 2026-11-12**：v2.6.2 全量重建（6m42s → 10m36s 含页 mask），候选可复现（缓存命中重建 sha 一致）；
-3. **CS1.5 ✅ 2026-11-12**：同块冲突 2 对清除（BF-02/E23），字表 17,005；
-4. **CS2 v1 ✅ 2026-11-12**：页级 pre-cut 直线 mask（E24），字形框线 23→14、内容 35→33；单字 ROI 两法实验失败已回退（E25 verified box / E26 thick ink）；
-5. **CS2 v2（进行中）**：剩余 14 字框内残线改**页级几何修**（BF-53/BF-11：修所在页 content quad/text bbox）；页级几何 198/360、1,173 空指派 triage；之后**strip 已摘除（D22/E29）**；
-6. **CS3**：内容 33→0、缺件新参考口径重扫（BF-06）、沓/忠 重定位（E23）、半版 0 指派覆盖检查；
-7. **CS4/CS5**：高频缺 23 / 隔离 9 / 100 字签核；
-8. 里程碑条件满足 → 正式包（按 WORKFLOW §7）。
+1. **CS3-A（进行中）**：empty_assign 669 个 vol 01–12 半版补映射（先 01_0006 L「一」）→ 覆盖/缺口重算；00/13 口径待 owner；
+2. **CS3-B**：缺件 827 triage（注文/邻字 vs 真实缺笔）→ 真实缺笔类级修复回写 mapping；
+3. **D23 owner 决策**：内容判据（源墨保真度）→ 里程碑内容硬条件口径；
+4. **CS4/CS5**：高频缺 23、隔离 9、100 字签核、锚点、精度披露、DATA 许可；
+5. 以上归零/披露后 → 里程碑严格全闸 → 复核包 → `font_package` → `release_gate finalize` → 冻结。
 
 ## 5. 如何独立审计（不信任任何人写下的数字）
 
 ```bash
-# 1) 字体存在性与 sha
-shasum -a 256 work/font/build/KangXiKai-v2.6.1.ttf
-# 2) 快闸（会打印 7 项 PASS/FAIL；内容闸阈值 35）
-.venv/bin/python scripts/fast_gate.py --font work/font/build/KangXiKai-v2.6.1.ttf \
-  --manifest work/font/build/manifest_v261.json --version 2.6.1 \
+# 1) 字体 QA / 快闸（现行候选预期：QA PASS、fast_gate 8/8 PASS）
+.venv/bin/python scripts/font_qa.py --font work/font/build/KangXiKai-v2.6.2.ttf \
+  --manifest work/font/build/manifest_v262.json --outdir /tmp/qa_now
+.venv/bin/python scripts/fast_gate.py --font work/font/build/KangXiKai-v2.6.2.ttf \
+  --manifest work/font/build/manifest_v262.json --version 2.6.2 \
   --baseline work/font/build/KangXiKai-v2.5.8.ttf \
-  --baseline-manifest work/font/build/manifest_v258.json \
-  --pkg-dir release/KangXiKai-v2.6.1 --content-max-damaged 35
-# 3) 复现构建（缓存命中，应 17,007 cached，sha=c73c3023…）
-FONT_BUILD_WORKERS=10 .venv/bin/python scripts/font_build.py \
-  --mapping work/lead/mapping_block_v270.jsonl --out /tmp/audit.ttf --version 2.6.1
-# 4) 抽查字形（渲染或看发布包 random120-v260.png / specimen.png）
-# 5) 阅读：release/KangXiKai-v2.6.1/gate-report-v261.json（每步 ok/阈值/明细）
+  --baseline-manifest work/font/build/manifest_v258.json --content-max-damaged 35 --tag v262
+# 2) 全闸（复用已绑定扫描；缺基线参数即 FAIL）
+.venv/bin/python scripts/release_gate.py --version 2.6.2 \
+  --font work/font/build/KangXiKai-v2.6.2.ttf --manifest work/font/build/manifest_v262.json \
+  --prev work/font/build/KangXiKai-v2.5.8.ttf --prev-manifest work/font/build/manifest_v258.json \
+  --scan --reuse-missing work/lead/missing_scan_v262.jsonl \
+  --frame-scan --reuse-frame work/lead/frame_scan_v262.jsonl --content-max-damaged 35 --tag v262
+# 3) 数字核对：content 29 / glyph 0 / missing 827 / frame 1 / bad_boxes 0 / empty_assign 1,173
 ```
 
-审计原则：**只信闸输出与复算命令**；文档里的数字若与闸不一，以闸为准。发现文档不符 → 记入 `ERRATA.md`。
+- 所有闸输出含输入绑定 sidecar（`<out>.sha256`：font/manifest/mapping/geometry/bands/reffont/脚本 sha + git）；
+  复用前必须校验，失败 fail-closed。
+- 缓存键 = 算法 sha8 + geometry sha12 + bands sha12；换任一项即全量重建（约 10m30s）。
 
-## 6. 时间线与历史
+## 6. 明确接受（不修）
 
-- 逐版变更：`docs/VERSION-HISTORY.md`（v0.3→v2.6.1，探索/修补分类）；
-- 编年记录：`docs/_history/COUNTS.md`、`docs/_history/V3-STATUS.md`（历史，不作现行依据）；
-- 审计：`audit/`（现行结论）+ `audit/_history/`（历史审计存档，不改写）。
+- `docs/_history/` 历史文档内部旧引用不改写；v2.6.1 旧包不重打；历史 release 数字不回溯重算；审计报告保留原文（只追加状态）。
+- 内容闸与 v2.5.8 的差异（E31）不再逐字追平——改为 D23 源墨保真度判据（待 owner）。
+
+## 7. 常见坑
+
+见 `AGENTS.md` §6（框线切后擦、restore/overlay、闸盲区、单字补丁、管道吞退出码、未提交打包、finalize 后改包、扫描复用、旧口径数字不可比、会话失忆）。

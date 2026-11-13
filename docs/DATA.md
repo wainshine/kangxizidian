@@ -2,8 +2,8 @@
 
 # 数据、许可与校验和
 
-> **现行状态（2026-11-12，v2.6.1）**：发布字体 17,007 字形（headword-only 真迹），基本区 10,269/20,992 = 48.92%，目标字表 10,269/16,567 = 61.98%，缺口 6,298。
-> 现行构建输入：`work/lead/page_geometry.jsonl`、`work/lead/mapping_verified_all33.jsonl`、`work/lead/mapping_block_v270.jsonl`、`work/font/build/manifest_v261.json`；缓存 tag v350；字体 sha `c73c3023…`。
+> **现行状态（2026-11-13，v2.6.2 候选）**：字体 17,005 字形（headword-only 真迹），基本区 10,267/20,992 = 48.91%，目标字表 10,267/16,567 = 61.97%，缺口 6,300；fast_gate 8/8 PASS；全闸 3 项已知债（缺件 827 / 源图框线 1 / empty_assign 1,173）。
+> 现行构建输入：`work/lead/page_geometry.jsonl`（E30 扩张版）、`work/lead/mapping_block_v271.jsonl`、`work/lead/page_line_bands.json`、`work/font/build/manifest_v262.json`；缓存版本 = 算法 sha8 + geometry sha12 + bands sha12；字体 sha `b73e9f01…`。
 > 构建/闸命令见 `docs/PIPELINE.md` §6；本文 §1 的 14 册 PDF 描述仍准确（00–13，3,869 页，12GB）。
 > **字体许可规则**（沿用馆阁体标准）：禁止把专有/商业字体（含系统宋体/黑体）作为发布依据或参照。全管线唯一参考字体 = **霞鹜文楷（LXGW WenKai，OFL 1.1）**，由 `scripts/reffont.py` 统一提供，默认 `work/font/_fonts/LXGWWenKai-Regular.ttf`（复制自馆阁体项目 vendored 文件，不随发布包分发）。参考字体只用于对比分析，不得用于自动删改字形（D20/D21）。
 >
