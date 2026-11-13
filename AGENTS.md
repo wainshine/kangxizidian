@@ -4,13 +4,16 @@
 
 ## 0. 先读这几个文件（按顺序）
 
-1. `docs/PROJECT-STATE.md` —— 30 秒现状、已知缺陷、如何独立审计
-2. `docs/PIPELINE.md` —— 现行管线架构/原理/流程/参数/复现命令（唯一权威）
-3. `docs/WORKFLOW.md` —— 流程纪律：候选/正式分层、变更集、闸分层、里程碑发版、7 张复核图
-4. `docs/VERSION-HISTORY.md` —— 每版改了什么、探索 vs 修补
-5. `docs/WORK-MAP.md` —— `work/` 痕迹地图（**不能盲删**）
-6. `docs/DECISIONS.md` —— 口径决策（唯一权威，D1–D22+更正注记）
-7. `docs/GLOSSARY.md` —— 术语（冲突时以它为准）
+1. `docs/README.md` —— 文档索引（先看它，按它给的顺序读）
+2. `docs/ARCHITECTURE.md` —— 项目架构 / 文件夹层级 / 依赖方向 / 新增文件放哪里
+3. `docs/METHOD.md` —— 技术路线（可读版）
+4. `docs/PROJECT-STATE.md` —— 30 秒现状、已知缺陷、如何独立审计
+5. `docs/PIPELINE.md` —— 现行管线架构/原理/流程/参数/复现命令（唯一权威）
+6. `docs/WORKFLOW.md` —— 流程纪律：候选/正式分层、变更集、闸分层、里程碑发版、7 张复核图
+7. `docs/VERSION-HISTORY.md` —— 每版改了什么、探索 vs 修补
+8. `docs/reference/WORK-MAP.md` —— `work/` 痕迹地图（**不能盲删**）
+9. `docs/DECISIONS.md` —— 口径决策（唯一权威，D1–D23+更正注记）
+10. `docs/GLOSSARY.md` —— 术语（冲突时以它为准）
 
 ## 1. 硬性约束（违反即事故）
 
@@ -19,21 +22,22 @@
 - **不数孔洞/连通分量评判字形**（D21）：刻本为雕刻常断笔，孔洞缺失/连通分量偏多/碎片都是工艺特征，不是缺陷信号；字形质量由 pre-cut 几何 + `glyph_frame_gate`（线段几何）+ 内容/缺件闸承担。
 - **并发上限**：同时最多 **10 个 worker**，总 CPU ≤ 2000%。多进程脚本必须设 `OMP_NUM_THREADS=MKL_NUM_THREADS=OPENBLAS_NUM_THREADS=1`，worker 内 `cv2.setNumThreads(1)`；启动后核对 CPU。默认 `FONT_BUILD_WORKERS=10`。
 - **大文件不入库**：PDF、`work/`、模型、TTF 构建产物、zip 都在 `.gitignore`。
-- **`work/` 不可盲删**：JSON/JSONL 是方法核心成果，一律保留；只清图片/数组/纯缓存（见 `docs/WORK-CLEANUP.md`）。
+- **`work/` 不可盲删**：JSON/JSONL 是方法核心成果，一律保留；只清图片/数组/纯缓存（见 `docs/reference/WORK-CLEANUP.md`）。
 - **字表口径**：headword-only（只收字头真迹，不收注文小字、不补假字形；D15）；字头 = **2×2 小字格块**。
 - **版面排除**：版框/页边黑带/界行必须在**裁切阶段**排除（pre-cut），禁止「切进来再擦」（owner 明令）。
 - **修复纪律**：一类问题一次修（类级）；**禁止单字补丁**；**禁止 restore/overlay 整字拷贝旧字形**（会把旧框线带回）。
+- **代码布局（owner 2026-11-14）**：`scripts/` 顶层只放现行管线（28 个）；一次性脚本从开始就放 `scripts/oneoff/`；数据 provenance 放 `scripts/provenance/`；`_archive/` 只冻结历史、不再作日常归档。禁止把一次性脚本放顶层或用完丢 archive。
 - **数字来源**：任何写进文档/报告的数字必须来自闸输出或可复算命令；没有证据就写「待验证」。
 - **发布口径**：候选不进 `release/`；只有**里程碑**才打正式包；正式包必须来自 **clean git tree**，SHA 覆盖 gate-report，finalize 后不再改包内文件。
 
 ## 2. 当前状态（2026-11-13，E37 后）
 
-- 当前基线：**v2.6.2 工程候选**（`work/font/build/KangXiKai-v2.6.2.ttf`，sha `a8bb87d9…`（owner 复核反馈修复 E37 后）；**fast_gate 8/8 PASS**）；**v2.6.2 正式包已出（2026-11-14）**：`release/KangXiKai-v2.6.2/` + `.zip`，font sha `a8bb87d9…`，finalize 17/17 PASS（zip sha 见 `release/RELEASE-INVENTORY.tsv`）；披露阈值：内容 35 / 缺件 165 / empty 1,173 / 框线 0。**v2.6.x = 2.6 系列补丁线**：下一批 **v2.6.3**（BF-06 缺件 165、BF-54 标签 11；见 `docs/PLAN-v2.6.3.md`），做不完的计划项顺延 v2.6.4/2.6.5…，不阻塞本系列发版。`release/` 现含 v2.5.8（重构前基线）、v2.6.1（过程版）、**v2.6.2（正式包，2026-11-14）**。
+- 当前基线：**v2.6.2 工程候选**（`work/font/build/KangXiKai-v2.6.2.ttf`，sha `a8bb87d9…`（owner 复核反馈修复 E37 后）；**fast_gate 8/8 PASS**）；**v2.6.2 正式包已出（2026-11-14）**：`release/KangXiKai-v2.6.2/` + `.zip`，font sha `a8bb87d9…`，finalize 17/17 PASS（zip sha 见 `release/RELEASE-INVENTORY.tsv`）；披露阈值：内容 35 / 缺件 165 / empty 1,173 / 框线 0。**v2.6.x = 2.6 系列补丁线**：下一批 **v2.6.3**（BF-06 缺件 165、BF-54 标签 11；见 `docs/plans/PLAN-v2.6.3.md`），做不完的计划项顺延 v2.6.4/2.6.5…，不阻塞本系列发版。`release/` 现含 v2.5.8（重构前基线）、v2.6.1（过程版）、**v2.6.2（正式包，2026-11-14）**。
 - 字形 **17,005**（headword-only 真迹；同块冲突剔除 沓/忠）；基本区 10,267/20,992 = **48.91%**；目标字表 10,267/16,567 = **61.97%**；缺口 **6,300**（高频缺 23 + 忠 待重新定位）。
 - 闸（v2.6.2 候选）：font_qa **PASS**（同框 0）；字形级框线 **0 PASS**（E27 页级线条带）；内容 **18**（阈值 35）PASS——大部分归因为跨架构归一化差异（E31，非真实缺笔；待 D23 确认源墨保真度判据）；provenance PASS；页级几何 **bad_boxes 0** / empty_assign 1,173（唯一严格 FAIL，mapping 缺口）；源图框线 **0**、缺件 **165**（E37 后：细笔画恢复与 prune 边缘清理的下一轮口径问题）。
 - 构建：`work/lead/mapping_block_v271.jsonl`（同块修复后；v270 留档）+ `work/lead/page_geometry.jsonl` + **自动缓存版本**（算法 sha8+几何 sha12）；实测全量重建 **6m42s**（0 命中，无页 mask）/ **10m36s**（含页级 pre-cut mask）；缓存命中重建 **3m50–3m52s**（17,005 cached，10 workers）。
 - 隔离 9 字：刃/榍/法/紆/総/荹/仟/禦/絞。
-- 进度：CS0 ✅（参考字体/QA 判据）→ **CS1-A ✅**（三闸 + 输入绑定 + 构建硬化；BF-01/09/12/43/45/46/48/50）→ **CS1-B ✅ 2026-11-12**（v2.6.2 全量重建 6m42s；同块修复后增量 3m50s；候选定版）→ **CS1.5 ✅**：同块清除（E23）→ **CS2 v1 ✅（E24 页级 mask 23→14）** → **CS2 v2 实验失败回退（E25/E26）** → **CS2 v3 ✅ 2026-11-13**：页级线条带（E27）清 14 处 → **CS2 v4 ✅**：strip_border_lines 摘除（D22/E29，线条带扩到 26 rect；glyph_frame 仍 0、内容 0 回归）→ **fast_gate 8/8 PASS**（候选 sha `f901c9d4…`，content 34/35）→ **CS2 v5 ✅**：quad 扩张（E30）bad_boxes 198→0、内容 34→32（候选 sha `852f3193…`）→ **CS3 v1 ✅**：扫描口径对齐（E32）+ 极细线 pre-cut（E33）→ **CS3 v2 ✅**：缺件扫描配准重写（E35/E36）→ **CS4 v1 ✅ 2026-11-13（E37，owner 复核 77 格）**：细线只删穿越块边界组件 + 线带解耦 + clean_ink 远碎片规则 → 字形框线 **0**、框线逃逸 **0**、内容 vs v2.5.8 **29→18**、缺件 **165**（prune 边缘口径）、候选 sha **`a8bb87d9…`**；发布材料（README/LICENSE/OFL/指标/已知债）已补齐；下一步：**v2.6.3 批**（BF-06 缺件 165、BF-54 标签 11）→ 后续 patch 滚动 empty_assign/D23/硬条件；里程碑条件满足时把当时 patch 定为正式里程碑版（见 `docs/PLAN-v2.6.3.md`）。
+- 进度：CS0 ✅（参考字体/QA 判据）→ **CS1-A ✅**（三闸 + 输入绑定 + 构建硬化；BF-01/09/12/43/45/46/48/50）→ **CS1-B ✅ 2026-11-12**（v2.6.2 全量重建 6m42s；同块修复后增量 3m50s；候选定版）→ **CS1.5 ✅**：同块清除（E23）→ **CS2 v1 ✅（E24 页级 mask 23→14）** → **CS2 v2 实验失败回退（E25/E26）** → **CS2 v3 ✅ 2026-11-13**：页级线条带（E27）清 14 处 → **CS2 v4 ✅**：strip_border_lines 摘除（D22/E29，线条带扩到 26 rect；glyph_frame 仍 0、内容 0 回归）→ **fast_gate 8/8 PASS**（候选 sha `f901c9d4…`，content 34/35）→ **CS2 v5 ✅**：quad 扩张（E30）bad_boxes 198→0、内容 34→32（候选 sha `852f3193…`）→ **CS3 v1 ✅**：扫描口径对齐（E32）+ 极细线 pre-cut（E33）→ **CS3 v2 ✅**：缺件扫描配准重写（E35/E36）→ **CS4 v1 ✅ 2026-11-13（E37，owner 复核 77 格）**：细线只删穿越块边界组件 + 线带解耦 + clean_ink 远碎片规则 → 字形框线 **0**、框线逃逸 **0**、内容 vs v2.5.8 **29→18**、缺件 **165**（prune 边缘口径）、候选 sha **`a8bb87d9…`**；发布材料（README/LICENSE/OFL/指标/已知债）已补齐；下一步：**v2.6.3 批**（BF-06 缺件 165、BF-54 标签 11）→ 后续 patch 滚动 empty_assign/D23/硬条件；里程碑条件满足时把当时 patch 定为正式里程碑版（见 `docs/plans/PLAN-v2.6.3.md`）。
 
 ## 3. 最短验证命令
 

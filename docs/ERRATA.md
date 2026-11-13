@@ -52,11 +52,11 @@
 
 ## E8. 系统宋体（Songti）依赖：仅报告用途，不得作为决策依据
 
-- `font_qa.py`（孔洞对照）、`scan_missing_parts.py`（参考校验）、`owner_defect_sheet.py`（复核图占位）使用 macOS 系统宋体。
+- `font_qa.py`（孔洞对照）、`scan_missing_parts.py`（参考校验）、`scripts/oneoff/owner_defect_sheet.py`（复核图占位）使用 macOS 系统宋体。
 - 这是**专有字体**；按项目约束（沿用馆阁体标准）：不新增依赖，现有引用只能用于报告/对照，**不得作为发布/签收的唯一依据**。
 - **已解决（2026-11-12，D21）**：全管线参考字体统一为 **霞鹜文楷（OFL）**，唯一来源 `scripts/reffont.py`
   （`font_qa` 孔洞对照已删除；`scan_missing_parts`/`refgate`/`fidelity_eval`/复核图/legacy 标注脚本均已切换）。
-  macOS 宋体不再被任何构建/闸/报告脚本引用；`lead_t1v2_frozen.py` 等 legacy 脚本仅替换了标注字体，方法未变。
+  macOS 宋体不再被任何构建/闸/报告脚本引用；`scripts/provenance/lead_t1v2_frozen.py` 等 legacy 脚本仅替换了标注字体，方法未变。
 - 覆盖对比（对 17,007 字集）：霞鹜文楷 12,427（73.07%）> 旧系统宋体 TC 12,155（71.47%），换字体不降覆盖率。
 
 ## E9. 早期「8/8/9/9 闸 PASS」不代表字形无框线
@@ -155,7 +155,7 @@
 - 冲突：08_0319R 沓/𦧟、10_0081R 䛱/忠 共用同一 2×2 块。
 - 复核：原始 verified box 显示被丢的两个是**片段框**（沓 48×78、忠 45×70；对应真字为 83×78、77×77），
   且 沓 属水部、忠 属心部，本不应出现在舌部/言部页——是 canonical 对齐把邻字片段/注文提及误标成字头。
-- 处置（类级规则，`scripts/fix_mapping_sameblock.py`）：同块多字时保留原始 ink box 面积最大者，
+- 处置（类级规则，`scripts/oneoff/fix_mapping_sameblock.py`）：同块多字时保留原始 ink box 面积最大者，
   其余删除并写 residual 声明（`work/lead/v262_sameblock_residual.json`）；
   沓/忠 进入缺口（目标区 10,269→10,267，缺口 6,298→6,300），交给 CS3 从对应部首页重新定位。
 - 结果：mapping 17,007→17,005 字；`font_qa` 同框=0 **PASS**；重建（17,005 cached）耗时 3m50s。
@@ -240,7 +240,7 @@
 
 - 问题：`page_geometry_gate.bad_boxes` = manifest box 四角经 quad.M 变换后越出 quad["box"]：
   198@1px / **360@0** / max 8.803px；越界处字头可能被 clip mask 裁到。
-- 类级修法：新脚本 `scripts/expand_quads_to_cover_boxes.py` —— 对每个 (page,half) 把 quad["box"]
+- 类级修法：新脚本 `scripts/oneoff/expand_quads_to_cover_boxes.py` —— 对每个 (page,half) 把 quad["box"]
   在旋转空间扩到覆盖该半版**全部 assigned box 四角**（只扩不缩，+0.5px 余量），写回
   `work/lead/page_geometry.jsonl`（原文件留档 `page_geometry_v1.jsonl`，sha `42da3c0f…`）。
   受影响 **5,695 个半版**，单边最大扩张 **9.303px**；报告 `work/lead/quad-expand-report.json`。
@@ -349,7 +349,7 @@
   - font_qa PASS；`frame_escape` 口径同时收紧：厚度 ≤3px@300 的亚像素线不计（见扫描脚本 MIN_THICK=4）。
 - 修复后全库数字：font_qa PASS、glyph_frame **0**、frame_escape **0**（新口径）、content vs v2.5.8 **18**/35；
   缺件扫描 165（=把 165 字在块内细笔画恢复后，prune_edge_contours 又在字墨 bbox 边缘删掉的组件；
-  属「恢复 vs 边缘清理」的下一轮口径问题，已入 v2.6.3 首批（BF-06），见 `docs/PLAN-v2.6.3.md` §1）。
+  属「恢复 vs 边缘清理」的下一轮口径问题，已入 v2.6.3 首批（BF-06），见 `docs/plans/PLAN-v2.6.3.md` §1）。
 - **未修（进 v2.6.3）**：11 个「字与 Unicode 不对应」= mapping 标签错误（例：04_0014 R 标注「愈」的框实为注文
   「愈孟」两小字；06_0080 R 标注「急」的框实为「滓」）。修复需按页重定位真迹字头（禁止补假字）——
   归入 v2.6.3 批 mapping 审计（BF-54 / BF-16 扩展）；本候选不宣称此 11 字已解决。

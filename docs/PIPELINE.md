@@ -36,7 +36,7 @@
 | 一页 = 跨页 | 左/右半版 `L`/`R`；gutter 由列投影取 42–58% 区间最小值定位 |
 | 坐标 dpi | **150dpi 坐标系**（lattice/box/manifest 全部用它）；渲染裁片用 **300dpi**（`dpi_scale=2.0`） |
 | 字框 box | `[x0,y0,x1,y1]` @150dpi，`(x0,y0)` 左上 |
-| 产物根 | `work/`（不入 git，见 `docs/WORK-MAP.md`）；发布物 `release/` |
+| 产物根 | `work/`（不入 git，见 `docs/reference/WORK-MAP.md`）；发布物 `release/` |
 
 ---
 

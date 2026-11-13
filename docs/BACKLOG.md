@@ -37,8 +37,8 @@
 | ID | 问题 | 证据 | 修法 | 验收 | 轮次 |
 |---|---|---|---|---|---|
 | BF-01 | **三闸缺失**：字形级框线闸 / provenance 无拷贝闸 / 页级几何闸 | 审计 DSH P0-3 | 已建三闸并接入快/全闸：`glyph_frame_gate`（TTF 输出字形扫细长直线，只用线段几何，不数孔洞 D21）、`provenance_gate`（manifest/mapping/stats 自洽 + 无拷贝标记）、`page_geometry_gate`（quad 覆盖/box 用 M 变换进旋转空间/空指派/块∩quad） | ✅ **完成（2026-11-12）**：三闸可 FAIL；glyph_frame_gate 抓住 v2.6.0 的 勤 等 10 字；v2.6.2 候选 23 字（同 v2.6.2；v2.5.8 19），见 `glyph-frame-gate-v26x.json`；检查 `work/lead/gate-*` | CS1 |
-| BF-02 | **同框冲突 2 对**：沓/𦧟（08_0319 R）、䛱/忠（10_0081 R） | 修复后的 font_qa 实测 2 对；审计 DSH P0-5 | 类级规则 `scripts/fix_mapping_sameblock.py`：同块多字保留 verified ink box 面积最大者，其余删除并写 residual（沓/忠 为片段框误标，转缺口待 CS3 重定位）；禁止改字形绕过 | ✅ **完成（2026-11-12）**：font_qa 同框=0 PASS；新字体 17,005 字（E23）；`sameblock-fix-report.json` | CS1.5 |
-| BF-03 | **页几何残差**：box 越界 198@1px/360@0、max 8.8px | 已复核为 quad 偏紧非坐标错；E30 用 quad 扩张覆盖全部 box 修复 | `expand_quads_to_cover_boxes.py`（只扩不缩，+0.5px） | ✅ **完成（2026-11-13，E30）**：bad_boxes 198→0、零容差 360→0、max overflow 0；内容 34→32 | CS2 |
+| BF-02 | **同框冲突 2 对**：沓/𦧟（08_0319 R）、䛱/忠（10_0081 R） | 修复后的 font_qa 实测 2 对；审计 DSH P0-5 | 类级规则 `scripts/oneoff/fix_mapping_sameblock.py`：同块多字保留 verified ink box 面积最大者，其余删除并写 residual（沓/忠 为片段框误标，转缺口待 CS3 重定位）；禁止改字形绕过 | ✅ **完成（2026-11-12）**：font_qa 同框=0 PASS；新字体 17,005 字（E23）；`sameblock-fix-report.json` | CS1.5 |
+| BF-03 | **页几何残差**：box 越界 198@1px/360@0、max 8.8px | 已复核为 quad 偏紧非坐标错；E30 用 quad 扩张覆盖全部 box 修复 | `scripts/oneoff/expand_quads_to_cover_boxes.py`（只扩不缩，+0.5px） | ✅ **完成（2026-11-13，E30）**：bad_boxes 198→0、零容差 360→0、max overflow 0；内容 34→32 | CS2 |
 | BF-04 | **v2.6.1 包不可签收**：旧 finalize（zip 内报告/SHA 旧）、包内 README 数字矛盾（60/700 vs 153/1200）、review tsv 混入 v2.6.0 数据 | 审计 DSH P0-2/P1；本次核对确认 | 不重打 v2.6.1；下一候选重建后按新 finalize 顺序出包；材料由同一数据源生成 | 新包 zip==目录、SHA 覆盖报告、材料数字与 gate-report 一致 | CS1 |
 | BF-05 | **内容闸 34→32**；32 字归因为跨架构归一化差异（E31：12/32 旧字形长宽比偏差>15%，非真实缺笔） | `content-aspect-analysis-v262.json` / `content-triage-v262.json` | 提案 **D23**：内容判据改「源墨保真度」（字形 vs 自身 source ink 配准 IoU）；旧字体 delta 只作回归告警 | 里程碑内容判据经 owner 确认 + 源墨保真度基线披露 | CS3 |
 | BF-06 | **缺件扫描 165**（E37 修复后：原来被删的块内细笔画恢复后，prune_edge_contours 在字墨 bbox 边缘又删掉的组件；32/827 为历史口径） | `work/lead/missing_scan_v262.jsonl` + `missing-32-triage.json` | 32 = **11 edge_pruned + 22 sliver，interior 0**（未发现字身内部真实缺笔）；剩余口径：里程碑是否排除 prune-by-design 边缘碎片（BF-10/D23 类决策） | 口径经 owner 确认后定阈值/披露；known-debt 清单冻结 | CS3/CS4 |
@@ -61,7 +61,7 @@
 | BF-18 | **changesets/version-artifacts 三件套未强制** | 审计 GLM P1-1；本轮已补 v2.6.1 回溯文件 | release_gate finalize 检查三件套存在（新版本必须有 cs-\* + version-artifacts） | 缺失即 FAIL | CS1 |
 | BF-19 | **mapping 生成链未脚本化**（仅数据+碎片脚本） | SCRIPTS/PROJECT-STATE 已知债 | 长期：用 charalign 脚本重建成可复现链；短期保留全部 map JSON 证据 | 能从 canonical + 扫描件重跑出 mapping（报告一致性） | 长期 |
 | BF-20 | **fast_gate char_diff 不拦截 removed**（release_gate 有一致性检查） | 审计 GLM P2-8 | fast_gate 增加 quarantine 对账；removed>0 且不在隔离清单 → FAIL | ✅ **完成（2026-11-12~13）**：fast_gate `char_diff` 步已拦截；v2.6.2 的 沓/忠 声明在 `v262_sameblock_residual.json`，未声明 removed 即 FAIL（实测生效） | CS1 |
-| BF-43 | **禁止能力仍可触达**：主链保留 restore/overlay 整字拷贝代码路径与缓存 `__overlay__` 分支 | 审计 BUILD-07/DOCS-10 | 删除主链 overlay 分支/`--repair-overlay`/`--src-map`/`contours_override` 读取；构建遇 dict 轮廓即报错；`make_repair_overlay.py` 停用 | ✅ **完成（2026-11-12）**：注入 `__overlay__` 字形 → RuntimeError exit 1；overlay 生成器 exit 1 | CS1 |
+| BF-43 | **禁止能力仍可触达**：主链保留 restore/overlay 整字拷贝代码路径与缓存 `__overlay__` 分支 | 审计 BUILD-07/DOCS-10 | 删除主链 overlay 分支/`--repair-overlay`/`--src-map`/`contours_override` 读取；构建遇 dict 轮廓即报错；`scripts/oneoff/make_repair_overlay.py` 停用 | ✅ **完成（2026-11-12）**：注入 `__overlay__` 字形 → RuntimeError exit 1；overlay 生成器 exit 1 | CS1 |
 | BF-45 | **clean-tree/freshness 闸可绕过**：`--allow-dirty` 全绕过、被 gitignore 的构建输入不进 provenance | 审计 GATE-13 | finalize 前置 `clean_tree` 步（脏树 FAIL，`--allow-dirty` 仅调试且记录）；输入 sha 进 gate-report `inputs` | ✅ **完成（2026-11-12）**：临时包副本跑全闸 → `FAIL clean_tree`（dirty=true）且 `package_touched=false` | CS1 |
 
 ## 4. P2
@@ -97,11 +97,11 @@
 | BF-31 | **部界锚点口径不可全信**：39/39 系循环论证；09–11/13 卷锚点缺失 | SCRIPTS §8-3；PROJECT-STATE | 严格版锚点重校验（`validate_anchors3` 思路，禁止块内取墨再判块内）；补 4 卷锚点 | 严格校验 PASS；锚点作为 mapping 回归基线 | CS2/CS5 |
 | BF-32 | **标签精度敞口**：VLM top-1 84.6%（n=13，宽 CI）→ 约 1,400–1,500 字级风险 | OCR-OPTIONS/历史记录；PROVENANCE 精度说明 | 独立抽样验证（扩大 n，按卷/部首分层）；高风险字进隔离或复核 | 抽样报告落盘；敞口区间更新并披露 | CS5（里程碑硬条件） |
 | BF-33 | **DATA 源扫描件来源/许可信息**（渠道已确认=书格 shuge.org；影印出版者/扫描者/条款细节待补） | owner 2026-11-12 确认渠道；docs/DATA.md §1 已写 | 补影印出版/扫描者信息与站点条款；进包 PROVENANCE | DATA §1 完整；许可声明可追溯 | CS5/材料（部分完成） |
-| BF-34 | **D19 缺口分桶清单旧口径**：`v245_gan_targets.json`=6,214 vs 当前缺口 **6,300** | SCRIPTS §8-5 | 若仍采用 D19 分桶策略，用 `lead_gan_targets.py` 重生成 | 清单与当前缺口一致，随包 | P2（策略相关） |
+| BF-34 | **D19 缺口分桶清单旧口径**：`v245_gan_targets.json`=6,214 vs 当前缺口 **6,300** | SCRIPTS §8-5 | 若仍采用 D19 分桶策略，用 `scripts/provenance/lead_gan_targets.py` 重生成 | 清单与当前缺口一致，随包 | P2（策略相关） |
 | BF-35 | **SCRIPTS §8 的 6 处旧方法 A/B 未做** | SCRIPTS §8/§7.3 | 暂缓：方法与现架构（pre-cut/源码 bbox 归一）无关；如恢复研究再排期 | 决策记录（DECISIONS 追加） | P2（研究，暂缓） |
 | BF-36 | **代码-文档不一致**：`detect_blocks` docstring「留边≥4%」实现未设阈值 | SCRIPTS §8-1 | 改代码实现阈值或改 docstring；不得留双口径 | 文档=行为 | P2 |
 | BF-37 | **复核包脚本化**：已简化为 3 件（`01-changes` / `02-random100` / `ledger.tsv`），`scripts/make_round_pack.py` 一条命令生成；其余图按需 | WORKFLOW §6；`work/review/round-002/` | 保持 3 件不膨胀 | 任一轮一条命令生成 3 件 | ✅ 完成（2026-11-12） |
-| BF-38 | **术语检查器缺失**（GLOSSARY 未落地为检查；版本命名/禁用词） | PROJECT-AUDIT §4；馆阁体对照 | `scripts/check_terms.py`：检查 docs/代码/包内文档禁用词与命名；接进快闸 | 检查器存在且 0 违规（或白名单） | P1（流程） |
+| BF-38 | **术语检查器缺失**（GLOSSARY 未落地为检查；版本命名/禁用词） | PROJECT-AUDIT §4；馆阁体对照 | `check_terms.py`（计划新增，BF-38）：检查 docs/代码/包内文档禁用词与命名；接进快闸 | 检查器存在且 0 违规（或白名单） | P1（流程） |
 | BF-39 | **里程碑治理未机器化**：无「里程碑条件文件」，release_gate 不校验收否满足 | WORKFLOW §7 | 增加 `milestone.json`（P0 清零/已知债冻结/owner 签核/结构冻结）+ gate 校验 | 缺 milestone.json 或条件不满足 → 拒发正式包 | P1（流程） |
 | BF-40 | **lsb/归一化口径历史差异未声明**：v2.5.6 曾 974 字 lsb 重算；当前由轮廓决定（PIPELINE §S3 已改为现行口径说明，BUILD-12） | SCRIPTS §8bis | 核对当前构建 lsb 分布并写入 QA 基线；文书已完成 | 抽样验证 + QA 记录 | P2 |
 | BF-41 | **缺口 6,300 的处理策略未定**：headword-only 不补假字 vs D19 重定位/GAN 目标 | DECISIONS D19；PROJECT-STATE | owner 决定是否/如何补缺口；若做，先定验收与许可 | 策略记录（DECISIONS 追加） | P1（策略，待 owner） |
@@ -145,11 +145,11 @@
 
 | ID | 事项 | 说明 | 轮次 |
 |---|---|---|---|
-| BF-55 | **v2.7.0：GAN 生成字形实现**（参考 guangeti `scripts/21_train_gan.py`、`22_eval_gan.py`、`33_struct_metrics.py`） | 真迹 pair 训练 + 结构闸门 + provenance=gan；生成字不覆盖真迹 | v2.7.0 |
-| BF-56 | **v2.7.0：带状扫掠（ribbon）生成/回退**（参考 guangeti `scripts/brush_lib.py`、`generate_lib.py`、`36_fill_fallback.py`） | 骨架→笔宽→变宽渲染；GAN 输出不过结构闸门时回退 ribbon | v2.7.0 |
-| BF-57 | **发布材料三件套**：项目 README、LICENSE/OFL、版本对比指标（`scripts/release_metrics.py` + `docs/RELEASE-METRICS.md`） | ✅ 完成（2026-11-13） | 已完成 |
+| BF-55 | **v2.7.0：GAN 生成字形实现**（参考 guangeti `21_train_gan.py`（馆阁体仓库）、`22_eval_gan.py`、`33_struct_metrics.py`） | 真迹 pair 训练 + 结构闸门 + provenance=gan；生成字不覆盖真迹 | v2.7.0 |
+| BF-56 | **v2.7.0：带状扫掠（ribbon）生成/回退**（参考 guangeti `brush_lib.py`（馆阁体仓库）、`generate_lib.py`、`36_fill_fallback.py`） | 骨架→笔宽→变宽渲染；GAN 输出不过结构闸门时回退 ribbon | v2.7.0 |
+| BF-57 | **发布材料三件套**：项目 README、LICENSE/OFL、版本对比指标（`scripts/release_metrics.py` + `docs/reference/RELEASE-METRICS.md`） | ✅ 完成（2026-11-13） | 已完成 |
 | BF-58 | **release_gate 页几何披露阈值**：支持 `--page-geometry-max-empty-assign/bad-boxes` 并在报告披露 | ✅ 完成（2026-11-13） | 已完成 |
-| BF-59 | **正式包固定清单自动生成**（WORKFLOW §8）：`scripts/make_release_extras.py` + `font_package --extra-dir` + `check_release_docs` 干跑 PASS | ✅ 完成（2026-11-13，`docs/SELF-AUDIT-v2.6.2.md`） | 已完成 |
+| BF-59 | **正式包固定清单自动生成**（WORKFLOW §8）：`scripts/make_release_extras.py` + `font_package --extra-dir` + `check_release_docs` 干跑 PASS | ✅ 完成（2026-11-13，`docs/releases/v2.6.2/SELF-AUDIT.md`） | 已完成 |
 
 ## 10. 2026-11-13 梳理：剩余执行清单（权威）
 
@@ -209,4 +209,4 @@
 >
 > **2026-11-13（E37 后）**：v2.6.2 为**正式发布候选**（sha `a8bb87d9…`；发布材料 README/LICENSE/OFL/指标/已知债已补齐）。
 > owner 提交 + 确认 3 项披露阈值（缺件 165、empty_assign 1,173、内容 18/35）后 clean-tree 打包 + finalize。
-> 剩余小修（BF-54 标签 11、BF-06 缺件 165）放 v2.6.x；empty_assign/D23/硬条件纳入 **v2.6.3**（见 `docs/PLAN-v2.6.3.md`）。
+> 剩余小修（BF-54 标签 11、BF-06 缺件 165）放 v2.6.x；empty_assign/D23/硬条件纳入 **v2.6.3**（见 `docs/plans/PLAN-v2.6.3.md`）。

@@ -10,7 +10,7 @@
   5 快闸：fast_gate pass（读报告；无则 null）；
   6 变更规模：与上一版本相比渲染字形有变化的字数（可选，读 diff JSON）。
 
-"更好"的判定（见 docs/RELEASE-METRICS.md）：
+"更好"的判定（见 docs/reference/RELEASE-METRICS.md）：
   - 覆盖不减（chars、目标覆盖、缺口不扩大）；
   - font_qa 不退化、glyph_frame 不增加、content damaged 不增加；
   - 已知债逐项披露且不新增 P0/P1 未解释项；

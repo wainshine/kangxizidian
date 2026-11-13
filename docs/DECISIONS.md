@@ -140,7 +140,7 @@ T2 框→条目指派的 offset 锚定：**所有者念每半页首、尾字头 
 - 书眉字段序：康熙字典/集名卷/部名/画数/葉码。画数跨分界页有**两个画数字段**
   （=条目窗口分界直接可读）。全 20 页 owner 核验毕（margin_labels_full.json）。
 - 右半版书眉被扫描裁切（无标签）；阅读序 = 每跨页先 R 后 L（内容实证）。
-- 01_0110 = 子集**中**（旧 margin_labels 误作上）；03_0015 = ~~**卜部**~~ → **宀部**（⚠️ D14 原文「卜部」有误：A2b 扉页结构核验与 300dpi 目检确认为宀部，见 `docs/STRUCTURE.md §9`、`docs/HEADERS.md §1`）；
+- 01_0110 = 子集**中**（旧 margin_labels 误作上）；03_0015 = ~~**卜部**~~ → **宀部**（⚠️ D14 原文「卜部」有误：A2b 扉页结构核验与 300dpi 目检确认为宀部，见 `docs/reference/STRUCTURE.md §9`、`docs/reference/HEADERS.md §1`）；
   13_0163 = 戌集**備考**（误作補遺，数据集无備考条目，不进 DP）。
 - 玄字部缺「玄」同类缺陷的外延：数据集重出行 = 书上正字+异体双字形
   （時/旹、笄/筓、鉗/鉗、僨/僨），owner 确认按行对入。
@@ -157,7 +157,7 @@ T2 框→条目指派的 offset 锚定：**所有者念每半页首、尾字头 
   （v2.4.3：17,121；基本区∩16,567 = 10,348 = 62.46%）；
 - 缺口 **6,219** 字不补假覆盖、不拿小字顶替，列为 **GAN 补全目标**（清单随包 `v241-strict-report.json`）；
 - D4 的 `gan/ribbon_fb/mapped_traditional` 四态命名保留，供未来 GAN/映射使用，但**当前发布 0 个非 real**；
-- 判据实现：`scripts/lead_strict_headwords.py`（v2.4.0 起）；复算：重跑该脚本 union13 不变。
+- 判据实现：`scripts/provenance/lead_strict_headwords.py`（v2.4.0 起）；复算：重跑该脚本 union13 不变。
 - 说明：v2.3.1/v2.3.2 曾以「回填误删字」名义引入 397 个注文级字形，违反本条，v2.4.0 已全部剔除并披露。
 
 ## D16 · 自动标签管线与精度披露（2026-11-10，补充/修正 D11）⭐
@@ -206,7 +206,7 @@ D11 的「标签真源 = 所有者终审」在 42,302 条尺度上**不可行**�
 ## D19 · 缺口分桶与「重定位优先于 GAN」（2026-11-10）⭐
 
 - 缺口 6,219 必须**分桶**（B_strict_dropped / B_early_regression / E_never_aligned），
-  完整清单由 `scripts/lead_gan_targets.py` 从 canonical+union 历史生成，随包并带 sha256；
+  完整清单由 `scripts/provenance/lead_gan_targets.py` 从 canonical+union 历史生成，随包并带 sha256；
 - **B/B2 桶不得直接交给 GAN**：先按「正典邻居锚定 + 字头尺寸 + 音切/古文开头 + 内容复核」重定位真字头；
 - E 桶中 3,885 字有 c14 空闲候选，但实测 p90/尺寸不能保证内容正确（60–65%），**必须内容验证后才入库**；
 - GAN 仅补「确无真字头」的字，且必须 `provenance=gan`、不计入 real/覆盖率；

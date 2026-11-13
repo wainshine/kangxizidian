@@ -60,17 +60,17 @@
 
 ```bash
 # ① 正典序（一次性数据层）
-.venv/bin/python scripts/seq_order.py                      # → work/seq/canonical.jsonl 等
+.venv/bin/python scripts/provenance/seq_order.py                      # → work/seq/canonical.jsonl 等
 # ② 字头候选检测（300dpi 渲染）
-.venv/bin/python scripts/lead_run_detect.py --vols 01,...,12 --pages body --dpi 300 --workers 8
+.venv/bin/python scripts/provenance/lead_run_detect.py --vols 01,...,12 --pages body --dpi 300 --workers 8
 # ③ 部界锚点 + 字符级序列对齐
-.venv/bin/python scripts/lead_bu_dp3.py                    # → bu_start_pages_lead3.jsonl
-.venv/bin/python scripts/lead_char_align14.py              # → work/map/charalign14/mapping.jsonl
+.venv/bin/python scripts/provenance/lead_bu_dp3.py                    # → bu_start_pages_lead3.jsonl
+.venv/bin/python scripts/provenance/lead_char_align14.py              # → work/map/charalign14/mapping.jsonl
 # ④ VLM 注文指纹（Qwen3-VL-2B，需 MPS）
-PADDLE_PDX_CACHE_HOME=$PWD/work/paddlex_cache .venv/bin/python scripts/lead_vlm_fp_full.py
+PADDLE_PDX_CACHE_HOME=$PWD/work/paddlex_cache .venv/bin/python scripts/provenance/lead_vlm_fp_full.py
 # ⑤ 指纹确认 + 严格 headword-only 过滤
-.venv/bin/python scripts/lead_vlm_confirm.py
-.venv/bin/python scripts/lead_strict_headwords.py          # → confirmed_union13 / mapping_verified_all13
+.venv/bin/python scripts/provenance/lead_vlm_confirm.py
+.venv/bin/python scripts/provenance/lead_strict_headwords.py          # → confirmed_union13 / mapping_verified_all13
 # ⑥ 字体构建 → QA → 打包
 SOURCE_DATE_EPOCH=1792713600 .venv/bin/python scripts/font_build.py   --mapping work/lead/mapping_verified_all13.jsonl --out work/font/build/KangXiKai-v2.4.2.ttf --version 2.4.2
 .venv/bin/python scripts/font_qa.py --font <ttf> --manifest <manifest> --outdir <qa>

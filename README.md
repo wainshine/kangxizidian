@@ -9,7 +9,7 @@
 
 > **状态：v2.6.2（2026-11-13）** —— 17,005 个真实字头字形，全部取自刻本真迹，无生成字。
 > 本项目为**字头精选集**（非全字库）；覆盖、限制与发布条件见
-> [覆盖范围](#覆盖范围与限制) 与 [docs/KNOWN-DEBTS-v2.6.2.md](docs/KNOWN-DEBTS-v2.6.2.md)。
+> [覆盖范围](#覆盖范围与限制) 与 [docs/releases/v2.6.2/KNOWN-DEBTS.md](docs/releases/v2.6.2/KNOWN-DEBTS.md)。
 
 ## 这是什么
 
@@ -83,7 +83,7 @@ KangXiKai-Regular-v2.6.2.ttf
   缺字由排版软件自动回退系统字体。
 - **仅字头**：只收字头大字，不收注文小字、不补假字形（部分注文中的字形不在字库内）。
 - **少量已知缺陷**：11 字的 mapping 标签待重定位、165 个缺件扫描项、1,173 个半版（页）尚未完成字头定位，
-  正在 2.6.x 补丁线修复；逐项披露见 [docs/KNOWN-DEBTS-v2.6.2.md](docs/KNOWN-DEBTS-v2.6.2.md)。
+  正在 2.6.x 补丁线修复；逐项披露见 [docs/releases/v2.6.2/KNOWN-DEBTS.md](docs/releases/v2.6.2/KNOWN-DEBTS.md)。
 - **不含标点/数字/拉丁字母**；缺字自动回退系统字体。
 
 ## 安装与使用
@@ -121,12 +121,17 @@ FONT_BUILD_WORKERS=10 .venv/bin/python scripts/font_build.py \
 
 ## 项目结构
 
+完整架构、目录职责与「新增文件放哪里」见 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**；技术路线见 [docs/METHOD.md](docs/METHOD.md)。
+
 ```text
-scripts/            # S1–S5 管线、闸、打包、指标脚本
-docs/               # 管线/流程/决策/计划/已知债/指标文档（唯一权威）
-work/lead/          # mapping、页级几何、闸报告、线条带、复核材料（不入库）
-work/font/build/    # 字体构建产物与 manifest（不入库）
-release/            # 正式发布包
+kangxizidian/
+├── scripts/            代码：顶层 28 个 = 现行管线；oneoff/ 一次性脚本；provenance/ 数据 provenance；_archive/ 冻结历史
+├── docs/               文档：架构(ARCHITECTURE) / 方法(METHOD) / 管线(PIPELINE) / 决策 / 计划 / 发布记录(releases/)
+├── work/               工作区（gitignored）：mapping/几何真源、构建产物、闸证据、复核材料（见 docs/reference/WORK-MAP.md）
+├── release/            正式发布包（gitignored；只放正式包）
+├── audit/              审计报告与证据
+├── data/               参考数据（字表/Unicode/认证样本；部分 gitignored）
+└── 康熙字典/           扫描源 PDF（12G，gitignored，不随仓库分发）
 ```
 
 ## 许可
@@ -147,11 +152,15 @@ release/            # 正式发布包
 
 | 文档 | 内容 |
 |---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **项目架构 / 文件夹层级 / 依赖方向 / 新增文件放哪里** |
+| [docs/METHOD.md](docs/METHOD.md) | 技术路线（可读版） |
 | [docs/PROJECT-STATE.md](docs/PROJECT-STATE.md) | 30 秒现状、已知缺陷、独立审计命令 |
 | [docs/PIPELINE.md](docs/PIPELINE.md) | 现行管线（唯一权威） |
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | 候选/正式分层、闸分层、里程碑发版纪律 |
-| [docs/RELEASE-METRICS.md](docs/RELEASE-METRICS.md) | 版本对比指标与发版判据 |
-| [docs/KNOWN-DEBTS-v2.6.2.md](docs/KNOWN-DEBTS-v2.6.2.md) · [docs/SELF-AUDIT-v2.6.2.md](docs/SELF-AUDIT-v2.6.2.md) | 本版已知债披露 · 发布前自审计 |
+| [docs/reference/RELEASE-METRICS.md](docs/reference/RELEASE-METRICS.md) | 版本对比指标与发版判据 |
+| [docs/releases/v2.6.2/KNOWN-DEBTS.md](docs/releases/v2.6.2/KNOWN-DEBTS.md) · [docs/releases/v2.6.2/SELF-AUDIT.md](docs/releases/v2.6.2/SELF-AUDIT.md) | 本版已知债披露 · 发布前自审计 |
 | [docs/VERSION-HISTORY.md](docs/VERSION-HISTORY.md) | 逐版变更 |
-| [docs/PLAN-v2.6.3.md](docs/PLAN-v2.6.3.md) · [docs/PLAN-v2.7.0.md](docs/PLAN-v2.7.0.md) | 后续版本计划（v2.7.0：GAN + 带状扫掠生成/回退） |
+| [docs/releases/](docs/releases/README.md) | 正式版发布记录（v2.6.2 起每版一份） |
+| [docs/reference/EXPERIMENTS.md](docs/reference/EXPERIMENTS.md) | 实验与探索索引（含失败实验，像馆阁体 EXPERIMENTS） |
+| [docs/plans/PLAN-v2.6.3.md](docs/plans/PLAN-v2.6.3.md) · [docs/plans/PLAN-v2.7.0.md](docs/plans/PLAN-v2.7.0.md) | 后续版本计划（v2.7.0：GAN + 带状扫掠生成/回退） |
 | [docs/DECISIONS.md](docs/DECISIONS.md) · [docs/ERRATA.md](docs/ERRATA.md) · [docs/BACKLOG.md](docs/BACKLOG.md) | 口径决策 / 更正记录 / 唯一待办清单 |

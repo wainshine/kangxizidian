@@ -118,7 +118,7 @@ def main():
               open(os.path.join(out, f"residual-quarantine-{tag}.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=1)
     # 7) known debts / release metrics（doc_check 按字面引用检查）
-    kd = os.path.join(ROOT, "docs/KNOWN-DEBTS-v2.6.2.md")
+    kd = os.path.join(ROOT, "docs/releases/v2.6.2/KNOWN-DEBTS.md")
     if os.path.exists(kd):
         shutil.copy2(kd, os.path.join(out, "KNOWN-DEBTS.md"))
         shutil.copy2(kd, os.path.join(out, f"known-debt-{tag}.md"))

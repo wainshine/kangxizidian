@@ -8,8 +8,8 @@
 
 - **v2.6.2 正式发布候选**（2026-11-13，E37 后）：字体 sha `a8bb87d9…`（17,005 字）已过 fast_gate 8/8；
   全闸 **9 PASS / 2 FAIL**（唯一 FAIL：缺件扫描 165、页几何 empty_assign 1,173，均为**已披露已知债**）。
-  发布材料（`README.md`、`LICENSE`、`OFL.txt`、`docs/RELEASE-METRICS.md`、`docs/KNOWN-DEBTS-v2.6.2.md`）
-  已补齐；自审计记录见 `docs/SELF-AUDIT-v2.6.2.md`；**正式包已出（2026-11-14）**：`release/KangXiKai-v2.6.2/`
+  发布材料（`README.md`、`LICENSE`、`OFL.txt`、`docs/reference/RELEASE-METRICS.md`、`docs/releases/v2.6.2/KNOWN-DEBTS.md`）
+  已补齐；自审计记录见 `docs/releases/v2.6.2/SELF-AUDIT.md`；**正式包已出（2026-11-14）**：`release/KangXiKai-v2.6.2/`
   + `KangXiKai-v2.6.2.zip`，font sha `a8bb87d9…`，finalize 17/17 PASS（zip sha 见 `release/RELEASE-INVENTORY.tsv`）。
 - 覆盖：基本区 10,267/20,992 = **48.91%**；目标字表 10,267/16,567 = **61.97%**；缺口 **6,300**。
 - 闸（候选，现行）：font_qa **PASS**（同框 0）；字形级框线 **0 PASS**；框线逃逸 **0 PASS**（E37 口径）；
@@ -34,7 +34,7 @@
 | 当前候选字体 | `work/font/build/KangXiKai-v2.6.2.ttf`（sha `a8bb87d9…`） | **fast_gate 8/8 PASS**；全闸 9 PASS / 2 FAIL（均披露） |
 | **v2.6.2 正式包** | `release/KangXiKai-v2.6.2/` + `KangXiKai-v2.6.2.zip` | ✅ 2026-11-14 finalize（17/17 PASS；font `a8bb87d9…`；包内 SHA 32 文件含 review/ 快照；zip sha 见 RELEASE-INVENTORY）；披露阈值：内容 35 / 缺件 165 / empty 1,173 / 框线 0 |
 | 历史预览包 | `release/_preview/KangXiKai-v2.6.2-preview`（旧证据，b73e9f01 时代） | 已被正式包取代，保留备查 |
-| 发布材料 | `README.md`、`LICENSE`、`OFL.txt`、`docs/RELEASE-METRICS.md`、`docs/KNOWN-DEBTS-v2.6.2.md`、`docs/README-TEMPLATE.md`、`docs/images/` | 2026-11-13 补齐 |
+| 发布材料 | `README.md`、`LICENSE`、`OFL.txt`、`docs/reference/RELEASE-METRICS.md`、`docs/releases/v2.6.2/KNOWN-DEBTS.md`、`scripts/templates/README-TEMPLATE.md`、`docs/images/` | 2026-11-13 补齐 |
 | 构建输入·mapping | `work/lead/mapping_block_v271.jsonl`（17,005 字；v270 留档） | 唯一真源 |
 | 构建输入·几何 | `work/lead/page_geometry.jsonl`（E30 扩张版；原版 `page_geometry_v1.jsonl`） | 唯一真源 |
 | 构建输入·线条带 | `work/lead/page_line_bands.json`（27 rect，页级数据驱动） | pre-cut 数据 |
