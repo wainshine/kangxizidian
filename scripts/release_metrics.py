@@ -143,8 +143,13 @@ def main():
               ("missing_flagged", "缺件扫描"), ("frame_escape_flagged", "框线逃逸"),
               ("bad_boxes", "页几何 bad_boxes"), ("empty_assign_halves", "空指派半版"),
               ("fast_gate", "fast_gate"), ("changed_glyphs_vs_prev", "相对上一版变化字")]
+    def cell(v):
+        return "—" if v is None else str(v)
     for k, name in fields:
-        md.append(f"| {name} | " + " | ".join(str(r.get(k)) for r in rows) + " |")
+        md.append(f"| {name} | " + " | ".join(cell(r.get(k)) for r in rows) + " |")
+    md.append("")
+    md.append("> 注：v2.5.8 的缺件/框线/页几何扫描未按现行口径重跑（—=未测）；v2.6.1 的缺件/框线为当时口径，")
+    md.append("> 不可与 v2.6.2 直接比较；v2.6.1 相对 v2.5.8 的变化字数未实测（—）。")
     mdout = os.path.join(ROOT, "work/lead/release-metrics.md")
     open(mdout, "w", encoding="utf-8").write("\n".join(md) + "\n")
     print(json.dumps({"out": os.path.relpath(out, ROOT), "md": os.path.relpath(mdout, ROOT)}, ensure_ascii=False))

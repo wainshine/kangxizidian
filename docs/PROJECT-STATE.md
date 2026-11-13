@@ -6,16 +6,16 @@
 
 ## 0. 三十秒快速开始
 
-- **v2.6.2 已出工程预览包**（`release/_preview/KangXiKai-v2.6.2-preview`，zip 自检 PASS，**非正式发布**）；
-  正式发布标准未达（WORKFLOW §7），正式包计划 **v2.6.3**（`docs/PLAN-v2.6.3.md`）。
-- 当前基线：**v2.6.2 工程候选**（`work/font/build/KangXiKai-v2.6.2.ttf`，sha `b73e9f01…`，
-  17,005 字）：**fast_gate 8/8 PASS**；全闸基线 8 PASS / 3 FAIL
-  （缺件扫描 **827**、源图框线 **1**、页几何 empty_assign **1,173**）。
+- **v2.6.2 正式发布候选**（2026-11-13，E37 后）：字体 sha `a8bb87d9…`（17,005 字）已过 fast_gate 8/8；
+  全闸 **9 PASS / 2 FAIL**（唯一 FAIL：缺件扫描 165、页几何 empty_assign 1,173，均为**已披露已知债**）。
+  发布材料（`README.md`、`LICENSE`、`OFL.txt`、`docs/RELEASE-METRICS.md`、`docs/KNOWN-DEBTS-v2.6.2.md`）
+  已补齐；自审计记录见 `docs/SELF-AUDIT-v2.6.2.md`；**待 owner 确认披露阈值 + 提交后** clean-tree 打包 + finalize。
 - 覆盖：基本区 10,267/20,992 = **48.91%**；目标字表 10,267/16,567 = **61.97%**；缺口 **6,300**。
-- 闸（候选）：font_qa **PASS**（同框 0）；字形级框线 **0 PASS**；内容 **29**（阈值 35，E31 归因为跨架构归一化差异）；
-  provenance PASS；页几何 bad_boxes **0**、唯一严格 FAIL = empty_assign 1,173（mapping 覆盖缺口）。
+- 闸（候选，现行）：font_qa **PASS**（同框 0）；字形级框线 **0 PASS**；框线逃逸 **0 PASS**（E37 口径）；
+  内容 **18**（阈值 35，E31 归因为跨架构归一化差异）；provenance PASS；页几何 bad_boxes **0**；
+  严格 FAIL 仅 2 项：缺件扫描 **165**、empty_assign **1,173**（mapping 覆盖缺口）。
 - 构建：mapping `work/lead/mapping_block_v271.jsonl` + geometry `work/lead/page_geometry.jsonl`（E30 扩张版）
-  + 页级线条带 `work/lead/page_line_bands.json`（26 rect）+ 自动缓存版本；全量重建约 **10m30s**（10 workers）。
+  + 页级线条带 `work/lead/page_line_bands.json`（27 rect）+ 自动缓存版本；全量重建约 **10m30s**（10 workers）。
 - 关键口径：只收字头真迹（D15）；2×2 格块；pre-cut 排除版面（D22，strip 已摘除 E29）；参考字体唯一 = 霞鹜文楷 OFL（D21）。
 - 未决 owner 决策：**D23 内容判据**（改源墨保真度？）、**00/13 卷是否入字表**、**缺口 6,300 策略（BF-41）**。
 
@@ -30,15 +30,17 @@
 
 | 产物 | 路径 | 状态 |
 |---|---|---|
-| 当前候选字体 | `work/font/build/KangXiKai-v2.6.2.ttf`（sha `b73e9f01…`） | **fast_gate 8/8 PASS**；全闸 3 项已知债；不发布 |
-| **v2.6.2 预览包** | `release/_preview/KangXiKai-v2.6.2-preview`（+ `.zip`，sha256 `a2a62dd4…`） | 工程预览（非正式发布）；内含 PREVIEW-NOTES/闸报告/已知债清单；供效果评估 |
+| 当前候选字体 | `work/font/build/KangXiKai-v2.6.2.ttf`（sha `a8bb87d9…`） | **fast_gate 8/8 PASS**；全闸 9 PASS / 2 FAIL（均披露） |
+| v2.6.2 正式包 | `release/KangXiKai-v2.6.2/`（commit 后 clean-tree 生成） | **待 owner 提交 + 确认披露阈值** 后打包/finalize |
+| 历史预览包 | `release/_preview/KangXiKai-v2.6.2-preview`（旧证据，b73e9f01 时代） | 保留备查，不再更新（正式包取代） |
+| 发布材料 | `README.md`、`LICENSE`、`OFL.txt`、`docs/RELEASE-METRICS.md`、`docs/KNOWN-DEBTS-v2.6.2.md`、`docs/README-TEMPLATE.md`、`docs/images/` | 2026-11-13 补齐 |
 | 构建输入·mapping | `work/lead/mapping_block_v271.jsonl`（17,005 字；v270 留档） | 唯一真源 |
 | 构建输入·几何 | `work/lead/page_geometry.jsonl`（E30 扩张版；原版 `page_geometry_v1.jsonl`） | 唯一真源 |
-| 构建输入·线条带 | `work/lead/page_line_bands.json`（26 rect，页级数据驱动） | pre-cut 数据 |
+| 构建输入·线条带 | `work/lead/page_line_bands.json`（27 rect，页级数据驱动） | pre-cut 数据 |
 | 构建输入·manifest | `work/font/build/manifest_v262.json` | 由 build_stats 生成 |
 | 参考字体 | `scripts/reffont.py` → 霞鹜文楷 LXGW WenKai（OFL，不随包分发） | 唯一参考 |
 | 闸报告 | `work/lead/fast-gate-v262.json`、`gate-report-v262.json`、`glyph-frame-gate-v262.json`、`page-geometry-gate-v262.json` | 现行 |
-| 扫描 | `work/lead/missing_scan_v262.jsonl`（827）、`frame_scan_v262.jsonl`（1） | 带 sidecar 绑定 |
+| 扫描 | `work/lead/missing_scan_v262.jsonl`（165）、`frame_scan_v262.jsonl`（0） | 带 sidecar 绑定 |
 | 分析数据 | `empty-assign-triage-v262.json`、`content-triage-v262.json`、`content-aspect-analysis-v262.json`、`frame43-triage.json`、`missing-32-triage.json` | CS3 输入 |
 | 里程碑复核包（第 1 轮） | `work/review/round-003-v262/`（617 变化字/6 类抽样/盲抽 100） | owner 已标注（77 格）→ `review-feedback-v262.json` |
 | **修复验证包（第 2 轮）** | `work/review/round-004-v262fix/`（71 个上轮标注字重渲 + 类样本 + 同种子 100） | E37 修复后待 owner 复看 |
@@ -51,8 +53,8 @@
 | 级别 | 缺陷 | 现状 / 计划 |
 |---|---|---|
 | P0·里程碑 | **empty_assign 1,173**：有 quad 无 mapping 行的半版（vol 01–12 **669**，其中 652 有 lattice；vol 00/13 **504**；40 无 lattice）；含 01_0006 L「一」 | CS3：669 个需重跑检测/映射（真迹，不补假字）；00/13 口径待 owner |
-| P0·里程碑 | **缺件扫描 32**（E36 重写后；旧 1,200/1,153/827 不可比）：11 edge_pruned + 22 sliver，**interior=0** | BF-06 口径收尾：是否排除 prune-by-design 边缘碎片待 owner；未发现字身内部真实缺笔 |
-| P0·里程碑 | **内容判据 D23（待 owner）**：content 29（阈值 35）大部分是跨架构归一化差异（E31：12/32 旧字形长宽比偏差>15%），非真实缺笔 | 提案改「源墨保真度」（字形投影 vs 自身 source ink 配准 IoU） |
+| P0·里程碑 | **缺件扫描 165**（E37 后：恢复的块内细笔画在 `prune_edge_contours` 边缘清理阶段又被删；旧 32/827/1,200 不可比） | BF-06 v2.6.x：调 prune 口径或披露；需重做 triage |
+| P0·里程碑 | **内容判据 D23（待 owner）**：content 18（阈值 35）大部分是跨架构归一化差异（E31：旧字形长宽比偏差>15%），非真实缺笔 | 提案改「源墨保真度」（字形投影 vs 自身 source ink 配准 IoU） |
 | P0·里程碑 | **v2.6.1 包不可签收**（旧 finalize/材料数字矛盾/混入 v2.6.0 数据） | 不重打；下一候选按新 finalize 出包（BF-04/17/18/24） |
 | P0·里程碑 | 硬条件未闭环：隔离 **9 字**（刃/榍/法/紆/総/荹/仟/禦/絞）、**100 字签核**、部界锚点（09–11/13 卷缺）、标签精度敞口（VLM top-1 84.6%, n=13）、DATA 许可细节 | CS4/CS5（BF-29/30/31/32/33） |
 | P1 | 高频缺 **23**（一/件/你/內/合/在/多/張/教/樣/氣/法/清/為/王/相/種/臺/與/被/裡/都/間）：16 在目标缺口内，7 不在 canonical 目标表（异体口径） | BF-16/41：与 empty_assign 一并处理；口径需 owner |
@@ -60,12 +62,12 @@
 | P1 | 343 页无 content_quad：**对当前字体 0 影响**（无字形落这些页）；真实缺口是 empty_assign | BF-11 已改写为 empty_assign |
 | P1 | 闸契约/材料/归因（BF-10/17/18/44/47/51/49/25/28） | 输出包前必须闭环 |
 | P2 | 文档数字清理（DATA/PIPELINE/BACKLOG 仍有旧口径引用）、脚本 keep/archive 判定、研究项 BF-35、GAN 分桶清单 BF-34 | 随轮次清理 |
-| ✅ 已解决 | 三闸缺失（BF-01）、同框 2 对（BF-02）、页几何 box 越界 198/360（BF-03/E30）、strip 切后擦（BF-13/E29）、Songti 依赖（BF-14）、字形框线 23→0（E24/E27/E29）、内容 35→29、缺件 1,200→827、框线 153→1 | 见 ERRATA E21–E34 |
+| ✅ 已解决 | 三闸缺失（BF-01）、同框 2 对（BF-02）、页几何 box 越界 198/360（BF-03/E30）、strip 切后擦（BF-13/E29）、Songti 依赖（BF-14）、字形框线 23→0（E24/E27/E29）、框线逃逸 153→0（E37）、内容 35→18（E31/E37）、缺件 1,200→165（E37 口径变化） | 见 ERRATA E21–E37 |
 
 ## 4. 下一步（唯一清单见 `docs/BACKLOG.md` §10）
 
 1. **CS3-A（进行中）**：empty_assign 669 个 vol 01–12 半版补映射（先 01_0006 L「一」）→ 覆盖/缺口重算；00/13 口径待 owner；
-2. **CS3-B**：缺件 827 triage（注文/邻字 vs 真实缺笔）→ 真实缺笔类级修复回写 mapping；
+2. **CS3-B（v2.6.x）**：缺件 165 triage（prune 边缘 vs 真实缺笔）→ 类级修 prune 口径或披露；
 3. **D23 owner 决策**：内容判据（源墨保真度）→ 里程碑内容硬条件口径；
 4. **CS4/CS5**：高频缺 23、隔离 9、100 字签核、锚点、精度披露、DATA 许可；
 5. 以上归零/披露后 → 里程碑严格全闸 → 复核包 → `font_package` → `release_gate finalize` → 冻结。
@@ -86,7 +88,7 @@
   --prev work/font/build/KangXiKai-v2.5.8.ttf --prev-manifest work/font/build/manifest_v258.json \
   --scan --reuse-missing work/lead/missing_scan_v262.jsonl \
   --frame-scan --reuse-frame work/lead/frame_scan_v262.jsonl --content-max-damaged 35 --tag v262
-# 3) 数字核对：content 29 / glyph 0 / missing 827 / frame 1 / bad_boxes 0 / empty_assign 1,173
+# 3) 数字核对：content 18 / glyph 0 / missing 165 / frame 0 / bad_boxes 0 / empty_assign 1,173
 ```
 
 - 所有闸输出含输入绑定 sidecar（`<out>.sha256`：font/manifest/mapping/geometry/bands/reffont/脚本 sha + git）；

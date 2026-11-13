@@ -172,6 +172,11 @@ release/KangXiKai-vX.Y.Z/
   KangXiKai-vX.Y.Z.zip
 ```
 
+> 生成方式（2026-11-13 起）：`scripts/make_release_extras.py` 生成 staging（manifest/coverage/provenance/
+> QA/known-debt/RELEASE-NOTES/PROVENANCE.md/QA.md/build_recipe/review 等），再由
+> `scripts/font_package.py --extra ... --extra-dir review` 打包并重算 SHA256SUMS/zip；
+> `check_release_docs.py` 干跑必须 PASS 后再进 `release_gate finalize`。
+
 ---
 
 ## 9. 如何决定下一轮修改方向（闭环）

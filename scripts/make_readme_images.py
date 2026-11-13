@@ -60,31 +60,6 @@ def draw_spaced(d, text, font, xy, gap=26, fill=0):
     return x
 
 
-def pick_clean_phrase(font_path, chars):
-    for cand in CANDIDATES:
-        body = cand.replace(" ", "")
-        if not all(c in chars for c in body):
-            continue
-        try:
-            if any(_stray_score(font_path, c) > 0.0 for c in body):
-                continue
-        except Exception:
-            continue
-        return body
-    # 兜底：从常用干净字里取 10 个
-    out = []
-    for c in "永字八法天地玄黃宇宙日月星辰書畫筆墨":
-        if c in chars:
-            try:
-                if _stray_score(font_path, c) <= 0.0:
-                    out.append(c)
-            except Exception:
-                pass
-        if len(out) >= 10:
-            break
-    return "".join(out)
-
-
 def make_specimen(font_path, chars, path):
     W, H = 1800, 1000
     im = Image.new("L", (W, H), 255)

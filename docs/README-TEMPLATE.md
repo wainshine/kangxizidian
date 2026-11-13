@@ -33,6 +33,7 @@
 | 家族名 | KangXi Kai（康熙楷） |
 | 文件 | `{file}` |
 | 字形 | **{real}** 个真实字头字形（headword-only，无生成字） |
+| 覆盖 | 目标表 **{target_coverage_pct}%**（{target_covered}/{target_set_size}）；基本区 {basic_block_pct}%（{basic_block_covered}/20,992）；缺口 **{target_headword_gap:,}** 字 |
 | 格式 | TTF（glyf，UPM 1000；不含标点/数字/拉丁字母） |
 | SHA-256 | `{sha256}` |
 | 构建时间（UTC） | {built_at_utc} |
@@ -50,10 +51,10 @@
 ## 字形来源与许可
 
 - 扫描件：《康熙字典》清康熙五十五年内府刊本，[書格 shuge.org](https://shuge.org) 数字化（不随包分发扫描图）；
+  包内书影/对比图为扫描件节选，仅作说明，权利归原收藏/数字化机构，不在 OFL/MIT 授权范围；
 - 参考字体：霞鹜文楷（LXGW WenKai，OFL）仅用于对比/QA，不参与字形生成，不随包分发；
 - 字体：SIL Open Font License 1.1（`OFL.txt`）；代码（仓库）：MIT（`LICENSE`）。
 
 ## 文档
 
-仓库文档：`docs/PIPELINE.md`（管线）、`docs/RELEASE-METRICS.md`（版本指标与发版判据）、
-`docs/KNOWN-DEBTS-*.md`（已知债）、`docs/PLAN-v2.6.3.md` / `docs/PLAN-v2.7.0.md`（后续计划）。
+仓库 `docs/` 目录：管线说明、版本指标与发版判据、已知债清单、后续计划（v2.6.3 / v2.7.0）。

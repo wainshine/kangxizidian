@@ -1,7 +1,8 @@
 # v2.6.2 已知债与披露（随包发布）
 
 > 本文件是 v2.6.2 正式发布包的**已知债清单**（逐项披露，不宣称清零）。
-> 指标定义与判据：`docs/RELEASE-METRICS.md`；详细证据：`docs/ERRATA.md`（E24–E37）、`docs/BACKLOG.md`。
+> 指标定义与判据：`docs/RELEASE-METRICS.md`；发布前自审计：`docs/SELF-AUDIT-v2.6.2.md`；
+> 详细证据：`docs/ERRATA.md`（E24–E37）、`docs/BACKLOG.md`。
 
 ## 1. 覆盖类
 

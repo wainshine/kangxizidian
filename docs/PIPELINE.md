@@ -9,7 +9,7 @@
 
 **PDF 页面 → 页级几何（格点/正文区）→ 字头 mapping（框=2×2 格块）→ 裁切阶段排除版框/邻墨 → 矢量化 + 归一化 → TTF → 自动闸 + 人工复核 → 里程碑发布。**
 
-当前基线：**v2.6.2 工程候选**（sha `b73e9f01…`），17,005 字形，基本区 10,267 = 48.91%（目标表 61.97%，缺口 6,300）；fast_gate 8/8 PASS。
+当前基线：**v2.6.2 正式发布候选**（E37 后，sha `a8bb87d9…`），17,005 字形，基本区 10,267 = 48.91%（目标表 61.97%，缺口 6,300）；fast_gate **8/8 PASS**；全闸 **9 PASS / 2 FAIL**（缺件 165、empty_assign 1,173，均为披露已知债）。
 
 ---
 
@@ -100,8 +100,13 @@ R 正式包（里程碑）                                               scripts
    - `content_quad`（唯一来源：`font_build.get_page_content_quads`，含页级缓存与 lattice fallback）→ `clip_mask_page`：**二值化后、掩膜前**把版框正文区外的像素置零（框线/黑带/角部楔形从不进入后续掩膜）；
    - `trim_crop_frame_edges`：裁片外带若出现贯穿长线，把该边整条裁掉（只动外带）；
    - `strip_crop_frame_bands`：删除贯穿裁片边界、触到两侧的整行/整列墨带（字形笔画不会触到裁片两侧）；
+   - **E37 细线 crossing 过滤**（`font_norm._filter_line_mask_to_crossing`）：页级直线 mask 组件只有
+     「贴/穿 2×2 块边界」时才删；完全落在块内的细长组件视为字身笔画（頁/言/辰 类细横）保留；
+   - **E37 线条带解耦**：已验证的页级线条带（`page_line_bands.json`）作为 `frame_mask_extra`
+     无条件应用，不受 crossing 过滤影响（26→27 rect，新增 萩）；
 4. **2×2 块掩膜**：只保留该字 2×2 格块内墨（块外邻字/注文丢弃，3px 余量）；
 5. **主簇清理**（`clean_ink`）：取最大主组件及邻近组件，去孤立碎片/贴边残片；`enable_edge_strip=False`（危险开关默认关）；
+   **E37 碎片规则**：非主体、面积 <5% 主体、距主体 bbox >15px 的孤立成分剔除（注文/邻墨残笔）；
 6. **描迹**：2× 超采样（避免描迹偏移），得轮廓；
 7. **归一化**：以**字墨 bbox（全部轮廓的像素包围盒）**为基准，最长边 → **760 font units**，bbox 中心映射到 (500,400)；EM=1000（v2.6 起口径；旧文档写「按 box 边距对齐」是 v2.5 旧行为，见 BUILD-12）；
 8. **轮廓整理**：`orient_contours`（方向/回字规则）、prune 短轮廓；
@@ -114,14 +119,14 @@ R 正式包（里程碑）                                               scripts
 | 闸 | 脚本 | 判据/口径 | 当前基线 |
 |---|---|---|---|
 | 字体 QA | `font_qa.py` | 表/cmap==manifest/空字形/bbox(tiny,超 em)/advance/fontRevision/同框=0；**不数孔洞/连通分量**（D21） | **PASS**（同框 0） |
-| 内容缺失 | `content_loss_gate.py` | 新旧字形 ink_ratio/IoU（vs v2.5.8；跨架构归一化差异见 E31/D23） | **29**（阈值 35） |
-| 缺件扫描 | `scan_missing_parts.py` | 源块组件未被字形覆盖；**复刻构建最终墨迹链配准**（E36：build_stats pad / block mask / clean_cluster+clean_ink box 口径 / fin_frac≥0.6；参考字体=霞鹜文楷 OFL） | **32**（11 edge_pruned+22 sliver，interior 0；旧 1,200/1,153/827 不可比） |
-| 框线逃逸（源图级） | `scan_frame_escape.py` | 块内贯穿线残留（同 pre-cut 口径 E32/E33） | **1**（㨜 known debt）；字形级框线已 0（E27） |
-| 字形级框线闸 | `glyph_frame_gate.py` | 扫 **TTF 输出字形**：细长直线（厚≤3px@256、长≥max(0.5 字宽,128px)）；只用线段几何，不数孔洞（D21） | **0 PASS**（E24/E27/E29） |
+| 内容缺失 | `content_loss_gate.py` | 新旧字形 ink_ratio/IoU（vs v2.5.8；跨架构归一化差异见 E31/D23） | **18**（阈值 35；D23 判据待定） |
+| 缺件扫描 | `scan_missing_parts.py` | 源块组件未被字形覆盖；**复刻构建最终墨迹链配准**（E36：build_stats pad / block mask / clean_cluster+clean_ink box 口径 / fin_frac≥0.6；参考字体=霞鹜文楷 OFL；E37 起 pre-cut 与构建同口径 crossing 过滤） | **165**（E37 后：恢复的细笔画被 `prune_edge_contours` 边缘清理；旧 32/827/1,200 不可比） |
+| 框线逃逸（源图级） | `scan_frame_escape.py` | 块内贯穿线残留（同 pre-cut 口径 E32/E33；E37 起厚度 ≤3px@300 亚像素线不计） | **0 PASS**（E37 口径；旧 153/158/43/1 均为历史） |
+| 字形级框线闸 | `glyph_frame_gate.py` | 扫 **TTF 输出字形**：细长直线（厚≤3px@256、长≥max(0.5 字宽,128px)）；只用线段几何，不数孔洞（D21） | **0 PASS**（E24/E27/E29/E37） |
 | 无拷贝 provenance 闸 | `provenance_gate.py` | manifest/mapping/stats 三者自洽；`label_source=="mapping"`；无 `__overlay__`/`repair_overlay`/`contours_override` 标记 | v2.6.1 PASS（同框 2 对为 warning） |
 | 页级几何闸 | `page_geometry_gate.py` | 有 quad 覆盖/manifest box 用 `M` 变换进旋转空间/bad box/空指派半版/2×2 块∩quad | bad_boxes **0**（E30）、空指派半版 **1,173**（唯一严格 FAIL；01_0006 L 含「一」） |
 | 快闸 | `fast_gate.py` | QA/版本/字符diff+隔离/内容(binding 复用)/box 均匀/字形框线/provenance/页几何；缺参数即 FAIL | **8/8 PASS**（候选；页几何用已披露阈值） |
-| 全闸（候选基线） | `release_gate.py` | 上述 + 缺件/框线扫描（finalize 强制）+ 三闸严格 0 + **包内 TTF sha == --font** + clean-tree + 输入归因 + SHA + zip；**pre-finalize 失败绝不改包** | **8 PASS / 3 FAIL**：缺件 827、框线 1、empty_assign 1,173（其余 PASS） |
+| 全闸（候选基线） | `release_gate.py` | 上述 + 缺件/框线扫描（finalize 强制）+ 三闸严格 0 + **包内 TTF sha == --font** + clean-tree + 输入归因 + SHA + zip；**pre-finalize 失败绝不改包** | **9 PASS / 2 FAIL**：缺件 165、empty_assign 1,173（披露已知债；可通过 `--scan-max-flagged/--page-geometry-max-empty-assign` 显式披露） |
 
 - **扫描/闸结果绑定**：输出旁写 `<out>.sha256` sidecar（输入 font/manifest/mapping/geometry/参考字体/脚本 sha + argv + git）；复用前必须校验，输入或脚本变化即 FAIL（BF-12）。内容闸缓存 `work/gates/<font_sha12>/` 同样有 sidecar。
 - `jobrun.sh` 包装后台任务：写 `work/jobs/<name>.status`（START/DONE/KILLED/FAILED + EXIT），pipefail 不再被 `| tail` 掩盖。
@@ -188,7 +193,7 @@ FONT_BUILD_WORKERS=10 .venv/bin/python scripts/font_build.py \
 | 缺口 | **6,300**（其中高频 23 + 忠 待重新定位） |
 | 隔离 | 9（刃/榍/法/紆/総/荹/仟/禦/絞） |
 | 全量构建 | 17,005 字 / **402s**（无页 mask）/ **634s**（含页级 pre-cut mask，最新）；缓存命中 **232s**（10 workers） |
-| 闸（v2.6.2 候选） | font_qa **PASS**（同框 0）；字形级框线 **23** FAIL；内容 35（阈值）PASS；provenance PASS、页级几何 198/1,173（候选阈值，里程碑严格 0）；缺件 827（霞鹜口径）、框线 1（源图级） |
+| 闸（v2.6.2 候选，E37 后） | font_qa **PASS**（同框 0）；字形级框线 **0**；框线逃逸 **0**；内容 **18**（阈值 35）；provenance PASS；页级几何 bad_boxes 0 / empty_assign 1,173；缺件 **165**（prune 边缘口径）；fast_gate **8/8** |
 | 已知结构债 | 343 页无 content_quad；缺件扫描邻字隔离待修正；页级几何按页修；09–11/13 卷锚点；100 字签核 |
 
 ---

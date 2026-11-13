@@ -414,6 +414,8 @@ def main():
                     help="允许覆盖已 finalize（包内 gate-report 标记 finalized=true）的包")
     ap.add_argument("--allow-dirty", action="store_true",
                     help="允许工作区未提交（仅调试；正式包必须 clean tree 并记录 commit）")
+    ap.add_argument("--extra-dir", action="append", default=[],
+                    help="额外打进 release 的目录（可多次；保留目录名，在 SHA256SUMS 前复制）")
     ap.add_argument("--extra", action="append", default=[],
                     help="额外打进 release 的文件（可多次；在 SHA256SUMS 前复制）")
     args = ap.parse_args()
@@ -486,6 +488,23 @@ def main():
     ttf_name = f"KangXiKai-{STYLE}-v{version}.ttf"
     shutil.copy2(font_path, out / ttf_name)
     # ② OFL / README / provenance / stats / coverage
+    def load_target_chars():
+        """canonical 唯一基本区目标表（D19 口径）。"""
+        target = set()
+        tp = ROOT / "work/seq/canonical.jsonl"
+        if tp.exists():
+            for line in open(tp, encoding="utf-8"):
+                try:
+                    r = json.loads(line)
+                except Exception:
+                    continue
+                ch = r.get("char")
+                if ch and len(ch) == 1 and 0x4E00 <= ord(ch) <= 0x9FFF:
+                    target.add(ch)
+        return target
+    target = load_target_chars()
+    target_covered = len(set(prov) & target) if target else 0
+    basic_covered = sum(1 for ch in prov if 0x4E00 <= ord(ch) <= 0x9FFF)
     (out / "OFL.txt").write_text(
         OFL_HEADER.format(year=COPYRIGHT_YEAR, holder=COPYRIGHT_HOLDER) + OFL_BODY,
         encoding="utf-8")
@@ -507,6 +526,14 @@ def main():
         "provenance_counts": prov_counts,
         "real": prov_counts.get("real", 0),
         "non_real": sum(v for k, v in prov_counts.items() if k != "real"),
+        # 覆盖数字（README 模板 / doc_check 用；D19 口径）
+        "target_set_size": len(target),
+        "target_covered": target_covered,
+        "target_coverage_pct": round(100.0 * target_covered / len(target), 2) if target else 0.0,
+        "basic_block_covered": basic_covered,
+        "basic_block_total": BLOCK[1] - BLOCK[0] + 1,
+        "basic_block_pct": round(100.0 * basic_covered / (BLOCK[1] - BLOCK[0] + 1), 2),
+        "target_headword_gap": max(0, len(target) - target_covered),
         "built_at_utc": datetime.datetime.fromtimestamp(
             int(os.environ.get("SOURCE_DATE_EPOCH", "0")) or datetime.datetime.now().timestamp(),
             datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -518,7 +545,7 @@ def main():
     (out / "coverage.txt").write_text("".join(sorted(expected)), encoding="utf-8")
     tpl = Path(args.readme_template) if args.readme_template else None
     if tpl and tpl.exists():
-        fmt = {k: v for k, v in stats.items() if isinstance(v, (str, int))}
+        fmt = {k: v for k, v in stats.items() if isinstance(v, (str, int, float))}
         for k, v in prov_counts.items():
             fmt[k] = v
             fmt[f"{k}_n"] = v
@@ -541,6 +568,16 @@ def main():
         if not ep.exists():
             fail(f"extra 文件不存在: {ep}")
         shutil.copy2(ep, out / ep.name)
+    for ed in args.extra_dir:
+        edp = Path(ed)
+        if not edp.is_absolute():
+            edp = ROOT / edp
+        if not edp.exists():
+            fail(f"extra-dir 不存在: {edp}")
+        dst = out / edp.name
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(edp, dst)
     # ④ SHA256SUMS（最后重算 —— 顺序铁律）
     sums = write_sha256sums(out)
     # ⑤ zip（再自校验）

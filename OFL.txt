@@ -6,7 +6,8 @@ vectorised from the headword characters of the 1716 woodblock print
 
 All published glyphs are real (scanned) headword glyphs: vectorised from the
 book's woodblock-printed characters and normalised into the font em frame.
-No third-party font outlines were used to create the glyphs.
+No third-party font outlines were used to create the glyphs. The scanned source
+images are not redistributed with this font.
 
 The OFL reference font LXGW WenKai (霞鹜文楷, https://github.com/lxgw/LxgwWenKai)
 is used only as an independent comparison / QA reference in build tooling and is

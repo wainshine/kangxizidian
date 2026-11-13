@@ -28,6 +28,3 @@ Scope note:
 * The font binaries (`work/font/build/*.ttf`, `release/**/*.ttf`, built
   fonts distributed in release packages) are licensed under the
   SIL Open Font License, Version 1.1 -- see `OFL.txt`.
-* The scanned source images (康熙字典内府刊本, digitised by 書格 shuge.org)
-  are used as the source of the typeface's real glyphs; the scans themselves
-  are not redistributed in this repository or in the font packages.

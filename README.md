@@ -93,7 +93,7 @@ KangXiKai-Regular-v2.6.2.ttf
 3. 缺字（含拉丁字母、标点）由系统字体自动回退。
 
 ```text
-康熙字典　內府刊本　楷書字頭
+康熙字典　楷書字頭
 ```
 
 ## 构建与复现
@@ -139,6 +139,7 @@ release/            # 正式发布包
 ## 数据来源与致谢
 
 - 扫描件：《康熙字典》清康熙五十五年内府刊本，[書格 shuge.org](https://shuge.org) 数字化；
+  本文档中的书影与对比图取自该数字化扫描件，仅用于项目说明（版权归原收藏/数字化机构）；
 - 参考字体：[霞鹜文楷 LXGW WenKai](https://github.com/lxgw/LxgwWenKai)（OFL 1.1），仅用于独立对比与 QA；
 - 工具链：Python + PyMuPDF + OpenCV + potrace + fontTools。
 
@@ -150,7 +151,7 @@ release/            # 正式发布包
 | [docs/PIPELINE.md](docs/PIPELINE.md) | 现行管线（唯一权威） |
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | 候选/正式分层、闸分层、里程碑发版纪律 |
 | [docs/RELEASE-METRICS.md](docs/RELEASE-METRICS.md) | 版本对比指标与发版判据 |
-| [docs/KNOWN-DEBTS-v2.6.2.md](docs/KNOWN-DEBTS-v2.6.2.md) | 本版已知债披露 |
+| [docs/KNOWN-DEBTS-v2.6.2.md](docs/KNOWN-DEBTS-v2.6.2.md) · [docs/SELF-AUDIT-v2.6.2.md](docs/SELF-AUDIT-v2.6.2.md) | 本版已知债披露 · 发布前自审计 |
 | [docs/VERSION-HISTORY.md](docs/VERSION-HISTORY.md) | 逐版变更 |
 | [docs/PLAN-v2.6.3.md](docs/PLAN-v2.6.3.md) · [docs/PLAN-v2.7.0.md](docs/PLAN-v2.7.0.md) | 后续版本计划（v2.7.0：GAN + 带状扫掠生成/回退） |
 | [docs/DECISIONS.md](docs/DECISIONS.md) · [docs/ERRATA.md](docs/ERRATA.md) · [docs/BACKLOG.md](docs/BACKLOG.md) | 口径决策 / 更正记录 / 唯一待办清单 |

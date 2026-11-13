@@ -909,7 +909,7 @@ def _filter_line_mask_to_crossing(mask: np.ndarray, block_rect) -> np.ndarray:
         # 只有「贴/穿块边界」的线组件才删；完全落在块内部（含 2px 余量）的细长组件是字身笔画
         if (x <= bx0 + 2 or y <= by0 + 2 or x + ww >= bx1 - 2 or y + hh >= by1 - 2):
             keep[lab == i] = 1
-    return np.maximum(mask.astype(np.uint8), 0) * keep if mask.dtype == np.uint8 else keep
+    return (np.asarray(mask).astype(np.uint8) * keep).astype(np.uint8)
 
 
 def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
