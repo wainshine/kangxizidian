@@ -481,6 +481,25 @@ def get_page_line_mask(page_key: str, dilate: int = 3):
         vert = cv2.morphologyEx(closed, cv2.MORPH_OPEN, np.ones((lv, 1), np.uint8))
         horiz = cv2.morphologyEx(closed, cv2.MORPH_OPEN, np.ones((1, lh), np.uint8))
         lines = ((vert > 0) | (horiz > 0)).astype(np.uint8)
+        # 第四遍：极细直线（宽 ≤2px@150dpi、长 ≥0.012 页 ≈20px）。
+        # 注意不能用 distanceTransform 判「细」——笔画边界 rim 的 dist 也是 1，会削掉所有笔画边缘
+        # （E33 实测 961 字掉墨 40–60%）。改用「横向/纵向 opening 去掉宽≥3px 结构后的残渣」，
+        # 残渣只含窄结构（细线/亚像素残边），再用长核过滤成长直线，不与笔画边界重叠。
+        try:
+            # 竖细线：先用水平 opening (1,3) 去掉宽≥3 的结构，残渣（宽≤2 的竖线）再做竖长 opening
+            ink_u8 = ink.astype(np.uint8)
+            op_h = cv2.morphologyEx(ink_u8, cv2.MORPH_OPEN, np.ones((1, 3), np.uint8))
+            narrow_v = ink_u8 & (~op_h.astype(bool)).astype(np.uint8)
+            # 横细线：先用竖直 opening (3,1)，再做横长 opening
+            op_v = cv2.morphologyEx(ink_u8, cv2.MORPH_OPEN, np.ones((3, 1), np.uint8))
+            narrow_h = ink_u8 & (~op_v.astype(bool)).astype(np.uint8)
+            lv3 = max(16, int(0.012 * h))
+            lh3 = max(16, int(0.012 * w))
+            ultra_v = cv2.morphologyEx(narrow_v, cv2.MORPH_OPEN, np.ones((lv3, 1), np.uint8))
+            ultra_h = cv2.morphologyEx(narrow_h, cv2.MORPH_OPEN, np.ones((1, lh3), np.uint8))
+            lines = np.maximum(lines, ((ultra_v > 0) | (ultra_h > 0)).astype(np.uint8))
+        except Exception as e:
+            print("[line-mask-ultra] FAIL", page_key, e, flush=True)
         if int(lines.sum()) == 0:
             return None
         k = max(1, int(dilate))

@@ -59,6 +59,9 @@ def worker(args):
                 src = src & cm
             src = FN.trim_crop_frame_edges(src)
             src = FN.strip_crop_frame_bands(src)
+            # E32：与构建同口径 pre-cut（页级长线/细线 mask + 已验证线条带），避免把已排除框线当缺件
+            from precut_masks import apply_precut_masks
+            src = apply_precut_masks(src, page, box, pad150=6)
             bx0 = int(round((block[0] - (box[0] - 6)) * 2)) if block else 0
             by0 = int(round((block[1] - (box[1] - 6)) * 2)) if block else 0
             bx1 = int(round((block[2] - (box[0] - 6)) * 2)) if block else src.shape[1]
@@ -161,9 +164,11 @@ def main():
     # 输入绑定 sidecar：复用前必须校验（参考字体/几何/脚本变化都会让旧扫描失效）
     import gate_binding as GB
     binding = GB.build_binding(
-        files={"font": font, "manifest": man_path},
-        scripts=["scan_missing_parts.py", "reffont.py", "refgate.py", "font_build.py",
-                 "font_norm.py", "page_frames.py", "fidelity_eval.py"],
+        files={"font": font, "manifest": man_path,
+               "geometry": "work/lead/page_geometry.jsonl",
+               "page_line_bands": "work/lead/page_line_bands.json"},
+        scripts=["scan_missing_parts.py", "precut_masks.py", "reffont.py", "refgate.py",
+                 "font_build.py", "font_norm.py", "page_frames.py", "fidelity_eval.py"],
         include_reffont=True)
     GB.write_sidecar(out_abs, binding)
     n_missing = sum(1 for r in rows if r.get("missing"))

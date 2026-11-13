@@ -28,12 +28,12 @@
 
 ## 2. 当前状态（2026-11-12）
 
-- 当前基线：**v2.6.2 工程候选**（`work/font/build/KangXiKai-v2.6.2.ttf`，sha `852f3193…`；**fast_gate 8/8 PASS**（strip 已摘除 D22/E29；quad 扩张 E30））；`release/` 仅保留 v2.5.8（重构前基线）与 v2.6.1（过程版）。
+- 当前基线：**v2.6.2 工程候选**（`work/font/build/KangXiKai-v2.6.2.ttf`，sha `b73e9f01…`；**fast_gate 8/8 PASS**（strip 已摘除 D22/E29；quad 扩张 E30））；`release/` 仅保留 v2.5.8（重构前基线）与 v2.6.1（过程版）。
 - 字形 **17,005**（headword-only 真迹；同块冲突剔除 沓/忠）；基本区 10,267/20,992 = **48.91%**；目标字表 10,267/16,567 = **61.97%**；缺口 **6,300**（高频缺 23 + 忠 待重新定位）。
-- 闸（v2.6.2 候选）：font_qa **PASS**（同框 0）；字形级框线 **0 PASS**（E27 页级线条带）；内容 **32**（阈值 35）PASS——32 字归因为跨架构归一化差异（E31，非真实缺笔；待 D23 确认源墨保真度判据）；provenance PASS；页级几何 **bad_boxes 0** / empty_assign 1,173（唯一严格 FAIL，mapping 缺口）；源图框线 **158**、缺件 **1,155**（霞鹜口径重扫；旧值不可比）。
+- 闸（v2.6.2 候选）：font_qa **PASS**（同框 0）；字形级框线 **0 PASS**（E27 页级线条带）；内容 **29**（阈值 35）PASS——大部分归因为跨架构归一化差异（E31，非真实缺笔；待 D23 确认源墨保真度判据）；provenance PASS；页级几何 **bad_boxes 0** / empty_assign 1,173（唯一严格 FAIL，mapping 缺口）；源图框线 **1**、缺件 **827**（霞鹜口径重扫；旧值不可比）。
 - 构建：`work/lead/mapping_block_v271.jsonl`（同块修复后；v270 留档）+ `work/lead/page_geometry.jsonl` + **自动缓存版本**（算法 sha8+几何 sha12）；实测全量重建 **6m42s**（0 命中，无页 mask）/ **10m36s**（含页级 pre-cut mask）；缓存命中重建 **3m50–3m52s**（17,005 cached，10 workers）。
 - 隔离 9 字：刃/榍/法/紆/総/荹/仟/禦/絞。
-- 进度：CS0 ✅（参考字体/QA 判据）→ **CS1-A ✅**（三闸 + 输入绑定 + 构建硬化；BF-01/09/12/43/45/46/48/50）→ **CS1-B ✅ 2026-11-12**（v2.6.2 全量重建 6m42s；同块修复后增量 3m50s；候选定版）→ **CS1.5 ✅**：同块清除（E23）→ **CS2 v1 ✅（E24 页级 mask 23→14）** → **CS2 v2 实验失败回退（E25/E26）** → **CS2 v3 ✅ 2026-11-13**：页级线条带（E27）清 14 处 → **CS2 v4 ✅**：strip_border_lines 摘除（D22/E29，线条带扩到 26 rect；glyph_frame 仍 0、内容 0 回归）→ **fast_gate 8/8 PASS**（候选 sha `f901c9d4…`，content 34/35）→ **CS2 v5 ✅**：quad 扩张（E30）bad_boxes 198→0、内容 34→32（候选 sha `852f3193…`）→ 下一步：CS3 = empty_assign 1,173 triage（`empty-assign-triage-v262.json`）+ 缺件 1,155 + 源图框线 158 + 内容 32→0。
+- 进度：CS0 ✅（参考字体/QA 判据）→ **CS1-A ✅**（三闸 + 输入绑定 + 构建硬化；BF-01/09/12/43/45/46/48/50）→ **CS1-B ✅ 2026-11-12**（v2.6.2 全量重建 6m42s；同块修复后增量 3m50s；候选定版）→ **CS1.5 ✅**：同块清除（E23）→ **CS2 v1 ✅（E24 页级 mask 23→14）** → **CS2 v2 实验失败回退（E25/E26）** → **CS2 v3 ✅ 2026-11-13**：页级线条带（E27）清 14 处 → **CS2 v4 ✅**：strip_border_lines 摘除（D22/E29，线条带扩到 26 rect；glyph_frame 仍 0、内容 0 回归）→ **fast_gate 8/8 PASS**（候选 sha `f901c9d4…`，content 34/35）→ **CS2 v5 ✅**：quad 扩张（E30）bad_boxes 198→0、内容 34→32（候选 sha `852f3193…`）→ **CS3 v1 ✅**：扫描与构建口径对齐（E32）+ 极细线 pre-cut（E33）→ 缺件 **1,117→827**、框线逃逸 **43→1**（候选 sha `b73e9f01…`，content 29/35）→ 下一步：empty_assign 1,173 triage + 缺件 827 triage + 内容判据 D23（待 owner）。
 
 ## 3. 最短验证命令
 

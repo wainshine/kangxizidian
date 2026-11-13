@@ -36,8 +36,8 @@
 | BF-03 | **页几何残差**：box 越界 198@1px/360@0、max 8.8px | 已复核为 quad 偏紧非坐标错；E30 用 quad 扩张覆盖全部 box 修复 | `expand_quads_to_cover_boxes.py`（只扩不缩，+0.5px） | ✅ **完成（2026-11-13，E30）**：bad_boxes 198→0、零容差 360→0、max overflow 0；内容 34→32 | CS2 |
 | BF-04 | **v2.6.1 包不可签收**：旧 finalize（zip 内报告/SHA 旧）、包内 README 数字矛盾（60/700 vs 153/1200）、review tsv 混入 v2.6.0 数据 | 审计 DSH P0-2/P1；本次核对确认 | 不重打 v2.6.1；下一候选重建后按新 finalize 顺序出包；材料由同一数据源生成 | 新包 zip==目录、SHA 覆盖报告、材料数字与 gate-report 一致 | CS1 |
 | BF-05 | **内容闸 34→32**；32 字归因为跨架构归一化差异（E31：12/32 旧字形长宽比偏差>15%，非真实缺笔） | `content-aspect-analysis-v262.json` / `content-triage-v262.json` | 提案 **D23**：内容判据改「源墨保真度」（字形 vs 自身 source ink 配准 IoU）；旧字体 delta 只作回归告警 | 里程碑内容判据经 owner 确认 + 源墨保真度基线披露 | CS3 |
-| BF-06 | **缺件扫描 1,153**（霞鹜文楷口径，2026-11-13 全量重扫；旧 1,200 为宋体口径不可比） | `work/lead/missing_scan_v262.jsonl` + sidecar | 邻字组件隔离规则 + triage（能补则补，不能补入已知债）；数字口径固定披露 | 缺件数字可解释；已知债清单冻结 | CS3/CS4 |
-| BF-07 | **框线逃逸/字形级框线** | 字形级 23→0（E27）；源图级 153 仍在 | 页级 pre-cut mask + 页级已验证线条带（`work/lead/page_line_bands.json`，数据驱动） | ✅ **完成（2026-11-13）**：glyph_frame_gate 0 PASS；源图口径待重扫后披露 | CS2 |
+| BF-06 | **缺件扫描 827**（E32/E33 后；原 1,155） | `work/lead/missing_scan_v262.jsonl` + sidecar | triage 827：区分「注文/邻字组件」「真实缺笔」；真实缺笔走 mapping 修复 | 缺件数字可解释；已知债清单冻结 | CS3/CS4 |
+| BF-07 | **框线逃逸/字形级框线** | 字形级 23→0（E27）；源图级 1 仍在（㨜 3px 界行残边 known debt） | 页级 pre-cut mask + 页级已验证线条带（`work/lead/page_line_bands.json`，数据驱动） | ✅ **完成（2026-11-13）**：glyph_frame_gate 0 PASS；源图口径待重扫后披露 | CS2 |
 | BF-08 | **缓存/几何修复后首次全量重建候选** | 本轮修了 cache key/几何路径；旧字体是旧 key 产物 | 全量重建（0 命中）→ v2.6.2；回退实验后 v2.6.2 候选 | ✅ **完成（2026-11-12）**：v2.6.2 全量 6m42s（sha `58fd9235…`）；缓存命中重建（3m52s）sha 一致 —— 可复现；数字见 `fast-gate-v264.json` | CS1 |
 | BF-09 | **构建失败静默**：单字失败仅 WARN，仍 exit 0 | 审计 GLM P1/DSH | 硬失败：任何 skipped（除 `--limit`）→ 写失败报告（`aborted/failed_n/failed`）并 exit≠0；`--allow-partial` 才放行 | ✅ **完成（2026-11-12）**：注入坏 box → `ABORT: 1 字构建失败` + `/tmp/bad.build_stats.json`，exit 1 | CS1 |
 

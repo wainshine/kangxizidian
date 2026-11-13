@@ -61,6 +61,9 @@ def worker(args):
                 cm = clip_mask_page(gray.shape, (box[0] - 6, box[1] - 6), quad)
                 ink = ink & cm
             ink = FN.strip_crop_frame_bands(ink)
+            # E32：与构建同口径 pre-cut，避免把构建已排除的框线/注文框线计为逃逸
+            from precut_masks import apply_precut_masks
+            ink = apply_precut_masks(ink, page, box, pad150=6)
             filled = ink.astype(np.uint8)
             if block is None:
                 continue
@@ -107,8 +110,9 @@ def main():
             fo.write(json.dumps(r, ensure_ascii=False) + "\n")
     import gate_binding as GB
     binding = GB.build_binding(
-        files={"manifest": args.manifest, "geometry": "work/lead/page_geometry.jsonl"},
-        scripts=["scan_frame_escape.py", "font_build.py", "font_norm.py",
+        files={"manifest": args.manifest, "geometry": "work/lead/page_geometry.jsonl",
+               "page_line_bands": "work/lead/page_line_bands.json"},
+        scripts=["scan_frame_escape.py", "precut_masks.py", "font_build.py", "font_norm.py",
                  "page_frames.py", "detect_blocks.py"])
     GB.write_sidecar(out_abs, binding)
     n_error = sum(1 for r in rows if r.get("error"))
