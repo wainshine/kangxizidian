@@ -381,9 +381,18 @@ def main():
             with open(pkg_report, "w", encoding="utf-8") as fo:
                 json.dump(rep, fo, ensure_ascii=False, indent=1)
 
+        def _pkg_rel_files():
+            """包内全部文件（递归；review/ 等子目录必须进 SHA 与 zip）。"""
+            out = []
+            for root, dirs, fs in os.walk(pkg_dir):
+                dirs.sort()
+                for f in sorted(fs):
+                    p = os.path.join(root, f)
+                    out.append(os.path.relpath(p, pkg_dir).replace(os.sep, "/"))
+            return out
+
         def _rehash():
-            files = sorted(f for f in os.listdir(pkg_dir)
-                           if f != "SHA256SUMS" and os.path.isfile(os.path.join(pkg_dir, f)))
+            files = [f for f in _pkg_rel_files() if f != "SHA256SUMS"]
             with open(os.path.join(pkg_dir, "SHA256SUMS"), "w", encoding="utf-8") as fo:
                 for f in files:
                     fo.write(f"{_sha_of(os.path.join(pkg_dir, f))}  {f}\n")
@@ -398,10 +407,11 @@ def main():
         def _build_zip():
             if os.path.exists(zp):
                 os.remove(zp)
+            root_name = os.path.basename(pkg_dir.rstrip("/"))
             with zipfile.ZipFile(zp, "w", zipfile.ZIP_DEFLATED) as zf:
-                for f in sorted(os.listdir(pkg_dir)):
+                for f in _pkg_rel_files():
                     zf.write(os.path.join(pkg_dir, f),
-                             arcname=os.path.join(os.path.basename(pkg_dir.rstrip("/")), f))
+                             arcname=f"{root_name}/{f}")
             return subprocess.run(["unzip", "-t", zp], cwd=ROOT, capture_output=True, text=True)
 
         # b) 预报告（不含 sha 步）
