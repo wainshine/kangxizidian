@@ -372,7 +372,7 @@
 - 来源：`audit/AUDIT-REPORT-v2.6.2-audit4.md`、`audit/AUDIT4-FINDINGS-v2.6.2.jsonl`（76 条：P1 20 条/15 组，P2 35，P3 21）。
 - 本节只记录**作废/更正**，不改写历史记录；已发布记录（`docs/releases/v2.6.2/*`）按 D7 只读。
 
-1. **「缺件 165 = `prune_edge_contours` 边缘清理删除」作废**（DATA-402）：234 个缺件组件中 **0** 个满足 prune 的
+1. **「缺件 165 = `prune_edge_contours` 边缘清理删除」作废**（DATA-402）（根因见 **E40**：扫描侧 precut fail-open）：234 个缺件组件中 **0** 个满足 prune 的
    thin+ring+area 删除条件（结构性互斥：组件最小边 ≥8px vs prune 细线阈值 5.0–6.8px）；165 的**真实丢失阶段
    未定**，v2.6.3 用「构建侧逐阶段插桩 + 独立扫描对照」定位（BF-06 重定义）。E37 对应句已加更正注记。
    复算：`work/review/audit4/data/recompute/m_prune.py`。
@@ -395,3 +395,26 @@
 7. **扫描证据在 finalize 后被重写**（DATA-403/GATE-404）：`work/lead/missing_scan_v262.jsonl.sha256` /
    `frame_scan_v262.jsonl.sha256` 的 created_utc 晚于 finalize、git 为 dirty；包内无扫描产物/绑定快照。
    设计缺陷（可变证据 + 无产物 sha 锚定 + sidecar TOCTOU）成立；v2.6.3 起扫描产物随包 + FINALIZE 记录 sha。
+
+## E40. BF-06 根因：扫描侧 precut crossing 过滤 fail-open（2026-11-14，v2.6.3 T1）
+
+- 现象：v2.6.2 缺件披露 **165 字/234 组件**；audit4 DATA-402 已证伪「prune 边缘清理」归因但未定位根因。
+- 根因（代码级）：`scripts/precut_masks.py::apply_precut_masks()` 在 E37 后调用
+  `font_norm._filter_line_mask_to_crossing`，但**模块级未 `import numpy as np`**（仅 `_to_crop()` 局部导入）
+  → 函数内 `np` 触发 NameError → 被 `except Exception: pass` 吞掉 → 页级线 mask **完全未过滤**即整体清零
+  （比构建多删块内细笔画）。后果链：扫描 `src` 比构建多删墨 → 扫描侧 `ink_final` bbox 偏小
+  → E36 配准（用 ink_final bbox 缩放 TTF）错位 → cov<0.45 → **缺件误报**。
+- 修复（扫描侧类级，T1.4 branch C）：模块级导入 numpy；过滤失败改 `raise`（fail-closed，worker 落 error 行计入 flagged）。
+- 复算（v2.6.2 字体，未重建）：
+  - 全库重扫：**165 字/234 组件 → 19 字/20 组件**（error 0，9m11s；解析 150 字，交集 15，新增 4）；
+  - 候选集并排对照（同一渲染）：V_old 165 字/238 组件 → V_fix 15 字/16 组件；Jaccard 组件 **0.0672**、字 **0.0909**；
+  - 旧 234 组件构建侧归因（unknown=0）：**214（91.5%）扫描误报**、15 prune_loss、5 clean_ink_loss；
+  - 新 20 组件归因（unknown=0）：**17 prune_loss、3 scan 残差**（㓚/譵）。
+- 影响：v2.6.2 已发布 KNOWN-DEBTS 的 165 中约 150 为扫描误报（发布记录只读，以本 E 为准）；
+  v2.6.3 缺件数字以新扫描为准（T2 重建字体后重扫）。真实残余：17 prune_loss + 5 clean_ink_loss（旧集）+ 3 scan 残差，
+  BF-06 保持 open。
+- 同步重扫框线逃逸（同一 `apply_precut_masks`）：**0 flagged / 0 error（8m56s）**，与修复前结论一致（非回归）。
+- 复现/证据：`work/lead/v263-T1-BF06-report.md`、`work/lead/missing_scan_v263-t1fix.jsonl`、
+  `work/lead/missing-165-stage-attribution.jsonl`、`work/lead/missing-19-stage-attribution.jsonl`、
+  `work/lead/bf06-variant-candidates.jsonl`；脚本 `scripts/oneoff/diag_missing_stage.py`、
+  `scripts/oneoff/bf06_scan_variant_candidates.py`。

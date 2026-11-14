@@ -924,24 +924,39 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    clip_mask: "np.ndarray | None" = None,
                    strip_border: bool = True,
                    strip_report: dict | None = None,
-                   block_band300: float = 0.0) -> dict:
+                   block_band300: float = 0.0,
+                   trace: "dict | None" = None) -> dict:
     """灰度图 -> 归一化轮廓（font_norm 主链路）。center=crop 内字身框像素坐标。"""
     if enable_edge_strip or enable_line_swt or enable_ref_filter:
         # v2.4.16–19 P0 事故根因：这类「按尺寸/位置删组件」开关已禁用；
         # 任何新用途必须先通过内容缺失闸 + 缺件扫描双回归，再单独评审开启。
         raise RuntimeError("destructive cleaning options are disabled by policy (D20); "
                            "use block mask/frame mask instead")
+
+    def _tr(name, arr):
+        # T1.1（v2.6.3 BF-06 诊断）：默认关闭的 inert 钩子；trace=None 时零开销、输出不变。
+        if trace is not None:
+            trace.setdefault("stages", {})[name] = np.array(arr, dtype=bool, copy=True)
+            trace.setdefault("ink_px", {})[name] = int(np.asarray(arr, dtype=np.uint8).sum())
+
     ink = binarize(gray)
+    _tr("binarize", ink)
     if clip_mask is not None:
         ink[~clip_mask] = False
+    _tr("clip", ink)
     ink = trim_crop_frame_edges(ink)
+    _tr("trim", ink)
     ink = strip_crop_frame_bands(ink)
+    _tr("strip_bands", ink)
     # 注意：strip_frame_lines_crossing_block 在块相位不稳的页会误伤字身（实测 35→60 回归），
     # 默认不启用；待格点相位校验通过后再按页启用。
     ink = erase_rects(ink, erase_rects_list)
+    _tr("erase", ink)
     if frame_mask is not None:
         ink[frame_mask > 0] = 0
+    _tr("frame_mask", ink)
     ink = mask_to_block(ink, block_rect)
+    _tr("block_mask", ink)
     if block_rect is not None and block_band300 > 0:
         # pre-cut：块边缘带排除（界行/栏线残段恰好压在 2×2 块边界上，
         # 几何上先挖掉窄带，替代「切后按形状删线」的 strip_border_lines）
@@ -957,7 +972,9 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                              (max(0, x1 - b), min(ww, x1))):
                 if xx1 > xx0:
                     ink[max(0, y0):min(hh, y1), xx0:xx1] = False
+    _tr("block_band", ink)
     ink = remove_specks(ink)
+    _tr("remove_specks", ink)
     if strip_border:
         _before = int(ink.sum())
         _removed = [] if strip_report is not None else None
@@ -968,6 +985,7 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                                 removed_px=_before - _after,
                                 removed_frac=round((_before - _after) / max(1, _before), 4),
                                 removed=_removed)
+    _tr("strip_border", ink)
     if enable_line_swt:
         ink = strip_straight_lines_swt(ink)
     if enable_ref_filter and char:
@@ -976,8 +994,9 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
         ink = strip_edge_small_comps(ink, center)
         ink = strip_edge_fragments(ink, center)
     ink = clean_cluster(ink, box=center)
-
+    _tr("clean_cluster", ink)
     ink = clean_ink(ink, center=center)
+    _tr("clean_ink", ink)
     main_bb = main_cluster_bbox(ink) if normalize_main_cluster else None
     n_ink = int(ink.sum())
     if n_ink < MIN_INK_PX or n_ink < MIN_INK_AREA_RATIO * gray.size:
@@ -986,7 +1005,17 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
     if not contours_px:
         return {"ok": False, "reason": "potrace returned no contour", "ink_px": n_ink}
     contours, info = normalize(contours_px, long_side=long_side, bbox_override=main_bb)
+    if trace is not None:
+        trace["contours_normalized"] = [{"start": list(c["start"]),
+                                         "segs": [list(seg) for seg in c["segs"]]}
+                                        for c in contours]
+        trace["norm_info"] = dict(info)
     contours = prune_edge_contours(contours)
+    if trace is not None:
+        trace["contours_final"] = [{"start": list(c["start"]),
+                                    "segs": [list(seg) for seg in c["segs"]]}
+                                   for c in contours]
+        trace["ok"] = True
     n_segs = sum(len(c["segs"]) for c in contours)
     if n_segs < 4:
         return {"ok": False, "reason": f"degenerate contour ({n_segs} segs)", "ink_px": n_ink}
@@ -1015,7 +1044,8 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                   outer_keep_margin150: float = 4.0,
                   keep_box150: tuple | None = None,
                   use_thick_roi: bool = False,
-                  frame_mask_extra: "np.ndarray | None" = None) -> dict:
+                  frame_mask_extra: "np.ndarray | None" = None,
+                  trace: "dict | None" = None) -> dict:
     """150dpi box -> 灰度 crop -> 归一化轮廓（自适应 pad）。block150=2×2 格块（150dpi）。
 
     先按小 pad（6px@150dpi）渲染；若最大连通域触 crop 边界（说明框偏紧、
@@ -1122,7 +1152,8 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
                              erase_rects_list=erase_rects_crop,
                              frame_mask=fm, clip_mask=cm,
                              strip_border=strip_border, strip_report=strip_report,
-                             block_band300=float(block_edge_band150) * 2.0)
+                             block_band300=float(block_edge_band150) * 2.0,
+                             trace=trace)
         res["pad150"] = pad150
         res["clipped"] = bool(clipped)
         last = res

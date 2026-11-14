@@ -41,7 +41,7 @@
 | BF-03 | **页几何残差**：box 越界 198@1px/360@0、max 8.8px | 已复核为 quad 偏紧非坐标错；E30 用 quad 扩张覆盖全部 box 修复 | `scripts/oneoff/expand_quads_to_cover_boxes.py`（只扩不缩，+0.5px） | ✅ **完成（2026-11-13，E30）**：bad_boxes 198→0、零容差 360→0、max overflow 0；内容 34→32 | CS2 |
 | BF-04 | **v2.6.1 包不可签收**：旧 finalize（zip 内报告/SHA 旧）、包内 README 数字矛盾（60/700 vs 153/1200）、review tsv 混入 v2.6.0 数据 | 审计 DSH P0-2/P1；本次核对确认 | 不重打 v2.6.1；下一候选重建后按新 finalize 顺序出包；材料由同一数据源生成 | 新包 zip==目录、SHA 覆盖报告、材料数字与 gate-report 一致 | CS1 |
 | BF-05 | **内容闸 34→32**；32 字归因为跨架构归一化差异（E31：12/32 旧字形长宽比偏差>15%，非真实缺笔） | `content-aspect-analysis-v262.json` / `content-triage-v262.json` | 提案 **D23**：内容判据改「源墨保真度」（字形 vs 自身 source ink 配准 IoU）；旧字体 delta 只作回归告警 | 里程碑内容判据经 owner 确认 + 源墨保真度基线披露 | CS3 |
-| BF-06 | **缺件扫描 165**（E37 后；旧 32/827/1,200 不可比）。**根因未定**：audit4 DATA-402 已复算证伪「`prune_edge_contours` 边缘清理删除」归因（234 组件中 **0** 个满足 prune 删除条件，结构性互斥） | `work/lead/missing_scan_v262.jsonl`（165 行=234 组件）；`audit/AUDIT4-FINDINGS-v2.6.2.jsonl` DATA-402 | v2.6.3：**构建侧逐阶段存活插桩 + 独立扫描对照**定位真实丢失阶段（pre-cut/后段清理/normalize-prune/扫描误报）→ 类级修或披露；**不得先按 prune 归因调参**；BF-06 修复完成前保持 open | 234 组件 100% 阶段归因（unknown=0）；类级修→影响组件↓≥50% 且 total missing≤100；误报/设计丢弃→逐类披露；content≤18/glyph_frame=0/frame=0 | v2.6.3 |
+| BF-06 | **缺件扫描 165**（E37 后；旧 32/827/1,200 不可比）。**T1 已定位根因**：扫描侧 `precut_masks` crossing 过滤 fail-open（模块级未 import numpy + `except:pass`）→ 扫描比构建多删墨 → E36 配准错位（E40）；audit4 DATA-402 证伪的「prune 边缘清理」仅解释残余子集 | `work/lead/v263-T1-BF06-report.md`、`missing_scan_v263-t1fix.jsonl`（19 字/20 组件）、`missing-165-stage-attribution.jsonl`、`missing-19-stage-attribution.jsonl` | T1 已修扫描侧（np 导入 + fail-closed）并全库重扫：**165→19 字/20 组件**（error 0）；残余 17 prune_loss + 5 clean_ink_loss（旧集）+ 3 scan 残差 → 类级修/披露；**不得再按「165/prune 边缘口径」调参**；BF-06 保持 open | 构建侧插桩 unknown=0 已达成；残余组件逐类归因/披露；新字体（v2.6.3）重扫后数字一致或下降；content≤18/glyph_frame=0/frame=0 | v2.6.3（扫描修复已入；残余 v2.6.4） |
 | BF-07 | **框线逃逸/字形级框线** | 字形级 23→0（E27）；源图级 1 仍在（㨜 3px 界行残边 known debt） | 页级 pre-cut mask + 页级已验证线条带（`work/lead/page_line_bands.json`，数据驱动） | ✅ **完成（2026-11-13）**：glyph_frame_gate 0 PASS；源图口径待重扫后披露 | CS2 |
 | BF-08 | **缓存/几何修复后首次全量重建候选** | 本轮修了 cache key/几何路径；旧字体是旧 key 产物 | 全量重建（0 命中）→ v2.6.2；回退实验后 v2.6.2 候选 | ✅ **完成（2026-11-12）**：v2.6.2 全量 6m42s（sha `58fd9235…`）；缓存命中重建（3m52s）sha 一致 —— 可复现；数字见 `fast-gate-v264.json` | CS1 |
 | BF-09 | **构建失败静默**：单字失败仅 WARN，仍 exit 0 | 审计 GLM P1/DSH | 硬失败：任何 skipped（除 `--limit`）→ 写失败报告（`aborted/failed_n/failed`）并 exit≠0；`--allow-partial` 才放行 | ✅ **完成（2026-11-12）**：注入坏 box → `ABORT: 1 字构建失败` + `/tmp/bad.build_stats.json`，exit 1 | CS1 |
@@ -162,7 +162,7 @@
 | ID | 事项 | 状态/证据 | 下一步 |
 |---|---|---|---|
 | BF-11 | **empty_assign 1,173**：有 quad 无 mapping 行；vol 01–12 669（652 有 lattice，含 01_0006 L「一」）、vol 00/13 504、无 lattice 40 | `empty-assign-triage-v262.json`；页几何唯一严格 FAIL | 669 个重跑检测/映射（真迹）；504 口径待 owner；40 待核 |
-| BF-06 | **缺件 165**（E37 后；旧 32/827/1,200 不计）。**根因未定**：prune 归因已被 audit4 DATA-402 证伪（0/234） | `missing_scan_v262.jsonl`（165 行=234 组件）；E39 | v2.6.3：构建侧逐阶段插桩+独立扫描对照（unknown=0 门槛）→ 类级修或披露；不得先调 prune |
+| BF-06 | **缺件 165**（E37 后；旧 32/827/1,200 不计）。**T1 根因=扫描侧 precut fail-open（E40）**，修复后 v2.6.2 字体重扫 **19 字/20 组件** | `work/lead/v263-T1-BF06-report.md`；E40 | 残余 17 prune_loss+5 clean_ink_loss+3 scan 残差 → 类级修/披露；新字体重扫复核；不得再按 165/prune 口径调参 |
 | BF-61 | **mapping 生成器坐标系（BUILD-404）**——全量 mapping 重生成的硬前置 | audit4 BUILD-404；模拟 999 改动/192 越界 | v2.6.4 修 M/Minv + L0 断言；**修好前禁止重跑全量 mapping/补 669 半版** |
 | BF-05 | **内容判据 D23（待 owner）**：content 18/35（阈值披露）；E31 证明大部分是跨架构归一化差异 | `content-aspect-analysis-v262.json` | owner 确认改「源墨保真度」后实现 gate v2 |
 | BF-16 | **高频缺 23**：16 在目标缺口、7 异体口径 | `high_freq_gap.json`（2026-11-13 复核） | 与 empty_assign 合并处理；7 字口径 owner |
@@ -190,7 +190,7 @@
 1. **已完成待勾销（E24–E37）**：BF-03（E30 quad 扩张 bad_boxes→0）、BF-07（E27/E33/E37 字形框线→0；框线逃逸 153→0）、BF-13（E29 strip 摘除）、BF-20（char_diff quarantine）、BF-53（E27 线条带）、BF-57/58（发布材料/披露阈值）、BF-01/02/08/09/12/14/22/37/43/45/46/48/50（早期）。
 2. **已完成待勾销（E35/E36，2026-11-13）**：缺件扫描配准重写（复刻构建最终墨迹链；827→32，interior 0；sidecar 绑定 build_stats）。
 3. **失效数字/说法（已改写）**：
-   - 「缺件 1,200 / 1,153 / 1,155 / 827 / 32」→ **165**（E37 后；旧口径不可比。**注意：audit4 已证伪「prune 边缘清理」归因（E39），165 根因待插桩定位**）；
+   - 「缺件 1,200 / 1,153 / 1,155 / 827 / 32」→ **165**（v2.6.2 披露值；旧口径不可比）。**T1（E40）：主因=扫描侧 precut fail-open，修复后对 v2.6.2 字体重扫 19 字/20 组件；165 不再作候选口径**；
    - 「框线逃逸 153 / 158 / 43 / 1」→ **0**（E37 只删穿越块边界线 + 亚像素口径）；
    - 「内容闸 35 / 34 / 33 / 32 / 29」→ **18**（阈值 35；E31/E37 归因跨架构差异，D23 待定）；
    - 「343 页无 quad 影响 238 字」→ **失效**：`missing_quad_chars=0`，无字形落这些页；真实缺口是 empty_assign 1,173（BF-11 已改写）；
@@ -202,7 +202,7 @@
 ### 10-D 建议顺序
 
 1. CS3-A：empty_assign 669 半版补映射（先 01_0006 L「一」）→ 覆盖/缺口重算；
-2. v2.6.3：缺件 165 构建侧插桩+扫描对照（根因未定，E39）→ 类级修或披露；BF-61 修复前禁止重跑全量 mapping；
+2. v2.6.3：缺件已定位（E40：扫描侧 fail-open，修复后 165→19）；残余 17 prune_loss+5 clean_ink_loss+3 scan 残差 → 类级修/披露；BF-61 修复前禁止重跑全量 mapping；
 3. D23 owner 决策（内容判据）→ 实现源墨保真度基线；
 4. BF-10/44/51/47/25/49/36/28 等闸/流程/材料项随轮次清理；复核包已生成：`work/review/round-003-v262/`（第 1 轮，owner 已标注 77 格）与 `work/review/round-004-v262fix/`（第 2 轮修复验证，待 owner 复看）；
 5. CS4/CS5 硬条件（隔离 9、100 字签核、锚点、精度、许可）→ 里程碑严格全闸 → 复核包 → 正式包。

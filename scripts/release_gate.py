@@ -196,8 +196,12 @@ def main():
         reuse_ok = None
         if args.reuse_missing:
             out_scan = args.reuse_missing
-            vres = GB.validate_reuse(out_scan, files={"font": args.font, "manifest": args.manifest},
-                                  scripts=["scan_missing_parts.py", "reffont.py",
+            vres = GB.validate_reuse(out_scan,
+                                  files={"font": args.font, "manifest": args.manifest,
+                                         "geometry": args.geometry,
+                                         "page_line_bands": "work/lead/page_line_bands.json",
+                                         "build_stats": stats_path},
+                                  scripts=["scan_missing_parts.py", "precut_masks.py", "reffont.py",
                                            "font_build.py", "font_norm.py", "page_frames.py",
                                            "fidelity_eval.py"],
                                   include_reffont=True)
@@ -238,8 +242,9 @@ def main():
         if args.reuse_frame:
             out_frame = args.reuse_frame
             vres = GB.validate_reuse(out_frame,
-                                  files={"manifest": args.manifest, "geometry": args.geometry},
-                                  scripts=["scan_frame_escape.py", "font_build.py",
+                                  files={"manifest": args.manifest, "geometry": args.geometry,
+                                         "page_line_bands": "work/lead/page_line_bands.json"},
+                                  scripts=["scan_frame_escape.py", "precut_masks.py", "font_build.py",
                                            "font_norm.py", "page_frames.py", "detect_blocks.py"])
             reuse_ok = vres["ok"]
             steps.append({"step": "frame_reuse_binding", "ok": reuse_ok,

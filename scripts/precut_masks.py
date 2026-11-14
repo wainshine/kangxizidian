@@ -9,6 +9,8 @@ clip + 裁片外带，导致「构建已排除的框线/注文框线」被当作
 import os
 import sys
 
+import numpy as np
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -68,8 +70,12 @@ def apply_precut_masks(ink, page, box, pad150=6, keep_margin150=2.0, block150=No
                       int(round((block150[2] - (box[0] - pad150)) * 2)),
                       int(round((block150[3] - (box[1] - pad150)) * 2)))
                 lm = _FN._filter_line_mask_to_crossing(lm.astype(np.uint8), bx) > 0
-            except Exception:
-                pass
+            except Exception as e:
+                # T1（BF-06）：此前这里是 `except: pass`，而 `np` 未在模块级导入 →
+                # crossing 过滤实际从未生效（静默 fail-open），扫描比构建多删整条页级线 mask，
+                # 导致扫描侧 ink_final bbox 偏小、E36 配准错位、缺件误报（audit4/T1 复算）。
+                # 现在：模块级导入 numpy，且失败即抛错（worker 会落 error 行，fail-closed）。
+                raise RuntimeError(f"precut crossing filter failed: {e}") from e
         ink[lm] = False
 
     for rec in bands_page:
