@@ -111,6 +111,7 @@ scripts/
 docs/
 ├── README.md                 # 文档索引（先看它）
 ├── ARCHITECTURE.md           # 本文：架构与目录层级
+├── LAYOUT.md                 # 原书版式 / 切分 / 选用规则（文字版规则）
 ├── METHOD.md                 # 技术路线（可读版，面向非开发者）
 ├── PROJECT-STATE.md          # 30 秒现状 / 已知缺陷 / 独立审计
 ├── PIPELINE.md               # 管线唯一权威（参数 / 命令 / 失败模式）

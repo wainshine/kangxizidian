@@ -414,6 +414,11 @@
   v2.6.3 缺件数字以新扫描为准（T2 重建字体后重扫）。真实残余：17 prune_loss + 5 clean_ink_loss（旧集）+ 3 scan 残差，
   BF-06 保持 open。
 - 同步重扫框线逃逸（同一 `apply_precut_masks`）：**0 flagged / 0 error（8m56s）**，与修复前结论一致（非回归）。
+- **owner 视觉复核（2026-11-14）**：17 个 prune_loss 组件**全部判 ✗**（v2.6.2 更好，修改后模拟版本又出现已修掉的边角料）
+  → `prune_edge_contours` 删除正确，不修 prune、不恢复组件；后续在 scan 侧把这类组件归类为 prune-by-design（与 E40 修复一起改），
+  记录 `work/lead/review-feedback-v263-prune17.json`。
+- **clean_ink_loss 5 组件（owner 2026-11-14）**：模拟保留组件会找回「误删部件」，但同时带回边角料 → **trade-off**；
+  本批不改 clean_ink、不重建字体，登记 known-debt（`work/lead/review-feedback-v263-cleanink.json`）。
 - 复现/证据：`work/lead/v263-T1-BF06-report.md`、`work/lead/missing_scan_v263-t1fix.jsonl`、
   `work/lead/missing-165-stage-attribution.jsonl`、`work/lead/missing-19-stage-attribution.jsonl`、
   `work/lead/bf06-variant-candidates.jsonl`；脚本 `scripts/oneoff/diag_missing_stage.py`、

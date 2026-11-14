@@ -8,16 +8,17 @@
 | 角色 | 只看这些 |
 |---|---|
 | 使用者（安装/使用字体） | 根 `../README.md` |
-| 新接手的开发者（30 分钟） | `README.md`（本页）→ `ARCHITECTURE.md` → `METHOD.md` → `PROJECT-STATE.md` → `PIPELINE.md` |
+| 新接手的开发者（30 分钟） | `README.md`（本页）→ `LAYOUT.md` → `ARCHITECTURE.md` → `METHOD.md` → `PROJECT-STATE.md` → `PIPELINE.md` |
 | 发布/发版 | + `WORKFLOW.md` → `reference/RELEASE-METRICS.md` → `releases/v<ver>/` |
 | 审计 | + `reference/WORK-MAP.md`、`reference/SCRIPTS.md`、`BACKLOG.md`、`VERSION-HISTORY.md`、`ERRATA.md` |
 
 ## 二、文档地图（分层：必读 / 权威 / 工作 / 参考 / 发布 / 历史）
 
-### A. 必读入口（5）
+### A. 必读入口（6）
 
 | 文件 | 定位 |
 |---|---|
+| `LAYOUT.md` | **原书版式、切分与选用规则**（半版/版框/界行/书眉、2×2 字头、pre-cut、D15/D20/D21/D22） |
 | `ARCHITECTURE.md` | 项目架构、文件夹层级、依赖方向、新增文件放哪 |
 | `METHOD.md` | 技术路线（可读版，给非开发者） |
 | `PROJECT-STATE.md` | 30 秒现状、已知缺陷、下一步、独立审计命令 |

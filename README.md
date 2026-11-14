@@ -121,7 +121,7 @@ FONT_BUILD_WORKERS=10 .venv/bin/python scripts/font_build.py \
 
 ## 项目结构
 
-完整架构、目录职责与「新增文件放哪里」见 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**；技术路线见 [docs/METHOD.md](docs/METHOD.md)。
+完整架构、目录职责与「新增文件放哪里」见 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**；原书版式/切分/选用规则见 [docs/LAYOUT.md](docs/LAYOUT.md)；技术路线见 [docs/METHOD.md](docs/METHOD.md)。
 
 ```text
 kangxizidian/
@@ -154,6 +154,7 @@ kangxizidian/
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **项目架构 / 文件夹层级 / 依赖方向 / 新增文件放哪里** |
 | [docs/METHOD.md](docs/METHOD.md) | 技术路线（可读版） |
+| [docs/LAYOUT.md](docs/LAYOUT.md) | **原书版式、切分与选用规则**（2×2 字头 / 版框界行 / pre-cut / D15） |
 | [docs/PROJECT-STATE.md](docs/PROJECT-STATE.md) | 30 秒现状、已知缺陷、独立审计命令 |
 | [docs/PIPELINE.md](docs/PIPELINE.md) | 现行管线（唯一权威） |
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | 候选/正式分层、闸分层、里程碑发版纪律 |

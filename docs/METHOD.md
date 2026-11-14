@@ -1,6 +1,6 @@
 # METHOD · 技术路线（可读版）
 
-> 给使用者/非开发者看的「这套字体是怎么做出来的」。工程参数与复现命令见 `docs/PIPELINE.md`（唯一权威）；
+> 给使用者/非开发者看的「这套字体是怎么做出来的」。**原书版式、2×2 字头、切分与选用规则见 `docs/LAYOUT.md`**；工程参数与复现命令见 `docs/PIPELINE.md`（唯一权威）；
 > 架构与目录见 `docs/ARCHITECTURE.md`；决策依据见 `docs/DECISIONS.md`。
 
 ## 1. 从扫描到字头（S1 + S2）

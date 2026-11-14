@@ -5,15 +5,16 @@
 ## 0. 先读这几个文件（按顺序）
 
 1. `docs/README.md` —— 文档索引（先看它，按它给的顺序读）
-2. `docs/ARCHITECTURE.md` —— 项目架构 / 文件夹层级 / 依赖方向 / 新增文件放哪里
-3. `docs/METHOD.md` —— 技术路线（可读版）
-4. `docs/PROJECT-STATE.md` —— 30 秒现状、已知缺陷、如何独立审计
-5. `docs/PIPELINE.md` —— 现行管线架构/原理/流程/参数/复现命令（唯一权威）
-6. `docs/WORKFLOW.md` —— 流程纪律：候选/正式分层、变更集、闸分层、里程碑发版、7 张复核图
-7. `docs/VERSION-HISTORY.md` —— 每版改了什么、探索 vs 修补
-8. `docs/reference/WORK-MAP.md` —— `work/` 痕迹地图（**不能盲删**）
-9. `docs/DECISIONS.md` —— 口径决策（唯一权威，D1–D23+更正注记）
-10. `docs/GLOSSARY.md` —— 术语（冲突时以它为准）
+2. `docs/LAYOUT.md` —— 原书版式、切分与选用规则（字头 2×2、pre-cut、D15/D20/D21/D22）
+3. `docs/ARCHITECTURE.md` —— 项目架构 / 文件夹层级 / 依赖方向 / 新增文件放哪里
+4. `docs/METHOD.md` —— 技术路线（可读版）
+5. `docs/PROJECT-STATE.md` —— 30 秒现状、已知缺陷、如何独立审计
+6. `docs/PIPELINE.md` —— 现行管线架构/原理/流程/参数/复现命令（唯一权威）
+7. `docs/WORKFLOW.md` —— 流程纪律：候选/正式分层、变更集、闸分层、里程碑发版、7 张复核图
+8. `docs/VERSION-HISTORY.md` —— 每版改了什么、探索 vs 修补
+9. `docs/reference/WORK-MAP.md` —— `work/` 痕迹地图（**不能盲删**）
+10. `docs/DECISIONS.md` —— 口径决策（唯一权威，D1–D23+更正注记）
+11. `docs/GLOSSARY.md` —— 术语（冲突时以它为准）
 
 ## 1. 硬性约束（违反即事故）
 
