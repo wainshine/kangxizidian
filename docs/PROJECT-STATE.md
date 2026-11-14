@@ -11,7 +11,7 @@
   发布材料：`docs/releases/v2.6.3/{RELEASE,KNOWN-DEBTS,SELF-AUDIT}.md`、`docs/reference/RELEASE-METRICS.md`（含 v2.6.3 列）。
   v2.6.3 = BF-54 基本区 5 字重定位（愈/急/架/紉/釘）+ 旧釘框改标 釕 + BF-06 扫描侧修复（E40：165→19/20）+ T4 证据链。
 - 覆盖：基本区 10,268/20,992 = **48.91%**；目标字表 10,268/16,567 = **61.98%**；缺口 **6,299**。
-- 闸（候选，现行）：font_qa PASS（同框 0）；字形级框线 **0**；框线逃逸 **0**；内容 **0**（v2.6.2 基线；累计 vs v2.5.8=18 披露）；
+- 闸（候选，现行）：font_qa PASS（同框 0）；字形级框线 **0**；框线逃逸 **0**；内容 **0**（v2.6.2 基线；累计 vs v2.5.8=17 披露）；
   provenance PASS；页几何 bad_boxes **0**、empty_assign **1,172**（披露）；缺件 **19 字/20 组件**（17 prune 判正确 + 3 scan 残差）。
 - 构建：mapping `work/lead/mapping_block_v274.jsonl`（v271 + 5 条基本区重定位 + 釕）+ geometry `work/lead/page_geometry.jsonl`
   + 页级线条带（27 rect）+ 自动缓存版本；clean-HEAD 全量重建 398s（10 workers；T1 改动后首跑），cache 命中约 20s。

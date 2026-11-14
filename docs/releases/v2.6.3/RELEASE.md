@@ -28,7 +28,7 @@
 | font_qa | PASS（同框 0） | 严格 |
 | 字形级框线（glyph_frame_gate） | **0** | 严格 0 |
 | 框线逃逸（scan_frame_escape） | **0** | 严格 0 |
-| 内容（content_loss，基线 v2.6.2） | **0** | 18（硬线；累计 vs v2.5.8 的 18 单列披露） |
+| 内容（content_loss，基线 v2.6.2） | **0** | 18（硬线；累计 vs v2.5.8 的 17 单列披露） |
 | 缺件（scan_missing_parts） | **19 字 / 20 组件** | 19（阈值=观测值，零余量；17 prune 已判正确 + 3 scan 残差披露） |
 | 页几何 bad_boxes / empty_assign | **0 / 1,172** | 0 / 1,172（披露） |
 
