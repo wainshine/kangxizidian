@@ -252,17 +252,29 @@ def _sha12(p):
 
 
 def _cache_version():
-    """算法+几何联合版本：任何算法脚本或几何缓存变化都会自动失效字形缓存（审计 P0-1/P0-4）。"""
+    """算法+几何+env 联合版本：任何会改变输出的输入变化都自动失效字形缓存（BUILD-402）。
+
+    审计5代：FONT_STRIP_BORDER / FONT_PAGE_LINE_MASK / FONT_PAGE_THIN_MASK /
+    FONT_LINE_BANDS / FONT_VERIFIED_KEEP 会改变字形输出，必须进键；FONT_CACHE_TAG
+    并入 hash（不再拼进目录名，避免 `_` 解析污染）。
+    """
     import hashlib as _h
     algo = _h.sha256()
-    for f in ("font_norm.py", "page_frames.py", "detect_blocks.py", "font_build.py"):
+    for f in ("font_norm.py", "page_frames.py", "detect_blocks.py", "font_build.py",
+              "precut_masks.py"):
         try:
             algo.update(open(os.path.join(str(ROOT), "scripts", f), "rb").read())
         except Exception:
             pass
+    env_effective = {k: os.environ.get(k, "default") for k in (
+        "FONT_STRIP_BORDER", "FONT_PAGE_LINE_MASK", "FONT_PAGE_THIN_MASK",
+        "FONT_LINE_BANDS", "FONT_VERIFIED_KEEP")}
+    algo.update(json.dumps(env_effective, sort_keys=True).encode("utf-8"))
     tag = os.environ.get("FONT_CACHE_TAG", "")
+    if tag:
+        algo.update(tag.encode("utf-8"))
     bands = os.path.join(str(ROOT), "work", "lead", "page_line_bands.json")
-    return f"{algo.hexdigest()[:8]}_{_sha12(_GEOM_PATH)}_{_sha12(bands)}{tag}"
+    return f"{algo.hexdigest()[:8]}_{_sha12(_GEOM_PATH)}_{_sha12(bands)}"
 
 
 _CACHE_VER = _cache_version()
@@ -486,8 +498,6 @@ def get_page_line_mask(page_key: str, dilate: int = 3):
         # （E33 实测 961 字掉墨 40–60%）。改用「横向/纵向 opening 去掉宽≥3px 结构后的残渣」，
         # 残渣只含窄结构（细线/亚像素残边），再用长核过滤成长直线，不与笔画边界重叠。
         try:
-            if os.environ.get("FONT_LINE_ULTRA", "1") == "0":
-                print("[line-mask-ultra] off", page_key) if False else None
             # 竖细线：先用水平 opening (1,3) 去掉宽≥3 的结构，残渣（宽≤2 的竖线）再做竖长 opening
             ink_u8 = ink.astype(np.uint8)
             op_h = cv2.morphologyEx(ink_u8, cv2.MORPH_OPEN, np.ones((1, 3), np.uint8))
@@ -565,11 +575,61 @@ def get_page_thin_line_mask(page_key: str):
         return None
 
 
+def _audit_page_prep(page_prep: dict) -> dict:
+    """BF-51：pre-cut 各层的 applied/absent_by_design/degraded/error 分类。
+
+    仅当 geometry 明确给出 lattice/quad、而本次运行没有拿到时才算 degraded；
+    line/band/thin mask 的「无」可能是版面本来没有线，只计 absent（不判错）。
+    """
+    geom = _load_geom()
+    counts = {"lattice_applied": 0, "lattice_absent_by_design": 0,
+              "quad_applied": 0, "quad_absent_by_design": 0,
+              "text_bbox_applied": 0, "line_mask_applied": 0,
+              "band_mask_applied": 0, "thin_mask_applied": 0}
+    degraded, errors = [], []
+    for page, prep in page_prep.items():
+        if prep.get("error"):
+            errors.append({"page": page, "half": None, "error": prep["error"]})
+            continue
+        g = geom.get(page) or {}
+        glat = g.get("lattice") or {}
+        gq = g.get("quads") or {}
+        for half in ("L", "R"):
+            exp_lat = bool(glat.get(half))
+            got_lat = bool((prep.get("lattice") or {}).get(half))
+            if exp_lat and not got_lat:
+                degraded.append({"page": page, "half": half, "layer": "lattice"})
+            counts["lattice_applied" if got_lat else "lattice_absent_by_design"] += 1
+            exp_q = bool(gq.get(half))
+            got_q = bool((prep.get("quads") or {}).get(half))
+            if exp_q and not got_q:
+                degraded.append({"page": page, "half": half, "layer": "quad"})
+            counts["quad_applied" if got_q else "quad_absent_by_design"] += 1
+        if prep.get("text_bbox"):
+            counts["text_bbox_applied"] += 1
+        if prep.get("line_mask"):
+            counts["line_mask_applied"] += 1
+        if prep.get("band_mask"):
+            counts["band_mask_applied"] += 1
+        if prep.get("thin_mask"):
+            counts["thin_mask_applied"] += 1
+    return {"pages_checked": len(page_prep), "counts": counts,
+            "degraded": degraded[:200], "degraded_n": len(degraded),
+            "errors": errors[:200], "errors_n": len(errors)}
+
+
 def _worker_page(args):
-    """单页任务：该页所有（cache-miss）字一次性矢量化，页级 lattice/frame mask 只算一次。"""
+    """单页任务：该页所有（cache-miss）字一次性矢量化，页级 lattice/frame mask 只算一次。
+
+    BF-51：逐页记录 pre-cut 各层的 applied/absent 状态（`__prep__` 返回项），
+    由主进程结合 geometry 期望值审计 degraded/error（不再静默降级）。
+    """
     page, items = args
     from font_norm import vectorize_box
     out = []
+    prep = {"page": page, "error": None, "lattice": {}, "quads": {},
+            "text_bbox": False, "line_mask": False, "band_mask": False,
+            "thin_mask": False}
     try:
         lat_all = get_page_lattice(page)
         tbb = get_page_text_bbox(page)
@@ -590,7 +650,16 @@ def _worker_page(args):
                 band_mask = None
         thin_mask = get_page_thin_line_mask(page) if os.environ.get("FONT_PAGE_THIN_MASK", "1") != "0" else None
     except Exception as e:
-        return [(it["idx"], None, {"ok": False, "reason": f"page prepare: {e}"}) for it in items]
+        prep["error"] = f"page prepare: {e}"
+        return [("__prep__", page, prep)] + [
+            (it["idx"], None, {"ok": False, "reason": f"page prepare: {e}"}) for it in items]
+    for half in ("L", "R"):
+        prep["lattice"][half] = bool(lat_all.get(half))
+        prep["quads"][half] = bool(quads.get(half))
+    prep["text_bbox"] = tbb is not None
+    prep["line_mask"] = line_mask is not None
+    prep["band_mask"] = band_mask is not None
+    prep["thin_mask"] = thin_mask is not None
     for it in items:
         ch = it["char"]; half = it["half"]; box = it["box"]
         try:
@@ -610,6 +679,7 @@ def _worker_page(args):
         except Exception as e:
             res = {"ok": False, "reason": str(e)[:120]}
         out.append((it["idx"], ch, res))
+    out.append(("__prep__", page, prep))
     return out
 
 
@@ -698,11 +768,16 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
     job_list = [(pg, its) for pg, its in jobs.items()]
     print(f"[font_build] parallel: pages={len(job_list)} glyphs={len(items)} cached={n_cached}", flush=True)
     results = {}
+    page_prep = {}
     done = 0
     max_workers = clamp_workers(workers or int(os.environ.get("FONT_BUILD_WORKERS", "10") or 10))
     with ProcessPoolExecutor(max_workers=max_workers) as ex:
         for page_res in ex.map(_worker_page, job_list, chunksize=1):
-            for (i, ch, res) in page_res:
+            for item in page_res:
+                if item and item[0] == "__prep__":
+                    page_prep[item[1]] = item[2]
+                    continue
+                i, ch, res = item
                 results[i] = res
             done += 1
             if done % 50 == 0:
@@ -728,14 +803,24 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
             Path(it["cpath"]).write_text(json.dumps({"ok": True, "char": ch,
                                                              "contours": res["contours"], "src": m},
                                                             ensure_ascii=False))
-    # 硬失败分类：limit 是显式调试截断（合法）；其余（构字失败/重复字/缺字段）都算失败
+    # BF-51：pre-cut 层审计（expected from geometry; failure => skipped hard error）
+    prep_audit = _audit_page_prep(page_prep)
+    extra_prep = {"page_prep": prep_audit}
+    if prep_audit["errors"] or prep_audit["degraded"]:
+        for e in prep_audit["errors"]:
+            skipped.append({"page": e.get("page"), "half": e.get("half"),
+                            "char": None, "reason": f"page_prep_error: {e.get('error')}"})
+        for d in prep_audit["degraded"]:
+            skipped.append({"page": d.get("page"), "half": d.get("half"),
+                            "char": None, "reason": f"page_prep_degraded: {d.get('layer')}"})
+    # 硬失败分类：limit 是显式调试截断（合法）；其余（构字失败/重复字/缺字段/降级）都算失败
     hard_failed = [x for x in skipped if x.get("reason") != "limit"]
     if hard_failed:
         print(f"[font_build] ERROR: {len(hard_failed)} 字失败/跳过（skipped 已落盘；"
               f"--allow-partial 才可放行）", flush=True)
     print(f"[font_build] vectorized {n_new} new glyphs in {_time.time()-t0:.1f}s "
           f"(cached {n_cached}, skipped {len(skipped)})", flush=True)
-    return glyphs, src, skipped
+    return glyphs, src, skipped, extra_prep
 
 
 def _rel_path(p):
@@ -805,12 +890,12 @@ def main():
     extra = {}
     if args.mapping:
         pages = {p.strip() for p in args.pages.split(",") if p.strip()} or None
-        glyphs, src, extra["skipped"] = load_from_mapping(
+        glyphs, src, extra["skipped"], extra["page_prep"] = load_from_mapping(
             args.mapping, limit=args.limit, pages=pages,
             progress_every=args.progress_every, workers=args.workers)
     elif args.manifest:
-        glyphs, src, extra["skipped"] = load_from_manifest_jsonl(args.manifest,
-                                                                 workers=args.workers)
+        glyphs, src, extra["skipped"], extra["page_prep"] = load_from_manifest_jsonl(args.manifest,
+                                                                                    workers=args.workers)
     else:
         for line in open(args.glyphs):
             r = json.loads(line)

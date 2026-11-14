@@ -147,8 +147,9 @@ def main():
             bybox.setdefault(key, []).append(ch)
         conflicts = [{"page": k[0], "half": k[1], "box": list(k[2]), "chars": sorted(v)}
                      for k, v in bybox.items() if len(set(v)) > 1]
-    except Exception:
+    except Exception as e:
         conflicts = []
+        problems.append(f"same_box_conflict_check_error: {str(e)[:120]}")
     report["same_box_conflicts"] = conflicts
     if conflicts:
         problems.append(f"same-crop multi-char {len(conflicts)}")

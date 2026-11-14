@@ -157,6 +157,13 @@ def validate_scan_artifact(path, expected_files, expected_scripts, include_reffo
     extra_s = sorted(set(sc_scripts) - set(expected_scripts or []))
     if extra_s:
         rec["mismatch"]["sidecar_has_unverified_scripts"] = extra_s
+    # v2.6.4：产物自身 sha 必须绑定在 sidecar.extra.out_sha256（失败/被改产物不可复用）
+    sc_extra = sc.get("extra") or {}
+    if not sc_extra.get("out_sha256"):
+        rec["missing"].append("extra:out_sha256")
+    elif sc_extra["out_sha256"] != rec["sha256"]:
+        rec["mismatch"]["out_sha256"] = {"sidecar": str(sc_extra["out_sha256"])[:12],
+                                         "current": (rec["sha256"] or "")[:12]}
     if not rec["missing"] and not rec["mismatch"]:
         rec["ok"] = True
     else:
@@ -442,17 +449,20 @@ def finalize_package(args, v, tag, steps, inputs, scan_artifacts, out_report, in
         if r.returncode != 0:
             return fail("终版文档对账失败"), local_steps, info
 
-        # 8) 独立 verifier（若存在）：目录==zip / SHA 覆盖 / FINALIZE 字段
+        # 8) 独立 verifier（必须存在；缺失 = fail-closed，不允许静默跳过）
         verify_script = os.path.join(ROOT, "scripts", "verify_release.py")
-        if os.path.exists(verify_script):
-            vr = subprocess.run([sys.executable, verify_script, "--dir", staging_pkg,
-                                 "--zip", staging_zip, "--json-out",
-                                 os.path.join(staging_root, "verify.json")],
-                                cwd=ROOT, capture_output=True, text=True)
-            local_steps.append({"step": "verify_release", "ok": vr.returncode == 0,
-                                "detail": {"tail": (vr.stdout or vr.stderr or "")[-800:]}})
-            if vr.returncode != 0:
-                return fail("verify_release 终验失败"), local_steps, info
+        if not os.path.exists(verify_script):
+            local_steps.append({"step": "verify_release", "ok": False,
+                                "detail": {"error": "verify_release.py 缺失（fail-closed）"}})
+            return fail("verify_release.py 缺失"), local_steps, info
+        vr = subprocess.run([sys.executable, verify_script, "--dir", staging_pkg,
+                             "--zip", staging_zip, "--json-out",
+                             os.path.join(staging_root, "verify.json")],
+                            cwd=ROOT, capture_output=True, text=True)
+        local_steps.append({"step": "verify_release", "ok": vr.returncode == 0,
+                            "detail": {"tail": (vr.stdout or vr.stderr or "")[-800:]}})
+        if vr.returncode != 0:
+            return fail("verify_release 终验失败"), local_steps, info
         if inject_fail == "pre-swap":
             return fail("inject-fail=pre-swap（模拟 finalize 后段失败）"), local_steps, info
 
@@ -674,51 +684,71 @@ def main():
                                  "undeclared_removed": undeclared,
                                  "quarantine_files": qfiles, "quarantine_n": len(quarantine)}})
 
-    # 4) 内容缺失闸：既看退出码，也解析 JSON 的 damaged（双重保险）
+    # 4) 内容缺失闸（v2.6.4 契约：baseline∩new 交集；新增/删除字单列；失败产物不可复用）
     if args.prev:
         fresh_json = os.path.join("work", "lead", f"content-loss-gate-{tag}.json")
         out_json = fresh_json
         r = None
         reuse_ok = None
-        if args.reuse_content:
-            vres = GB.validate_reuse(args.reuse_content,
-                                     files={"font": args.font, "baseline": args.prev,
-                                            "manifest": args.prev_manifest or args.manifest},
-                                     scripts=["content_loss_gate.py", "fidelity_eval.py"])
-            reuse_ok = vres["ok"]
-            steps.append({"step": "content_reuse_binding", "ok": reuse_ok,
-                          "detail": {"file": args.reuse_content, **vres}})
-            if reuse_ok:
-                out_json = args.reuse_content
-                r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
-        if r is None:
-            # 内容闸基线 = --prev 字体；字符集也用 --prev-manifest（只比较基线里存在的字；
-            # 新增字（如 v2.6.3 的 釕）不属于“掉墨”，应在字符 diff/释放说明里单列。
-            r = subprocess.run([sys.executable, "scripts/content_loss_gate.py", args.prev, args.font,
-                                args.prev_manifest or args.manifest, out_json],
-                               cwd=ROOT, capture_output=True, text=True)
-        damaged = None
-        try:
-            rows = json.load(open(os.path.join(ROOT, out_json)))
-            if isinstance(rows, list):
-                damaged = len([x for x in rows if isinstance(x, dict) and "ink_ratio" in x])
-        except Exception:
-            pass
-        mode = "threshold" if args.content_max_damaged > 0 else "strict(0)"
-        zero_margin = (args.content_max_damaged > 0 and damaged is not None
-                       and damaged == args.content_max_damaged)
-        if args.content_max_damaged > 0:
-            ok_content = (damaged is not None and damaged <= args.content_max_damaged
-                          and r.returncode in (0, 3))
+        if not args.prev_manifest or not os.path.exists(os.path.join(ROOT, args.prev_manifest)):
+            steps.append({"step": "content_loss_gate", "ok": False,
+                          "detail": {"error": "缺 --prev-manifest，content 宇宙无法确定"}})
         else:
-            ok_content = (r.returncode == 0 and damaged == 0)
-        steps.append({"step": "content_loss_gate", "ok": ok_content,
-                      "detail": {"returncode": r.returncode, "damaged": damaged,
-                                 "mode": mode, "reused": bool(reuse_ok),
-                                 "threshold": args.content_max_damaged,
-                                 "zero_margin": zero_margin,
-                                 "threshold_note": ("阈值=观测值，无余量" if zero_margin else ""),
-                                 "tail": (r.stdout or "")[-300:]}})
+            if args.reuse_content:
+                vres = GB.validate_reuse(args.reuse_content,
+                                         files={"font": args.font, "baseline": args.prev,
+                                                "manifest": args.prev_manifest},
+                                         scripts=["content_loss_gate.py", "fidelity_eval.py"],
+                                         require_out_sha=True)
+                reuse_ok = vres["ok"]
+                steps.append({"step": "content_reuse_binding", "ok": reuse_ok,
+                              "detail": {"file": args.reuse_content, **vres}})
+                if reuse_ok:
+                    out_json = args.reuse_content
+                    r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
+            if r is None:
+                r = subprocess.run([sys.executable, "scripts/content_loss_gate.py",
+                                    args.prev, args.font, args.prev_manifest, out_json],
+                                   cwd=ROOT, capture_output=True, text=True)
+            summary = None
+            try:
+                obj = json.load(open(os.path.join(ROOT, out_json), encoding="utf-8"))
+                if isinstance(obj, dict) and obj.get("contract_version") == 1:
+                    summary = obj
+            except Exception:
+                summary = None
+            damaged = len(summary["damaged"]) if summary and isinstance(
+                summary.get("damaged"), list) else None
+            n_expected = (summary or {}).get("n_expected")
+            n_ok = (summary or {}).get("n_ok")
+            n_error = (summary or {}).get("n_error")
+            coverage_ok = (isinstance(n_expected, int) and isinstance(n_ok, int)
+                           and isinstance(n_error, int) and n_expected == n_ok
+                           and n_error == 0)
+            mode = "threshold" if args.content_max_damaged > 0 else "strict(0)"
+            zero_margin = (args.content_max_damaged > 0 and damaged is not None
+                           and damaged == args.content_max_damaged)
+            ok_content = (summary is not None and coverage_ok
+                          and bool(summary.get("gate_pass"))
+                          and isinstance(damaged, int)
+                          and damaged <= args.content_max_damaged
+                          and r.returncode in (0, 3))
+            steps.append({"step": "content_loss_gate", "ok": ok_content,
+                          "detail": {"contract_version": (summary or {}).get("contract_version"),
+                                     "returncode": r.returncode,
+                                     "damaged": damaged,
+                                     "n_expected": n_expected, "n_ok": n_ok,
+                                     "n_error": n_error,
+                                     "added_skipped": len((summary or {}).get("added_chars") or []),
+                                     "removed_skipped": len((summary or {}).get("removed_chars") or []),
+                                     "universe_manifest": (summary or {}).get("universe_manifest"),
+                                     "universe_manifest_sha256": (summary or {}).get(
+                                         "universe_manifest_sha256"),
+                                     "mode": mode, "reused": bool(reuse_ok),
+                                     "threshold": args.content_max_damaged,
+                                     "zero_margin": zero_margin,
+                                     "threshold_note": ("阈值=观测值，无余量" if zero_margin else ""),
+                                     "tail": (r.stdout or "")[-300:]}})
 
     # 4b) 全库缺件扫描（--reuse-missing 本身也触发该闸；GATE-402）
     if args.scan or args.reuse_missing:

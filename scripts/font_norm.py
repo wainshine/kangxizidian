@@ -1091,10 +1091,11 @@ def vectorize_box(page_key: str, box: list, pads=(6, 18), long_side: float = INK
             from page_frames import clip_mask_page as _clip
             cm = _clip(gray.shape, (box[0] - pad150, box[1] - pad150), content_quad, dpi_scale=2.0)
         fm = None
+        # box 为 float（150dpi 坐标）；页级 mask 是页坐标 int 网格，必须先取整再切片。
+        # x0/y0 必须在此定义：frame_mask_outer 分支也会用（P1-16：frame_mask=None 时曾 NameError）。
+        x0 = int(round(box[0] - pad150)); y0 = int(round(box[1] - pad150))
         if frame_mask is not None:
             import numpy as _np
-            # box 为 float（150dpi 坐标）；frame_mask 是页坐标 int 网格，必须先取整再切片
-            x0 = int(round(box[0] - pad150)); y0 = int(round(box[1] - pad150))
             mh, mw = frame_mask.shape
             sx0 = max(0, x0); sy0 = max(0, y0)
             sx1 = min(int(mw), x0 + gray.shape[1] // 2)

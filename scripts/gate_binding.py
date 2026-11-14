@@ -131,8 +131,15 @@ def read_sidecar(out_path):
         return None
 
 
-def validate_reuse(out_path, files=None, scripts=(), include_reffont=False):
-    """复用前校验：输出存在、sidecar 存在、输入/脚本 sha 全部一致。
+def validate_reuse(out_path, files=None, scripts=(), include_reffont=False,
+                   require_out_sha=False, check_git=False):
+    """复用前校验：输出存在、sidecar 存在、输入/脚本 sha 一致、判定结果可复用。
+
+    v2.6.4 契约（审计5代 P0-1/P1-4）：
+    - `extra.out_sha256` 必须与**当前输出文件**一致（防手工改产物后复用）；
+    - sidecar 不得出现期望集合之外的文件 sha（防「多传一个输入」绕过）；
+    - 复用失败产物（sidecar.extra.decision 存在时）必须 gate_pass 且 n_error==0；
+    - 可选 check_git：clean 状态的 sidecar 跨 commit 复用需显式允许（默认不查）。
 
     返回 {"ok": bool, "reason": str, "missing": [...], "mismatch": {...}}。
     """
@@ -159,7 +166,34 @@ def validate_reuse(out_path, files=None, scripts=(), include_reffont=False):
         elif got != sha:
             detail["mismatch"][f"script:{name}"] = {"sidecar": (got or "")[:12],
                                                     "current": (sha or "")[:12]}
+    # 不允许 sidecar 出现期望之外的输入（旧工具多传输入时曾造成口径漂移）
+    allowed = set((expect.get("sha256") or {}).keys()) | {"reffont"}
+    for name, got in (sc.get("sha256") or {}).items():
+        if name not in allowed:
+            detail["mismatch"][f"extra_input:{name}"] = {"sidecar": (got or "")[:12],
+                                                         "current": None}
+    # 输出自身 sha（防产物被手工修改后复用）
+    extra = sc.get("extra") or {}
+    out_sha = sha256_file(out_path)
+    if extra.get("out_sha256"):
+        if extra["out_sha256"] != out_sha:
+            detail["mismatch"]["out_file"] = {"sidecar": str(extra["out_sha256"])[:12],
+                                              "current": (out_sha or "")[:12]}
+    elif require_out_sha:
+        detail["missing"].append("extra:out_sha256")
+    # 失败产物不可复用（content 闸等写入 decision）
+    dec = extra.get("decision")
+    if isinstance(dec, dict):
+        if not dec.get("gate_pass") or int(dec.get("n_error") or 0) != 0 \
+                or int(dec.get("n_ok") or 0) != int(dec.get("n_expected") or 0):
+            detail["mismatch"]["decision"] = {"sidecar": dec, "current": "must be gate_pass/coverage_ok"}
+    if check_git:
+        cur = git_state()
+        sg = sc.get("git") or {}
+        if sg.get("commit") and cur.get("commit") and sg["commit"] != cur["commit"]:
+            detail["mismatch"]["git"] = {"sidecar": sg["commit"][:12],
+                                         "current": cur["commit"][:12]}
     detail["ok"] = not detail["missing"] and not detail["mismatch"]
     if not detail["ok"]:
-        detail["reason"] = "sidecar 与当前输入不一致（输入/脚本已变）"
+        detail["reason"] = "sidecar 与当前输入/输出不一致（输入/脚本/产物已变）"
     return detail

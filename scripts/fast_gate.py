@@ -81,18 +81,20 @@ def main():
                     help="字形级框线闸阈值；默认 0（严格）")
     ap.add_argument("--skip-glyph-frame", action="store_true",
                     help="调试用：跳过字形级框线闸（会在报告里标记 skipped）")
-    ap.add_argument("--max-bad-boxes", type=int, default=400,
-                    help="页级几何闸：候选允许的已知 box∩quad 越界数（里程碑版应为 0）")
-    ap.add_argument("--max-missing-quad-chars", type=int, default=300)
-    ap.add_argument("--max-empty-assign-halves", type=int, default=1200,
-                    help="页级几何闸：候选允许已知空指派半版（v2.6.1 实测 1,173；里程碑严格 0）")
+    ap.add_argument("--max-bad-boxes", type=int, default=0,
+                    help="页级几何闸：默认严格 0；披露阈值必须显式传参")
+    ap.add_argument("--max-missing-quad-chars", type=int, default=0,
+                    help="页级几何闸：默认严格 0；披露阈值必须显式传参")
+    ap.add_argument("--max-empty-assign-halves", type=int, default=0,
+                    help="页级几何闸：默认严格 0；已知债披露阈值必须显式传参（不内置观测值）")
     ap.add_argument("--mapping", default="work/lead/mapping_block_v271.jsonl")
     ap.add_argument("--geometry", default="work/lead/page_geometry.jsonl",
                     help="页级几何（传给 page_geometry_gate，避免默认路径与实际版本不一致）")
     ap.add_argument("--stats", default=None, help="build stats（默认 <font>.build_stats.json）")
     ap.add_argument("--tag", default=None)
     args = ap.parse_args()
-    tag = args.tag or args.version
+    # tag 统一为 v<digits>（与 make_release_extras 的 fast-gate-v<tag>* glob / release_metrics 一致）
+    tag = args.tag or ("v" + str(args.version).replace(".", ""))
     steps = []
     skipped = []
 
@@ -133,39 +135,74 @@ def main():
     except Exception as e:
         add("char_diff", False, {"error": str(e)[:200]})
 
-    # 4) 内容闸（输入绑定 sidecar 复用）
+    # 4) 内容闸（v2.6.4 契约：baseline∩new 交集；新增/删除字单列；失败产物不可复用）
     try:
         cd, font_sha12 = cache_dir(args.font)
-        rows_path = os.path.join(cd, "content_loss_rows.json")
         sum_path = os.path.join(cd, "content_loss_summary.json")
-        bfiles = {"font": args.font, "baseline": args.baseline, "manifest": args.manifest}
+        bfiles = {"font": args.font, "baseline": args.baseline,
+                  "manifest": args.baseline_manifest}
         bscripts = ["content_loss_gate.py", "fidelity_eval.py"]
         cached = None
-        if os.path.exists(sum_path) and os.path.exists(rows_path):
-            vres = GB.validate_reuse(sum_path, files=bfiles, scripts=bscripts)
+        if os.path.exists(sum_path):
+            vres = GB.validate_reuse(sum_path, files=bfiles, scripts=bscripts,
+                                     require_out_sha=True)
             if vres["ok"]:
                 try:
-                    cached = json.load(open(sum_path))
+                    cached = json.load(open(sum_path, encoding="utf-8"))
                     cached["reused"] = True
                 except Exception:
                     cached = None
         if cached is None:
             r = run([sys.executable, "scripts/content_loss_gate.py", args.baseline, args.font,
-                     args.manifest, rows_path])
+                     args.baseline_manifest, sum_path])
             try:
-                rows = json.load(open(rows_path))
-                cached = {"damaged": len([x for x in rows if "ink_ratio" in x]),
-                          "returncode": r.returncode, "sample": rows[:5], "reused": False}
+                summary = json.load(open(sum_path, encoding="utf-8"))
             except Exception as e:
-                cached = {"damaged": None, "returncode": r.returncode,
-                          "error": str(e)[:150]}
-            json.dump(cached, open(sum_path, "w"), ensure_ascii=False, indent=1)
-            GB.write_sidecar(sum_path, GB.build_binding(files=bfiles, scripts=bscripts))
-        ok_content = (isinstance(cached.get("damaged"), int)
-                      and cached["damaged"] <= args.content_max_damaged
-                      and cached.get("returncode", 9) in (0, 3))
+                summary = {"gate_pass": False, "n_expected": None, "n_ok": None,
+                           "n_error": None, "damaged": None, "error": str(e)[:150]}
+            # 失败产物不写缓存（覆盖不足/逐字异常；避免下一次复用失败缓存不自愈）
+            coverage_ok = (isinstance(summary.get("n_ok"), int)
+                           and isinstance(summary.get("n_expected"), int)
+                           and summary["n_ok"] == summary["n_expected"]
+                           and int(summary.get("n_error") or 0) == 0)
+            if coverage_ok:
+                summary["returncode"] = r.returncode
+                summary["reused"] = False
+                summary["sample"] = (summary.get("damaged") or [])[:5]
+                json.dump(summary, open(sum_path, "w", encoding="utf-8"),
+                          ensure_ascii=False, indent=1)
+                out_sha = GB.sha256_file(sum_path)
+                GB.write_sidecar(sum_path, GB.build_binding(
+                    files=bfiles, scripts=bscripts,
+                    extra={"contract_version": 1, "out_sha256": out_sha,
+                           "decision": {"gate_pass": bool(summary.get("gate_pass")),
+                                        "n_expected": summary.get("n_expected"),
+                                        "n_ok": summary.get("n_ok"),
+                                        "n_error": summary.get("n_error"),
+                                        "damaged": len(summary.get("damaged") or [])}}))
+                cached = summary
+            else:
+                cached = summary
+                cached["returncode"] = r.returncode
+        damaged = cached.get("damaged")
+        damaged_n = len(damaged) if isinstance(damaged, list) else None
+        ok_content = (cached.get("contract_version") == 1
+                      and cached.get("gate_pass") is True
+                      and cached.get("n_error") == 0
+                      and cached.get("n_ok") == cached.get("n_expected")
+                      and isinstance(damaged_n, int)
+                      and damaged_n <= args.content_max_damaged)
         add("content_gate", ok_content,
-            {**cached, "threshold": args.content_max_damaged,
+            {"contract_version": cached.get("contract_version"),
+             "n_expected": cached.get("n_expected"), "n_ok": cached.get("n_ok"),
+             "n_error": cached.get("n_error"), "damaged": damaged_n,
+             "threshold": args.content_max_damaged,
+             "added_skipped": len(cached.get("added_chars") or []),
+             "removed_skipped": len(cached.get("removed_chars") or []),
+             "universe_manifest": cached.get("universe_manifest"),
+             "universe_manifest_sha256": cached.get("universe_manifest_sha256"),
+             "reused": bool(cached.get("reused")),
+             "sample": (cached.get("sample") or cached.get("damaged") or [])[:5],
              "font_sha12": font_sha12})
     except Exception as e:
         add("content_gate", False, {"error": str(e)[:200]})

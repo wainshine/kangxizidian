@@ -51,7 +51,7 @@
 | ID | 问题 | 证据 | 修法 | 验收 | 轮次 |
 |---|---|---|---|---|---|
 | BF-10 | **闸契约仍可被绕过**：可选闸省略即 PASS；阈值=观测值（35/35、153/153、1200/1200）零余量；`doc_check` 不做数字对账 | 审计 GLM/DSH P1 | 候选/里程碑强制 full gate；阈值模式要求记录「上一版数字+delta」，零余量必须披露；doc_check 校验 README/QA 数字与 gate-report 一致 | 缺项即 FAIL；数字不一致即 FAIL | CS1 |
-| BF-11 | **有 quad 但 0 指派的半版 1,173**（原条目「343 页无 quad/影响 238 字」已失效：`missing_quad_chars=0`，无字形落无 quad 页） | `page-geometry-gate-v262.json`、`empty-assign-triage-v262.json` | 669 个 vol 01–12 半版重跑检测/映射（含 01_0006 L「一」）；504 个 vol 00/13 口径待 owner；40 无 lattice 半版待核 | empty_assign→0 或经 owner 同意的披露；覆盖/缺口重算 | CS3 |
+| BF-11 | **有 quad 但 0 指派的半版 1,173**（原条目「343 页无 quad/影响 238 字」已失效：`missing_quad_chars=0`，无字形落无 quad 页） | `page-geometry-gate-v262.json`、`empty-assign-triage-v262.json` | 668 个 vol 01–12 半版重跑检测/映射（含 01_0006 L「一」）；504 个 vol 00/13 口径待 owner；40 无 lattice 半版待核 | empty_assign→0 或经 owner 同意的披露；覆盖/缺口重算 | CS3 |
 | BF-12 | **扫描结果未绑定字体 SHA**（早期扫描早于字体；reuse 无校验） | 审计 DSH P1 | 新增 `gate_binding.py`：扫描/内容输出旁写 `<out>.sha256`（font/manifest/mapping/geometry/参考字体/脚本 sha + argv + git）；快闸/全闸复用前校验，缺失或不匹配 → FAIL | ✅ **完成（2026-11-12）**：`validate_reuse` 单测（换字体→不通过）；内容/缺件/框线闸均已接入 | CS1 |
 | BF-13 | **页级几何与 pre-cut 不变量冲突**：主链仍调 `strip_border_lines`（形状删线） | 200 字 A/B（`strip-border-ab-v4.json`）；E29 全量 A/B：strip 关→12 处框线→并入页级线条带（26 rect）后 glyph_frame=0、内容 0 回归 | 按 D22 原定路径：pre-cut 达标后摘除 strip，`FONT_STRIP_BORDER` 仅留复现口 | ✅ **完成（2026-11-13，E29/D22）**：strip 默认关闭；候选 sha `f901c9d4…`；fast_gate 8/8 PASS | CS2 |
 | BF-14 | **Songti 专有字体依赖** | 审计 E8；2026-11-12 全管线替换完成 | 新增 `scripts/reffont.py`（唯一参考字体：霞鹜文楷 OFL）并替换 font_qa/refgate/refgate2/scan_distort/fidelity_eval/scan_missing_parts/font_norm/review_sheet/owner_defect_sheet + 3 个 legacy 标注脚本；font_qa 孔洞对照删除（D21） | 构建/闸/报告脚本无 Songti/Hiragino 依赖 | ✅ 完成（2026-11-12） |
@@ -133,7 +133,7 @@
 
 > 合计未完成 **39 条**（见 §0 与 §10）。当前发布候选 sha `a8bb87d9…`（17,005 字）：fast_gate **8/8 PASS**；全闸 **9 PASS / 2 FAIL**
 > （缺件 165、页几何 empty_assign 1,173，均披露；字形框线 0、框线逃逸 0、内容 18）。下一步：v2.6.x 小修（BF-54 标签 11、BF-06 缺件 165）→
-> v2.6.3 = 2.6 补丁线首批（BF-06 缺件 165、BF-54 标签 11）；empty_assign 669 半版补映射（含 01_0006 L「一」）
+> v2.6.3 = 2.6 补丁线首批（BF-06 缺件 165、BF-54 标签 11）；empty_assign 668 半版补映射（含 01_0006 L「一」）
 > + D23 owner 决策 + CS4/CS5 硬条件 → 滚动到后续 patch；硬条件全满足时把当时 patch 定为里程碑正式版。
 
 ## 9. 维护规则
@@ -161,9 +161,9 @@
 
 | ID | 事项 | 状态/证据 | 下一步 |
 |---|---|---|---|
-| BF-11 | **empty_assign 1,173**：有 quad 无 mapping 行；vol 01–12 669（652 有 lattice，含 01_0006 L「一」）、vol 00/13 504、无 lattice 40 | `empty-assign-triage-v262.json`；页几何唯一严格 FAIL | 669 个重跑检测/映射（真迹）；504 口径待 owner；40 待核 |
+| BF-11 | **empty_assign 1,173**：有 quad 无 mapping 行；vol 01–12 668（651 有 lattice，含 01_0006 L「一」）、vol 00/13 504、无 lattice 40 | `empty-assign-triage-v262.json`；页几何唯一严格 FAIL | 669 个重跑检测/映射（真迹）；504 口径待 owner；40 待核 |
 | BF-06 | **缺件 165**（E37 后；旧 32/827/1,200 不计）。**T1 根因=扫描侧 precut fail-open（E40）**，修复后 v2.6.2 字体重扫 **19 字/20 组件**；v2.6.3 同集 | `work/lead/v263-T1-BF06-report.md`；E40；missing_scan_v263-clean.jsonl | v2.6.3 完成（残余 17 prune 判正确 + 3 scan 残差披露）；prune-by-design 归类留 v2.6.4 |
-| BF-61 | **mapping 生成器坐标系（BUILD-404）**——全量 mapping 重生成的硬前置 | audit4 BUILD-404；模拟 999 改动/192 越界 | v2.6.4 修 M/Minv + L0 断言；**修好前禁止重跑全量 mapping/补 669 半版** |
+| BF-61 | **mapping 生成器坐标系（BUILD-404）**——全量 mapping 重生成的硬前置 | audit4 BUILD-404；模拟 999 改动/192 越界 | v2.6.4 修 M/Minv + L0 断言；**修好前禁止重跑全量 mapping/补 668 半版** |
 | BF-05 | **内容判据 D23（待 owner）**：content 18/35（阈值披露）；E31 证明大部分是跨架构归一化差异 | `content-aspect-analysis-v262.json` | owner 确认改「源墨保真度」后实现 gate v2 |
 | BF-16 | **高频缺 23**：16 在目标缺口、7 异体口径 | `high_freq_gap.json`（2026-11-13 复核） | 与 empty_assign 合并处理；7 字口径 owner |
 | BF-41 | **缺口 6,300 策略** | 与 D23/BF-16 联动 | owner 决策 |
@@ -201,7 +201,7 @@
 
 ### 10-D 建议顺序
 
-1. CS3-A：empty_assign 669 半版补映射（先 01_0006 L「一」）→ 覆盖/缺口重算；
+1. CS3-A：empty_assign 668 半版补映射（先 01_0006 L「一」）→ 覆盖/缺口重算；
 2. v2.6.3：缺件已定位（E40：扫描侧 fail-open，修复后 165→19）；残余 17 prune_loss+5 clean_ink_loss+3 scan 残差 → 类级修/披露；BF-61 修复前禁止重跑全量 mapping；
 3. D23 owner 决策（内容判据）→ 实现源墨保真度基线；
 4. BF-10/44/51/47/25/49/36/28 等闸/流程/材料项随轮次清理；复核包已生成：`work/review/round-003-v262/`（第 1 轮，owner 已标注 77 格）与 `work/review/round-004-v262fix/`（第 2 轮修复验证，待 owner 复看）；

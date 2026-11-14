@@ -435,3 +435,16 @@
   - `字`：属类级 prune 判据问题（真迹点/钩被当边缘碎片删除），**不做单字补丁**，本版披露、门脸图不使用该字，留 **v2.6.5** 类级修；
   - 根 `README.md` 更新到 v2.6.3；门脸图/样张/字形网格按 v2.6.3 字体重生成，图内避开已知缺陷字（字/而/山）。
 - 首包（含旧 zip/FINALIZE）作废，以 r1 包（`release/KangXiKai-v2.6.3/` 重打）为准；本 ERRATA 与 `docs/releases/v2.6.3/*`、`docs/VERSION-HISTORY.md` 为准。
+
+## E42. v2.6.3 r1 包内证据链遗留与文档口径（2026-11-14，审计5代/验收后补记；r1 包冻结不回写）
+
+- **包内 SELF-AUDIT.md 旧口径**：仍写 mapping `v273`、`-clean.jsonl` 扫描、changed 5、引用不在包内的 `page-geometry-gate-v263.json`/`fast-gate-v263.json`；r1 实际为 mapping v274、`-r1` 扫描、changed 6 + added 1。
+- **包内 RELEASE-METRICS.md 自相矛盾**：表内 v2.6.3 变化字 7，注释仍写 changed 5；`docs/reference/RELEASE-METRICS.md` 已正确。
+- **review 快照缺 `而`**：round-005 包内 ledger 16 行不含 `而`；r1 字体唯一新增变化 `而` 未被 round-005 覆盖。r1 包不回写，round-006 补 owner 标记（`work/review/round-006-v263r1/`）。
+- **content 闸字符宇宙不一致**：r1 `gate-report-v263.json` 的 `inputs.sha256.manifest` 记 v263（17,006），但 content step 实际输入 sidecar argv 为 `manifest_v262.json`（17,005）。原因：`release_gate` 传 `--prev-manifest` 以避开新增字；报告未记录实际宇宙。v2.6.4 起改为「baseline ∩ new 交集 + added/removed 单列 + step detail 记录实际 manifest sha」。
+- **fast_gate content 口径未同步**：fast_gate 仍传新 manifest；新增字（如 v2.6.4 的「一」）会触发 content exit 2 且失败 summary 进缓存不自愈。v2.6.4 一并修。
+- **release/RELEASE-INVENTORY.tsv 的 v2.6.2 行 `finalized=False`**：生成器只认 detached FINALIZE，v2.6.2 为 legacy 包（gate-report attestation finalized=true，未回填）；属登记口径问题。
+- **包内 FINALIZE.json 自指字段 null**：`sha_final_ok/zip_ok/zip_sha256` 为 null，实际值在包外 detached；README 已注明。
+- **README 模板注释残留**：包内 `README.md:1` 含模板说明 HTML 注释；v2.6.4 生成时剥离。
+- **QA 口径**：`QA.md`「缺件 19/19」应写「flagged 字数 19 / 组件 20」。
+- 冻结发布记录（`docs/releases/v2.6.2/*`、`docs/releases/v2.6.3/*`）**不改**；本 ERRATA 为差异说明。

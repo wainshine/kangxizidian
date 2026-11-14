@@ -46,6 +46,22 @@ VERSIONS = [
 BASELINE = "v2.5.8"
 
 
+def _content_damaged(path):
+    """内容闸产物 damaged 数（v2.6.4 契约 dict / 旧版 list 兼容）。"""
+    if not os.path.exists(path):
+        return None
+    try:
+        obj = json.load(open(path, encoding="utf-8"))
+    except Exception:
+        return None
+    if isinstance(obj, dict):
+        dmg = obj.get("damaged")
+        return len(dmg) if isinstance(dmg, list) else None
+    if isinstance(obj, list):
+        return len([x for x in obj if isinstance(x, dict) and "ink_ratio" in x])
+    return None
+
+
 def rel(p):
     return p if os.path.isabs(p) else os.path.join(ROOT, p)
 
@@ -125,13 +141,13 @@ def main():
             cl = f"/tmp/metrics-cl-{v['label']}.json"
             if not (os.path.exists(cl) and os.path.getsize(cl) > 2):
                 run(["scripts/content_loss_gate.py", bfont, font_p, bman, cl])
-            item["content_damaged_vs_baseline"] = len(json.load(open(cl))) if os.path.exists(cl) else None
+            item["content_damaged_vs_baseline"] = _content_damaged(cl)
             if cbase:
                 cl2 = f"/tmp/metrics-cl-v258-{v['label']}.json"
                 if not (os.path.exists(cl2) and os.path.getsize(cl2) > 2):
                     run(["scripts/content_loss_gate.py", rel(versions[0]["font"]), font_p,
                          rel(versions[0]["manifest"]), cl2])
-                item["content_damaged_vs_v258"] = len(json.load(open(cl2))) if os.path.exists(cl2) else None
+                item["content_damaged_vs_v258"] = _content_damaged(cl2)
         # recorded gate numbers
         item["missing_flagged"] = item["frame_escape_flagged"] = None
         item["bad_boxes"] = item["empty_assign_halves"] = None

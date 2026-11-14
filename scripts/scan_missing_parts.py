@@ -236,7 +236,8 @@ def main():
                "build_stats": stats_path if (stats_path and os.path.exists(stats_path)) else None},
         scripts=["scan_missing_parts.py", "precut_masks.py", "reffont.py",
                  "font_build.py", "font_norm.py", "page_frames.py", "fidelity_eval.py"],
-        include_reffont=True)
+        include_reffont=True,
+        extra={"out_sha256": GB.sha256_file(out_abs)})
     GB.write_sidecar(out_abs, binding)
     n_missing = sum(1 for r in rows if r.get("missing"))
     n_error = sum(1 for r in rows if r.get("error"))

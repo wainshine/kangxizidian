@@ -126,7 +126,8 @@ def main():
         files={"manifest": args.manifest, "geometry": "work/lead/page_geometry.jsonl",
                "page_line_bands": "work/lead/page_line_bands.json"},
         scripts=["scan_frame_escape.py", "precut_masks.py", "font_build.py", "font_norm.py",
-                 "page_frames.py", "detect_blocks.py"])
+                 "page_frames.py", "detect_blocks.py"],
+        extra={"out_sha256": GB.sha256_file(out_abs)})
     GB.write_sidecar(out_abs, binding)
     n_error = sum(1 for r in rows if r.get("error"))
     print(json.dumps({"flagged": len(rows), "error": n_error,

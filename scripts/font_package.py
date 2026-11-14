@@ -447,8 +447,10 @@ def main():
                         gr = json.load(open(os.path.join(out, f), encoding="utf-8"))
                         if (gr.get("attestation") or {}).get("finalized"):
                             fail(f"包已 finalize（{f}），拒绝覆盖；确需重建请加 --force-overwrite")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        if not args.force_overwrite:
+                            fail(f"已有包内 gate-report 无法读取（{f}）：{e}；"
+                                 f"fail-closed，确需重建请加 --force-overwrite")
         shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
 
