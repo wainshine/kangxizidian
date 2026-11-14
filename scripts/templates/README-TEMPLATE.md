@@ -43,6 +43,20 @@
 > **这不是全字库字体**：不承诺 20,992 全覆盖。缺字（含部分常用字）由排版软件系统字体回退显示。
 > 覆盖/已知债/质量指标随包提供：`KNOWN-DEBTS.md`、`release-metrics.json`、`gate-report-*.json`。
 
+## 随包证据（可复现/可审计）
+
+| 文件 | 说明 |
+|---|---|
+| `manifest-*.json` | 字表 + 每字 page/half/box 来源 |
+| `stats.json` / `provenance.json` / `provenance-detail-*.json` | 字集统计 / 逐码位来源 / 逐字来源明细 |
+| `gate-report-*.json` | 全闸报告（含阈值与缺件/框线扫描产物 sha256、created_utc、sidecar 校验结果） |
+| `build_recipe-*.json` | 构建配方：build_stats 派生的 cache_ver、构建时 git、真实构建时间、输入 sha |
+| `KangXiKai-*.build_stats.json` | 构建统计原始证据（逐字落盘字段；字体 sha 一致性由此锚定） |
+| `missing_scan_*.jsonl` + `.sha256` | 缺件扫描产物 + 输入绑定 sidecar |
+| `frame_scan_*.jsonl` + `.sha256` | 框线逃逸扫描产物 + 输入绑定 sidecar |
+| `FINALIZE.json` | finalize 只读凭证（font/gate-report/扫描产物 sha、git、时间）；实际 zip sha 见仓库发布记录 |
+| `SHA256SUMS` | 包内所有文件的 sha256（`shasum -a 256 -c SHA256SUMS` 自校验） |
+
 ## 安装与使用
 
 1. 解压后安装 `{file}`；

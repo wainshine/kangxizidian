@@ -136,9 +136,23 @@ R 正式包（里程碑）                                               scripts
 
 ### S5 打包与发布
 
-- `font_package.py`：**freshness**（字体须比 manifest 新）+ **clean-tree**（工作区必须干净，否则 ABORT；调试可 `--allow-dirty`）+ QA + 材料 + SHA + zip；
-- `release_gate.py`：全部步骤 PASS 才写 gate-report → 重算 SHA（覆盖含报告）→ 终校验 → zip 自检；失败只写 `work/lead` 报告、**不动包**；finalize 前强制 clean git tree + 缺件/框线扫描 + 内容基线；
-- `build_recipe.json` 记录 **git commit / dirty / cache tag / 算法脚本 sha / 扫描数字**，保证可复现；
+- `font_package.py`：**freshness**（字体须比 manifest 新，或 build_stats.sha256==字体且 manifest 由该 stats 派生）+ **clean-tree**（工作区必须干净，否则 ABORT；调试可 `--allow-dirty`）+ QA + 材料 + SHA + zip；
+  **OFL/LICENSE 单一真源**：直接复制仓库根 `OFL.txt`/`LICENSE`（脚本内不再内嵌许可全文，DOCS-403）；
+  `--extra-dir-flat <staging>` 把 `make_release_extras` 产物摊平到包根（review/ 保留子目录）；
+- `release_gate.py`：全部步骤 PASS 才写 gate-report；**finalize 为 staging 原子流程**——终版 gate-report /
+  `FINALIZE.json` / SHA256SUMS / zip 先在临时目录写全并校验（SHA 覆盖、目录==zip、doc_check、verify_release），
+  通过后才原子替换包目录与 zip；任一步失败**零写包**（只写 `work/lead` 报告）。finalize 前强制 clean git
+  tree + 缺件/框线扫描 + 内容基线，扫描产物 sha/created_utc/sidecar 校验结果写进 gate-report（T4）；
+  成功后写包内 `FINALIZE.json` 与包外 detached `release/<pkg>.FINALIZE.json`（实际 zip sha、
+  sha_final_ok/zip_ok）+ `release/<pkg>.zip.sha256`；
+- `build_recipe-<tag>.json` 从 `build_stats` 派生 **构建时 git commit/dirty / cache_ver（算法 sha8+geometry
+  sha12+bands sha12）/ 真实构建时间（字体 mtime UTC）/ 输入 mapping sha / geometry sha / 算法脚本 sha /
+  扫描产物 sha**（构建 vs 打包分开记录，禁止手抄；DOCS-405/BUILD-401）；
+- 独立验证：`verify_release.py`（目录==zip、SHA 覆盖全部非 SHA 文件、无多余文件、FINALIZE 字段/sha、
+  包外 detached 终验）；`check_release_docs.py` 做闸数字对账（content/missing/frame/glyph_frame/
+  empty_assign/覆盖率/缺口 vs gate-report/manifest/stats）与固定清单校验；
+  `release_inventory.py` 现场生成 `release/RELEASE-INVENTORY.tsv` + `package_summary.json`；
+  `glyph_diff.py` 用精确 glyf 轮廓比较生成「相对上一版变化字」（替代旧阈值筛集口径）；
 - 正式包**只在里程碑**发（`docs/WORKFLOW.md` §7）；候选只给字体+复核包+快闸。
 
 ---
@@ -184,6 +198,38 @@ FONT_BUILD_WORKERS=10 .venv/bin/python scripts/font_build.py \
   --pkg-dir release/KangXiKai-v2.6.1 --zip release/KangXiKai-v2.6.1.zip \
   --scan --frame-scan --content-max-damaged 35 --tag v261
 ```
+
+# 5) 发布材料 + 打包（v2.6.3 T4 起的证据链流程；staging 摊平进包根）
+.venv/bin/python scripts/make_release_extras.py --version <ver> \
+  --font work/font/build/KangXiKai-v<ver>.ttf --manifest work/font/build/manifest_v<tag>.json \
+  --mapping work/lead/mapping_block_v<nnn>.jsonl \
+  --gate-report work/lead/gate-report-v<tag>.json \
+  --missing-scan work/lead/missing_scan_v<tag>.jsonl \
+  --frame-scan work/lead/frame_scan_v<tag>.jsonl \
+  --stats work/font/build/KangXiKai-v<ver>.build_stats.json
+.venv/bin/python scripts/font_package.py --font work/font/build/KangXiKai-v<ver>.ttf \
+  --manifest work/font/build/manifest_v<tag>.json --version <ver> --out release \
+  --readme-template scripts/templates/README-TEMPLATE.md \
+  --extra-dir-flat work/release/v<ver>
+
+# 6) finalize（staging 原子替换；失败零写包）+ 独立验证 + 清单
+.venv/bin/python scripts/release_gate.py --version <ver> \
+  --font work/font/build/KangXiKai-v<ver>.ttf --manifest work/font/build/manifest_v<tag>.json \
+  --prev work/font/build/KangXiKai-v2.5.8.ttf --prev-manifest work/font/build/manifest_v258.json \
+  --pkg-dir release/KangXiKai-v<ver> --zip release/KangXiKai-v<ver>.zip \
+  --mapping work/lead/mapping_block_v<nnn>.jsonl --geometry work/lead/page_geometry.jsonl \
+  --stats work/font/build/KangXiKai-v<ver>.build_stats.json \
+  --scan --reuse-missing work/lead/missing_scan_v<tag>.jsonl \
+  --frame-scan --reuse-frame work/lead/frame_scan_v<tag>.jsonl \
+  --content-max-damaged <N> --scan-max-flagged <N> --frame-max-flagged 0 --tag v<tag>
+.venv/bin/python scripts/verify_release.py --dir release/KangXiKai-v<ver> \
+  --zip release/KangXiKai-v<ver>.zip \
+  --finalize-json release/KangXiKai-v<ver>.FINALIZE.json
+.venv/bin/python scripts/release_inventory.py   # 更新 release/RELEASE-INVENTORY.tsv + package_summary.json
+
+# 7) 精确 glyf 轮廓 diff（「相对上一版变化字」唯一口径）
+.venv/bin/python scripts/glyph_diff.py --old v2.6.2 --new v2.6.3 \
+  --out work/lead/diff-v262-v263.json --md work/lead/diff-v262-v263.md
 
 ---
 

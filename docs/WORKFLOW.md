@@ -155,29 +155,48 @@ python scripts/make_round_pack.py --font work/font/build/KangXiKai-v<ver>.ttf \
 ```
 release/KangXiKai-vX.Y.Z/
   KangXiKai-Regular-vX.Y.Z.ttf
-  manifest-v<ver>.json                 # 字表+来源
-  provenance-detail-v<ver>.json        # 每字 page/half/box/来源
-  coverage-detail-v<ver>.json          # 覆盖数字 + 分类别统计
-  qa-report-v<ver>.json / qa-stats     # 字体 QA
-  gate-report-v<ver>.json              # L1–L3 全闸（含阈值与 sample）
-  content-loss-v<prev>-v<ver>.json     # 内容闸明细（对比上一正式版）
-  residual-quarantine-v<ver>.json      # 隔离字 + 理由
-  known-debt-v<ver>.md                 # 已知债（点名到字/类）
-  review/
-    01-…05-… / ledge.tsv / diff-stats  # 本轮人工复核包（只读快照）
-  RELEASE-NOTES-v<ver>.md
+  manifest-v<tag>.json                 # 字表+来源
+  provenance.json / provenance-detail-v<tag>.json   # 逐码位 / 逐字 page/half/box/来源
+  coverage.txt / coverage-detail-v<tag>.json        # 覆盖数字 + 分类别统计
+  stats.json / qa-report-v<tag>.json / qa-stats-v<tag>.json   # 字体 QA + 构建证据
+  gate-report-v<tag>.json              # L1–L3 全闸（含阈值/sample + 扫描产物 sha 绑定）
+  content-loss-v<prev>-v<tag>.json     # 内容闸明细（对比上一正式版）
+  residual-quarantine-v<tag>.json      # 隔离字 + 理由
+  KNOWN-DEBTS.md / known-debt-v<tag>.md   # 已知债（数字须与 gate-report 对账）
   PROVENANCE.md / QA.md / README.md
-  build_recipe.json                    # 可复现构建步骤（含几何/mapping/算法版本）
+  RELEASE-NOTES-v<ver>.md / RELEASE-METRICS.md / release-metrics.json
+  build_recipe-v<tag>.json             # 可复现构建步骤：从 build_stats 派生 cache_ver / 构建时
+                                       #   git commit+dirty / 真实构建时间 / 输入 mapping sha /
+                                       #   geometry sha / 算法脚本 sha / 扫描产物 sha（禁止手抄）
+  KangXiKai-vX.Y.Z.build_stats.json    # 构建统计原始证据（随包冻结）
+  missing_scan_v<tag>.jsonl + .sha256  # 缺件扫描产物 + 输入绑定 sidecar（font/manifest/geometry/
+                                       #   bands/build_stats/reffont/脚本 sha；复用前必须校验）
+  frame_scan_v<tag>.jsonl + .sha256    # 框线逃逸扫描产物 + sidecar
+  FINALIZE.json                        # finalize 只读凭证（font/gate-report/扫描产物 sha、git、
+                                       #   created_utc、finalize_version；自指字段见 §8bis）
+  review/                              # 本轮人工复核包快照（round-005：owner 亲标 11 字 + 邻字 10）
   SHA256SUMS
-  KangXiKai-vX.Y.Z.zip
+release/KangXiKai-vX.Y.Z.zip
+release/KangXiKai-vX.Y.Z.FINALIZE.json  # 包外 detached 终验：sha_final_ok/zip_ok/实际 zip_sha256/
+                                        #   package_finalize_sha256（自指不可内嵌，故不在包内）
+release/KangXiKai-vX.Y.Z.zip.sha256     # 实际分发 zip 的 sha256（一行 shasum 格式）
 ```
 
-> 生成方式（2026-11-13 起）：`scripts/make_release_extras.py` 生成 staging（manifest/coverage/provenance/
-> QA/known-debt/RELEASE-NOTES/PROVENANCE.md/QA.md/build_recipe/review 等），再由
-> `scripts/font_package.py --extra ... --extra-dir review` 打包并重算 SHA256SUMS/zip；
-> `check_release_docs.py` 干跑必须 PASS 后再进 `release_gate finalize`。
+> **§8bis finalize 证据链（v2.6.3 T4 起）**：`release_gate.py` finalize 为 **staging 原子流程**——
+> 全部写包动作（终版 gate-report / FINALIZE.json / SHA256SUMS / zip）先在同一文件系统的临时目录完成并
+> 全验（SHA 覆盖、目录==zip、doc_check、verify_release），通过后才原子替换包目录与 zip；任一步失败
+> **零写包**（`--inject-fail sha|zip|pre-swap` 可在 `/tmp` 做失败注入自测）。包内 `FINALIZE.json` 的
+> `sha_final_ok/zip_ok/zip_sha256` 因自指不可内嵌而记 null + scope 说明，实际终验值只写包外 detached
+> `release/<pkg>.FINALIZE.json` 与 `release/<pkg>.zip.sha256`；机器验证用 `scripts/verify_release.py`
+> （目录==zip、SHA256SUMS 覆盖全部非 SHA 文件、无多余文件、FINALIZE 字段与 sha 一致）。
+> `release/RELEASE-INVENTORY.tsv` + `package_summary.json` 由 `scripts/release_inventory.py` 现场计算生成
+> （zip sha / 文件数 / finalize 状态 / 真实 UTC），禁止手写。
 
----
+> 生成方式（2026-11-13 起，v2.6.3 更新）：`scripts/make_release_extras.py` 生成 staging（manifest/
+> coverage/provenance/QA/known-debt/RELEASE-NOTES/PROVENANCE.md/QA.md/build_recipe/build_stats/扫描
+> 产物+sidecar/review 等），再由 `scripts/font_package.py --extra-dir-flat <staging> --extra-dir <review>`
+> 打包并重算 SHA256SUMS/zip；`release_gate.py` finalize 后必须 `check_release_docs.py`（数值对账 +
+> 篡改测试）与 `verify_release.py` 双 PASS，再跑 `release_inventory.py` 更新清单。
 
 ## 9. 如何决定下一轮修改方向（闭环）
 

@@ -10,7 +10,10 @@
   - provenance 四态（D4）：real / gan / ribbon_fb / mapped_traditional；
   - demo 版 provenance 由 manifest 推导（全部 real）；全量版用 `--provenance <json>` 注入；
   - 缺口披露：cmap 承诺（基本区 20,992）与「真迹数」分开统计，README 如实写；
-  - OFL.txt 由脚本生成（标准 OFL 1.1 全文 + 本项目版权/来源声明）。
+  - **OFL 单一真源（DOCS-403）**：OFL.txt/LICENSE 直接复制仓库根文件，脚本不再内嵌许可全文；
+    许可正文只在仓库根维护一份；包内 OFL 的 sha256 记录进 stats.json（check_release_docs 校验与根一致）。
+  - **build_stats 证据（BUILD-401/T4）**：自动读取 `<font>.build_stats.json`（或 --build-stats），
+    README 的构建时间取真实构建完成时间（字体 mtime UTC），并记录 build_stats 的 sha256。
 
 QA 闸（任一失败即退出，不产出 zip）：
   - fontTools 可开；glyf/cmap/head/hhea/hmtx/maxp/name/OS-2/post 齐全；
@@ -62,108 +65,6 @@ PROV_STATES = {"real", "gan", "ribbon_fb", "mapped_traditional"}
 BLOCK = (0x4E00, 0x9FFF)          # CJK 基本区（D3/D11 口径）
 PUNCT_EXPECTED = 42               # 发布版标点/数字/空格数量（13_extend_punct，punct_set.py 唯一源）
 
-OFL_HEADER = """Copyright {year} {holder}
-
-KangXi Kai (康熙楷) — headword glyphs extracted from the 1716 Kangxi Dictionary
-(清康熙五十五年内府刊本) page scans. The Kaishu (楷书) glyphs are vectorised from the
-woodblock-printed headword characters. No third-party font outlines were used.
-Reserved Font Name: none claimed by this project (the family name 'KangXi Kai' is not
-derived from any third-party Reserved Font Name; LXGW WenKai Reserved Font Names
-'霞鹜/霞鶩/落霞孤鹜/落霞孤鶩/LXGW' are **not** used anywhere in this font or its name table).
-
-This Font Software is licensed under the SIL Open Font License, Version 1.1.
-This license is copied below, and is also available with a FAQ at:
-https://openfontlicense.org
-"""
-
-OFL_BODY = """
-SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
------------------------------------------------------------
-
-PREAMBLE
-The goals of the Open Font License (OFL) are to stimulate worldwide
-development of collaborative font projects, to support the font creation
-efforts of academic and linguistic communities, and to provide a free and
-open framework in which fonts may be shared and improved in partnership
-with others.
-
-The OFL allows the licensed fonts to be used, studied, modified and
-redistributed freely as long as they are not sold by themselves. The
-fonts, including any derivative works, can be bundled, embedded, 
-redistributed and/or sold with any software provided that any reserved
-names are not used by derivative works. The fonts and derivatives,
-however, cannot be released under any other type of license. The
-requirement for fonts to remain under this license does not apply
-to any document created using the fonts or their derivatives.
-
-DEFINITIONS
-"Font Software" refers to the set of files released by the Copyright
-Holder(s) under this license and clearly marked as such. This may
-include source files, build scripts and documentation.
-
-"Reserved Font Name" refers to any names specified as such after the
-copyright statement(s).
-
-"Original Version" refers to the collection of Font Software components as
-distributed by the Copyright Holder(s).
-
-"Modified Version" refers to any derivative made by adding to, deleting,
-or substituting -- in part or in whole -- any of the components of the
-Original Version, by changing formats or by porting the Font Software to a
-new environment.
-
-"Author" refers to any designer, engineer, programmer, technical
-writer or other person who contributed to the Font Software.
-
-PERMISSION & CONDITIONS
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of the Font Software, to use, study, copy, merge, embed, modify,
-redistribute, and sell modified and unmodified copies of the Font
-Software, subject to the following conditions:
-
-1) Neither the Font Software nor any of its individual components,
-in Original or Modified Versions, may be sold by itself.
-
-2) Original or Modified Versions of the Font Software may be bundled,
-redistributed and/or sold with any software, provided that each copy
-contains the above copyright notice and this license. These can be
-included either as stand-alone text files, human-readable headers or
-in the appropriate machine-readable metadata fields within text or
-binary files as long as those fields can be easily viewed by the user.
-
-3) No Modified Version of the Font Software may use the Reserved Font
-Name(s) unless explicit written permission is granted by the corresponding
-Copyright Holder. This restriction only applies to the primary font name as
-presented to the users.
-
-4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
-Software shall not be used to promote, endorse or advertise any
-Modified Version, except to acknowledge the contribution(s) of the
-Copyright Holder(s) and the Author(s) or with their explicit written
-permission.
-
-5) The Font Software, modified or unmodified, in part or in whole,
-must be distributed entirely under this license, and must not be
-distributed under any other license. The requirement for fonts to
-remain under this license does not apply to any document created
-using the Font Software.
-
-TERMINATION
-This license becomes null and void if any of the above conditions are
-not met.
-
-DISCLAIMER
-THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
-OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
-COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
-DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
-OTHER DEALINGS IN THE FONT SOFTWARE.
-"""
-
 README_TEMPLATE = """# {family} {style} v{version}
 
 {family}（康熙楷）— 从清康熙五十五年内府刊本《康熙字典》扫描件的**字头楷书**矢量化而来。
@@ -174,11 +75,22 @@ Kai 指字头风格（楷体）；注文为宋体，本项目不使用注文字�
 | 文件 | 说明 |
 |---|---|
 | `{ttf_name}` | 字体本体（TrueType, EM {upm}） |
-| `OFL.txt` | SIL Open Font License 1.1 全文 |
+| `OFL.txt` | SIL Open Font License 1.1 全文（**复制仓库根 OFL.txt**，单一真源） |
+| `LICENSE` | 代码/仓库许可（MIT，复制仓库根 LICENSE） |
 | `README.md` | 本文件 |
+| `manifest-v{tag}.json` | 字表 + 每字 page/half/box 来源 |
 | `provenance.json` | 逐码位来源（{prov_states}） |
-| `stats.json` | 字集/来源统计（机器可读） |
-| `coverage.txt` | 本版 cmap 覆盖的字符清单 |
+| `provenance-detail-v{tag}.json` | 逐字来源明细（mapping 快照） |
+| `coverage-detail-v{tag}.json` | 覆盖数字（机器可读） |
+| `stats.json` | 字集/来源/构建证据统计（机器可读） |
+| `build_recipe-v{tag}.json` | 可复现构建配方（git/cache_ver/输入 sha/真实构建时间） |
+| `KangXiKai-v{version}.build_stats.json` | 构建统计原始证据（逐字落盘字段） |
+| `gate-report-v{tag}.json` | L1–L3 全闸报告（含扫描产物 sha 绑定） |
+| `missing_scan_v{tag}.jsonl` + `.sha256` | 缺件扫描产物 + 输入绑定 sidecar |
+| `frame_scan_v{tag}.jsonl` + `.sha256` | 框线逃逸扫描产物 + 输入绑定 sidecar |
+| `FINALIZE.json` | finalize 只读凭证（font/gate-report/扫描产物 sha、git、时间） |
+| `KNOWN-DEBTS.md` / `QA.md` / `PROVENANCE.md` | 已知债 / 质量闸 / 来源披露 |
+| `review/` | 本轮人工复核包快照 |
 | `SHA256SUMS` | 包内所有文件的 sha256（自校验用） |
 {specimen_row}
 
@@ -335,10 +247,41 @@ def count_prov(prov: dict[str, str]) -> dict:
     return {s: c.get(s, 0) for s in sorted(PROV_STATES)}
 
 
+def utc_iso(epoch: float) -> str:
+    return datetime.datetime.fromtimestamp(
+        epoch, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def load_build_stats(font_path: Path, explicit: str = "") -> tuple[dict, Path | None]:
+    """读取构建统计（证据链）：默认与字体同名的 <font>.build_stats.json。"""
+    p = Path(explicit) if explicit else Path(str(font_path).rsplit(".", 1)[0] + ".build_stats.json")
+    if not p.is_absolute():
+        p = ROOT / p
+    if not p.exists():
+        return {}, None
+    try:
+        return json.load(open(p, encoding="utf-8")), p
+    except Exception:
+        return {}, p
+
+
+def copy_license_files(out: Path) -> dict:
+    """OFL/LICENSE 单一真源（DOCS-403）：只复制仓库根文件，不在脚本里内嵌许可全文。"""
+    res = {}
+    for name in ("OFL.txt", "LICENSE"):
+        src = ROOT / name
+        if not src.exists():
+            fail(f"仓库根缺少 {name}（许可单一真源）；拒绝生成包内 {name}")
+        shutil.copy2(src, out / name)
+        res[name] = {"source": name, "sha256": sha256(src)}
+    return res
+
+
 def render_readme(stats: dict, prov_counts: dict, version: str, ttf_name: str,
                   specimen: bool) -> str:
     cmap_n = stats["cmap"]
     real_n = prov_counts.get("real", 0)
+    tag = "v" + version.replace(".", "")
     gap_text = (f"本版为**管线验证 demo**：只映射真实存在且已目检的真迹字 "
                 f"（{real_n} 字），未做 20,992 基本区全覆盖承诺；缺字不 fill。"
                 if cmap_n < 1000 else
@@ -346,7 +289,7 @@ def render_readme(stats: dict, prov_counts: dict, version: str, ttf_name: str,
                 f"{PUNCT_EXPECTED}），实际 {cmap_n}；真迹 {real_n}，"
                 f"非真迹 {cmap_n - real_n}（见 provenance 表）。")
     return README_TEMPLATE.format(
-        family=FAMILY, style=STYLE, version=version, upm=stats["upm"],
+        family=FAMILY, style=STYLE, version=version, tag=tag, upm=stats["upm"],
         ttf_name=ttf_name,
         prov_states="real / gan / ribbon_fb / mapped_traditional",
         specimen_row="| `specimen.png` | 样张（字体自渲染） |" if specimen else "",
@@ -426,8 +369,12 @@ def main():
                     help="允许工作区未提交（仅调试；正式包必须 clean tree 并记录 commit）")
     ap.add_argument("--extra-dir", action="append", default=[],
                     help="额外打进 release 的目录（可多次；保留目录名，在 SHA256SUMS 前复制）")
+    ap.add_argument("--extra-dir-flat", action="append", default=[],
+                    help="额外目录内容摊平到包根（可多次；子目录保留，用于 make_release_extras staging）")
     ap.add_argument("--extra", action="append", default=[],
                     help="额外打进 release 的文件（可多次；在 SHA256SUMS 前复制）")
+    ap.add_argument("--build-stats", default="",
+                    help="构建统计 JSON（默认 <font>.build_stats.json；用于真实构建时间/证据）")
     args = ap.parse_args()
 
     # 可复现性闸：打包必须来自已提交的代码树（否则 hash 不可复现）
@@ -452,8 +399,19 @@ def main():
             mp = ROOT / mp
         manifest = json.load(open(mp))
         manifest_mtime = mp.stat().st_mtime
-        if font_path.stat().st_mtime < manifest_mtime:
+        # freshness（BUILD-401/T4）：manifest 由 build_stats 派生时，字体只需与 build_stats 的
+        # sha256 一致即可证明「manifest 来自该字体构建」，不再依赖脆弱的 mtime 先后。
+        build_stats, build_stats_path = load_build_stats(font_path, args.build_stats)
+        font_sha = sha256(font_path)
+        fresh_by_evidence = bool(
+            build_stats
+            and build_stats.get("sha256") == font_sha
+            and int(build_stats.get("n_chars") or -1) == len((manifest or {}).get("chars") or {}))
+        if font_path.stat().st_mtime < manifest_mtime and not fresh_by_evidence:
             fail(f"{font_path.name} 比 manifest 旧，请先重建字体（freshness gate）")
+    else:
+        build_stats, build_stats_path = load_build_stats(font_path, args.build_stats)
+        font_sha = sha256(font_path)
 
     expected = expected_from_manifest(manifest, args.charset)
     qa = load_font_qa(font_path, expected)
@@ -515,15 +473,33 @@ def main():
     target = load_target_chars()
     target_covered = len(set(prov) & target) if target else 0
     basic_covered = sum(1 for ch in prov if 0x4E00 <= ord(ch) <= 0x9FFF)
-    (out / "OFL.txt").write_text(
-        OFL_HEADER.format(year=COPYRIGHT_YEAR, holder=COPYRIGHT_HOLDER) + OFL_BODY,
-        encoding="utf-8")
+    # OFL/LICENSE：单一真源 = 仓库根文件（DOCS-403）；脚本内不再内嵌许可全文
+    license_info = copy_license_files(out)
+    packaged_at_utc = utc_iso(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    # 真实构建完成时间（BUILD-401/T4）：字体 mtime 是构建落盘时刻；SOURCE_DATE_EPOCH 只决定
+    # 字体内部 head 时间戳（可复现构建口径），不等于构建时间。
+    build_time_utc = utc_iso(font_path.stat().st_mtime)
     stats = {
         "family": FAMILY, "style": STYLE, "version": version,
         "license": "OFL-1.1",
         "file": ttf_name, "file_bytes": (out / ttf_name).stat().st_size,
-        "sha256": sha256(out / ttf_name),
+        "sha256": font_sha,
         **qa,
+        "license_files": license_info,
+        "build_evidence": {
+            "build_time_utc": build_time_utc,
+            "build_time_utc_source": "font file mtime (build completion)",
+            "packaged_at_utc": packaged_at_utc,
+            "source_date_epoch": (build_stats or {}).get("source_date_epoch"),
+            "cache_ver": (build_stats or {}).get("cache_ver"),
+            "git": (build_stats or {}).get("git"),
+            "build_stats": ({
+                "path": (os.path.relpath(build_stats_path, ROOT)
+                         if build_stats_path and build_stats_path.is_relative_to(ROOT)
+                         else (str(build_stats_path) if build_stats_path else None)),
+                "sha256": sha256(build_stats_path) if build_stats_path else None,
+            } if build_stats_path else None),
+        },
         "charset_scope": {
             # D15（headword-only）：不再承诺 20,992/21,034 cmap 覆盖；只发布真迹字表。
             # legacy_target_cmap 仅留作历史对照（D3 旧口径，已作废）。
@@ -544,9 +520,9 @@ def main():
         "basic_block_total": BLOCK[1] - BLOCK[0] + 1,
         "basic_block_pct": round(100.0 * basic_covered / (BLOCK[1] - BLOCK[0] + 1), 2),
         "target_headword_gap": max(0, len(target) - target_covered),
-        "built_at_utc": datetime.datetime.fromtimestamp(
-            int(os.environ.get("SOURCE_DATE_EPOCH", "0")) or datetime.datetime.now().timestamp(),
-            datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        # README 模板 `{built_at_utc}` 用：真实构建完成时间（不是打包/写文件时间）
+        "built_at_utc": build_time_utc,
+        "packaged_at_utc": packaged_at_utc,
     }
     (out / "provenance.json").write_text(
         json.dumps(prov, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -588,6 +564,22 @@ def main():
         if dst.exists():
             shutil.rmtree(dst)
         shutil.copytree(edp, dst)
+    # staging 目录内容摊平到包根（make_release_extras 产出；review/ 子目录保留为包内子目录）
+    for ed in args.extra_dir_flat:
+        edp = Path(ed)
+        if not edp.is_absolute():
+            edp = ROOT / edp
+        if not edp.exists():
+            fail(f"extra-dir-flat 不存在: {edp}")
+        for entry in sorted(os.listdir(edp)):
+            src = edp / entry
+            dst = out / entry
+            if dst.exists():
+                shutil.rmtree(dst) if dst.is_dir() else dst.unlink()
+            if src.is_dir():
+                shutil.copytree(src, dst)
+            else:
+                shutil.copy2(src, dst)
     # ④ SHA256SUMS（最后重算 —— 顺序铁律）
     sums = write_sha256sums(out)
     # ⑤ zip（再自校验）
@@ -609,6 +601,10 @@ def main():
         "sha256sums_entries": len(sums),
         "zip_selfcheck": "PASS" if args.zip else "skipped",
         "font_sha256": stats["sha256"],
+        "zip_sha256": sha256(zip_path) if args.zip and zip_path.exists() else None,
+        "build_evidence": stats.get("build_evidence"),
+        "license_files": stats.get("license_files"),
+        "generated_utc": utc_iso(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     }
     (out_root / "package_summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")

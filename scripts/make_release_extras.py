@@ -17,7 +17,7 @@
   build_recipe-v<tag>.json
   review/                       复核包快照（默认 round-005-<tag> + 反馈记录）
 """
-import argparse, datetime, hashlib, json, os, shutil, subprocess, sys
+import argparse, datetime, hashlib, json, os, re, shutil, subprocess, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
 TAG = lambda v: "v" + v.replace(".", "")
@@ -78,6 +78,118 @@ def gate_numbers(path):
         return {}
 
 
+def _rel(p):
+    try:
+        return os.path.relpath(os.path.abspath(p), ROOT)
+    except Exception:
+        return str(p)
+
+
+def _utc(ts):
+    return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def derive_build_recipe(ver, args, num, git_package):
+    """build_recipe 全部字段从 build_stats 派生（BUILD-401/DOCS-405，禁止手抄）。
+
+    build_stats 是构建事实的唯一来源：cache_ver（算法 sha8 + geometry sha12 + bands sha12）、
+    构建时 git commit/dirty、真实构建时间（字体 mtime）、input mapping sha、geometry sha、
+    算法脚本 sha。打包时 git 另记在 package 段（两者不同：构建 vs 打包）。
+    """
+    stats_path = args.stats if os.path.isabs(args.stats) else os.path.join(ROOT, args.stats)
+    if not os.path.exists(stats_path):
+        raise SystemExit(f"ABORT: build_stats 不存在（{args.stats}）；build_recipe 必须从构建事实派生")
+    stats = json.load(open(stats_path, encoding="utf-8"))
+    font_path = args.font if os.path.isabs(args.font) else os.path.join(ROOT, args.font)
+    font_sha = sha256(font_path)
+    if stats.get("sha256") != font_sha:
+        raise SystemExit(f"ABORT: build_stats.sha256({stats.get('sha256')}) != font sha256({font_sha})；"
+                         f"构建证据与字体不匹配")
+    cache_ver = stats.get("cache_ver") or ""
+    cv = cache_ver.split("_")
+    algo_sha8 = cv[0] if len(cv) > 0 else None
+    geom_sha12 = cv[1] if len(cv) > 1 else None
+    bands_sha12 = cv[2] if len(cv) > 2 else None
+    build_time_utc = _utc(os.path.getmtime(font_path))
+    scripts = {}
+    for name in ("font_build.py", "font_norm.py", "page_frames.py", "detect_blocks.py"):
+        p = os.path.join(ROOT, "scripts", name)
+        scripts[name] = sha256(p) if os.path.exists(p) else None
+    # 扫描证据：gate-report 里记录产物 sha/created_utc/sidecar 校验结果（T4 item3）
+    gr_path = args.gate_report if os.path.isabs(args.gate_report) else os.path.join(ROOT, args.gate_report)
+    scan_artifacts = {}
+    try:
+        gr = json.load(open(gr_path, encoding="utf-8"))
+        scan_artifacts = gr.get("scan_artifacts") or {}
+        steps = {s.get("step"): s for s in (gr.get("steps") or [])}
+        det = lambda k: (steps.get(k) or {}).get("detail") or {}
+        sm, fe = det("scan_missing_parts"), det("frame_escape")
+    except Exception:
+        sm = fe = {}
+
+    def _artifact(path_rel, sidecar_rel):
+        p = path_rel if os.path.isabs(path_rel) else os.path.join(ROOT, path_rel)
+        sc = sidecar_rel if sidecar_rel and os.path.isabs(sidecar_rel) else (
+            os.path.join(ROOT, sidecar_rel) if sidecar_rel else (p + ".sha256"))
+        return {"path": _rel(p) if os.path.exists(p) else path_rel,
+                "sha256": sha256(p) if os.path.exists(p) else None,
+                "sidecar": {"path": _rel(sc) if os.path.exists(sc) else sidecar_rel,
+                            "sha256": sha256(sc) if os.path.exists(sc) else None}}
+
+    recipe = {
+        "version": ver,
+        "finalize_version": 1,
+        "font": _rel(font_path),
+        "font_sha256": font_sha,
+        "build": {
+            "build_time_utc": build_time_utc,
+            "build_time_utc_source": "font file mtime (build completion)",
+            "source_date_epoch": stats.get("source_date_epoch"),
+            "source_date_epoch_note": "只决定字体内部 head 时间戳（可复现构建），不是构建时间",
+            "git": stats.get("git"),
+            "cache_ver": cache_ver,
+            "algorithm_sha8": algo_sha8,
+            "geometry_sha12": geom_sha12,
+            "bands_sha12": bands_sha12,
+            "algorithm_scripts_sha256": scripts,
+            "workers": stats.get("workers"),
+            "n_chars": stats.get("n_chars"),
+            "n_glyphs": stats.get("n_glyphs"),
+            "input_mapping": stats.get("input_mapping"),
+            "input_mapping_sha256": stats.get("input_mapping_sha256"),
+            "input_manifest": stats.get("input_manifest"),
+            "input_manifest_sha256": stats.get("input_manifest_sha256"),
+            "geometry": stats.get("geometry"),
+            "build_stats": {"path": _rel(stats_path), "sha256": sha256(stats_path)},
+        },
+        "package": {
+            "git": git_package,
+            "created_utc": _utc(datetime.datetime.now(datetime.timezone.utc).timestamp()),
+            "manifest": args.manifest,
+            "manifest_sha256": sha256(os.path.join(ROOT, args.manifest)),
+        },
+        "gates": {
+            "fast": args.fast_gate,
+            "full": args.gate_report,
+            "missing": {
+                "path": args.missing_scan,
+                "threshold": num.get("missing"),
+                **_artifact(args.missing_scan, args.missing_scan + ".sha256"),
+            },
+            "frame": {
+                "path": args.frame_scan,
+                "threshold": 0,
+                **_artifact(args.frame_scan, args.frame_scan + ".sha256"),
+            },
+        },
+        "scan_artifacts": scan_artifacts,
+        "rebuild": (f"FONT_BUILD_WORKERS={stats.get('workers') or 10} scripts/font_build.py "
+                    f"--mapping {stats.get('input_mapping') or args.mapping} "
+                    f"--out {_rel(font_path)} --version {ver}"),
+    }
+    return recipe
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--version", required=True)
@@ -111,7 +223,8 @@ def main():
     tag = TAG(ver)
     args.font = args.font or f"work/font/build/KangXiKai-v{ver}.ttf"
     args.manifest = args.manifest or f"work/font/build/manifest_{tag}.json"
-    args.mapping = args.mapping or "work/lead/mapping_block_v271.jsonl"
+    # mapping 缺省从 build_stats 的 input_mapping 派生（构建事实 > 手工猜测）；无 stats 时回退 v271
+    args.mapping = args.mapping or None
     args.qa_dir = args.qa_dir or f"work/font/build/qa_{tag}"
     args.prev_font = args.prev_font or "work/font/build/KangXiKai-v2.5.8.ttf"
     args.prev_manifest = args.prev_manifest or "work/font/build/manifest_v258.json"
@@ -124,17 +237,45 @@ def main():
     args.missing_scan = args.missing_scan or f"work/lead/missing_scan_{tag}.jsonl"
     args.frame_scan = args.frame_scan or f"work/lead/frame_scan_{tag}.jsonl"
     args.stats = args.stats or (os.path.splitext(args.font)[0] + ".build_stats.json")
-    if args.release_metrics_md is None:
-        cand = f"work/lead/release-metrics-{tag}.md"
-        args.release_metrics_md = cand if os.path.exists(os.path.join(ROOT, cand)) else "work/lead/release-metrics.md"
-    if args.release_metrics_json is None:
-        cand = f"work/lead/release-metrics-{tag}.json"
-        args.release_metrics_json = cand if os.path.exists(os.path.join(ROOT, cand)) else "work/lead/release-metrics.json"
+    _stats_abs = args.stats if os.path.isabs(args.stats) else os.path.join(ROOT, args.stats)
+    _stats_pre = {}
+    if os.path.exists(_stats_abs):
+        try:
+            _stats_pre = json.load(open(_stats_abs, encoding="utf-8"))
+        except Exception:
+            _stats_pre = {}
+    if not args.mapping or not os.path.exists(os.path.join(ROOT, args.mapping)):
+        args.mapping = _stats_pre.get("input_mapping") or "work/lead/mapping_block_v271.jsonl"
+    if not os.path.exists(os.path.join(ROOT, args.fast_gate)):
+        # tag 派生名不存在时，取同 tag 的最新 fast-gate-<tag>*.json（候选轮次可能带后缀）
+        import glob as _glob
+        cands = sorted(_glob.glob(os.path.join(ROOT, "work/lead", f"fast-gate-{tag}*.json")),
+                       key=os.path.getmtime, reverse=True)
+        if cands:
+            args.fast_gate = os.path.relpath(cands[0], ROOT)
+    if args.release_metrics_md is None or not os.path.exists(os.path.join(ROOT, args.release_metrics_md)):
+        args.release_metrics_md = "work/lead/release-metrics.md"
+    if args.release_metrics_json is None or not os.path.exists(os.path.join(ROOT, args.release_metrics_json)):
+        args.release_metrics_json = "work/lead/release-metrics.json"
 
+    m = re.search(r"KangXiKai-v([0-9]+(?:\.[0-9]+)+)\.ttf", args.prev_font)
+    prev_ver = m.group(1) if m else None
+    prev_tag = "v" + prev_ver.replace(".", "") if prev_ver else "vprev"
     out = os.path.join(ROOT, args.out or f"work/release/v{ver}")
     if os.path.isdir(out):
         shutil.rmtree(out)
     os.makedirs(out)
+    # 0) 构建/扫描证据入包（T4 item2/3）：build_stats 原文件 + 缺件/框线扫描产物及 sidecar；
+    #    LICENSE 只从仓库根复制（DOCS-403 单一真源）；OFL 由 font_package 复制根 OFL.txt。
+    for src in ([args.stats] + [a + s for a in (args.missing_scan, args.frame_scan)
+                                for s in ("", ".sha256")] + ["LICENSE"]):
+        p = src if os.path.isabs(src) else os.path.join(ROOT, src)
+        if os.path.exists(p):
+            shutil.copy2(p, os.path.join(out, os.path.basename(p)))
+        elif src in (args.stats,):
+            print(f"WARN: build_stats 缺失：{src}（build_recipe 会 ABORT）", file=sys.stderr)
+        elif src != "LICENSE":
+            print(f"WARN: 扫描证据缺失：{src}", file=sys.stderr)
     man = json.load(open(os.path.join(ROOT, args.manifest), encoding="utf-8"))["chars"]
     chars = set(man)
     target = load_target()
@@ -196,7 +337,7 @@ def main():
                         args.prev_manifest, args.content], cwd=ROOT, check=False)
     if os.path.exists(os.path.join(ROOT, args.content)):
         shutil.copy2(os.path.join(ROOT, args.content),
-                     os.path.join(out, f"content-loss-v258-{tag}.json"))
+                     os.path.join(out, f"content-loss-{prev_tag}-{tag}.json"))
     # 6) residual quarantine
     if args.isolation_json:
         iso = list(json.load(open(os.path.join(ROOT, args.isolation_json), encoding="utf-8")).get("chars") or [])
@@ -213,12 +354,25 @@ def main():
         shutil.copy2(kd, os.path.join(out, f"known-debt-{tag}.md"))
     else:
         print(f"WARN: KNOWN-DEBTS 缺失：{args.known_debts}（发布前必须补）", file=sys.stderr)
+    # release-metrics 必须是本版生成的；否则内容会带旧版数字（617/3351 等）→ 拒绝随包
     rm = os.path.join(ROOT, args.release_metrics_md)
-    if os.path.exists(rm):
+    if os.path.exists(rm) and re.search(rf"(?<![0-9.])v?{re.escape(ver)}(?![0-9])",
+                                        open(rm, encoding="utf-8").read()[:20000]):
         shutil.copy2(rm, os.path.join(out, "RELEASE-METRICS.md"))
+    elif os.path.exists(rm):
+        print(f"WARN: release-metrics 未包含 v{ver}（旧版指标）；不随包，发布前须重跑 release_metrics.py",
+              file=sys.stderr)
     rmj = os.path.join(ROOT, args.release_metrics_json)
     if os.path.exists(rmj):
-        shutil.copy2(rmj, os.path.join(out, "release-metrics.json"))
+        try:
+            rmj_data = json.load(open(rmj, encoding="utf-8"))
+            labels = [x.get("label") for x in (rmj_data.get("versions") or [])]
+            if f"v{ver}" in labels:
+                shutil.copy2(rmj, os.path.join(out, "release-metrics.json"))
+            else:
+                print(f"WARN: release-metrics.json 未含 v{ver}；不随包", file=sys.stderr)
+        except Exception:
+            print(f"WARN: release-metrics.json 解析失败；不随包", file=sys.stderr)
     gr = os.path.join(ROOT, args.gate_report)
     if os.path.exists(gr):
         shutil.copy2(gr, os.path.join(out, f"gate-report-{tag}.json"))
@@ -241,7 +395,7 @@ def main():
 - `font_qa`：**{'PASS' if num.get('font_qa') else 'FAIL'}**（表/cmap/空字形/bbox/advance/同框=0；不数孔洞/连通分量，D21）
 - 字形级框线：**{ns(num.get('glyph_frame'))}**（`glyph_frame_gate`）
 - 框线逃逸（源图级）：**{ns(num.get('frame_escape'))}**（`scan_frame_escape`）
-- 内容闸：**{ns(num.get('content_damaged'))} / {ns(cthr)}**（vs v2.5.8；D23 判据待 owner）
+- 内容闸：**{ns(num.get('content_damaged'))} / {ns(cthr)}**（vs v{prev_ver or '基线'}；D23 判据待 owner）
 - 缺件扫描：**{ns(num.get('missing'))} / {ns(mthr)}**（阈值模式须披露零余量）
 - 页级几何：bad_boxes **{ns(num.get('bad_boxes'))}**；empty_assign **{ns(eassign)}**（披露阈值，mapping 缺口）
 - 覆盖：目标表 **{pct_s}%**（{len(covered)}/{len(target)}），缺口 **{gap:,}** 字。
@@ -262,32 +416,14 @@ def main():
 
 ## 已知债（详见 KNOWN-DEBTS.md）
 """)
-    # 10) build recipe（路径参数化；cache_ver/build git 从 build_stats 读取，T4 完整派生）
+    # 10) build recipe：全部字段从 build_stats 派生（BUILD-401 / DOCS-405 / T4 item2）
     git = {}
     try:
         git["commit"] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
         git["dirty"] = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip())
     except Exception:
         git = {"commit": None, "dirty": None}
-    stats = {}
-    try:
-        stats = json.load(open(os.path.join(ROOT, args.stats), encoding="utf-8"))
-    except Exception:
-        stats = {}
-    recipe = {"version": ver, "font": args.font, "font_sha256": sha256(os.path.join(ROOT, args.font)),
-              "manifest": args.manifest, "manifest_sha256": sha256(os.path.join(ROOT, args.manifest)),
-              "mapping": args.mapping, "mapping_sha256": sha256(os.path.join(ROOT, args.mapping)),
-              "geometry": "work/lead/page_geometry.jsonl",
-              "geometry_sha256": sha256(os.path.join(ROOT, "work/lead/page_geometry.jsonl")),
-              "bands_sha256": sha256(os.path.join(ROOT, "work/lead/page_line_bands.json")),
-              "build_stats": args.stats,
-              "cache_ver": stats.get("cache_ver"),
-              "build_git": stats.get("git"),
-              "package_git": git, "workers": 10,
-              "rebuild": f"FONT_BUILD_WORKERS=10 scripts/font_build.py --mapping {args.mapping} "
-                         f"--out {args.font} --version {ver}",
-              "gates": {"fast": args.fast_gate, "full": args.gate_report,
-                        "missing": args.missing_scan, "frame": args.frame_scan}}
+    recipe = derive_build_recipe(ver, args, num, git)
     json.dump(recipe, open(os.path.join(out, f"build_recipe-{tag}.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=1)
     # 11) 图片
