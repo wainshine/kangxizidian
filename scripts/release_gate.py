@@ -683,7 +683,7 @@ def main():
         if args.reuse_content:
             vres = GB.validate_reuse(args.reuse_content,
                                      files={"font": args.font, "baseline": args.prev,
-                                            "manifest": args.manifest},
+                                            "manifest": args.prev_manifest or args.manifest},
                                      scripts=["content_loss_gate.py", "fidelity_eval.py"])
             reuse_ok = vres["ok"]
             steps.append({"step": "content_reuse_binding", "ok": reuse_ok,
@@ -692,8 +692,11 @@ def main():
                 out_json = args.reuse_content
                 r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
         if r is None:
+            # 内容闸基线 = --prev 字体；字符集也用 --prev-manifest（只比较基线里存在的字；
+            # 新增字（如 v2.6.3 的 釕）不属于“掉墨”，应在字符 diff/释放说明里单列。
             r = subprocess.run([sys.executable, "scripts/content_loss_gate.py", args.prev, args.font,
-                                args.manifest, out_json], cwd=ROOT, capture_output=True, text=True)
+                                args.prev_manifest or args.manifest, out_json],
+                               cwd=ROOT, capture_output=True, text=True)
         damaged = None
         try:
             rows = json.load(open(os.path.join(ROOT, out_json)))

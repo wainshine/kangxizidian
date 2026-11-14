@@ -9,6 +9,11 @@
 
 ## 0. 已发布基线
 
+- **v2.6.3 正式包（2026-11-14）**：`release/KangXiKai-v2.6.3/` + `.zip`；font sha256
+  `6dd473b96e356989959825720354ae8aca6749e6f7e3f7b6aeee1722e959104e`（17,006 字），
+  zip sha 见 `release/RELEASE-INVENTORY.tsv`；finalize 以包内 `FINALIZE.json` + 包外 detached 为准。
+  本批：BF-54 基本区 5 字重定位 + 旧釘框改标 釕；BF-06 扫描侧修复（E40，165→19/20）；T4 证据链；
+  content 0/18（基线 v2.6.2）、缺件 19/20、empty_assign 1,172、框线 0。扩展区 6 字与 clean_ink/prune 残余 known-debt。
 - **v2.6.2 正式包（2026-11-14）**：`release/KangXiKai-v2.6.2/` + `.zip`；
   font sha256 `a8bb87d9c4a623d5fe88ae55c2f710a36827052c7cd3594fe70113f56ca18d5b`，
   zip sha256 见 `release/RELEASE-INVENTORY.tsv`；finalize 17/17 PASS；SHA 覆盖 32 文件（含 `review/`）。
@@ -16,7 +21,11 @@
   字形框线 0、框线逃逸 0、内容 18/35、缺件 165、empty_assign 1,173（后两项随包披露）。
 - 历史预览包 `release/_preview/` 保留备查。
 
-## 1. 下一批：v2.6.3（当前进行中）
+## 1. v2.6.3（已完成，2026-11-14）
+
+**执行结果**：本批承诺项已完成并发布（BF-06 扫描修复+披露、BF-54 基本区 5 字、T4 证据链）；
+owner 2026-11-14 决定范围：BF-54 只处理 Unicode 基本汉字区，扩展区 6 字（䬩/䃧/𣟴/𧂁/𧔁/𧖤）defer；
+内容闸基线改为上一正式版 v2.6.2（累计 vs v2.5.8 = 18 单列披露）。
 
 **本批只承诺做这两项；做完即出 v2.6.3，不等其它项。**
 

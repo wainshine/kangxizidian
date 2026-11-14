@@ -37,7 +37,11 @@ VERSIONS = [
      "manifest": "work/font/build/manifest_v263.json",
      "gate_report": "work/lead/gate-report-v263.json",
      "fast_gate": "work/lead/fast-gate-v263.json",
-     "diff_from_prev": "work/lead/diff-v262-v263.json"},
+     "diff_from_prev": "work/lead/diff-v262-v263.json",
+     # v2.6.3 起 patch 线内容基线 = 上一正式版 v2.6.2（owner 2026-11-14 决定）；
+     # 累计 vs v2.5.8 仍单独报告（content_damaged_vs_v258）
+     "content_baseline": {"font": "work/font/build/KangXiKai-v2.6.2.ttf",
+                          "manifest": "work/font/build/manifest_v262.json"}},
 ]
 BASELINE = "v2.5.8"
 
@@ -110,14 +114,24 @@ def main():
         gf = f"/tmp/metrics-gf-{v['label']}.json"
         run(["scripts/glyph_frame_gate.py", "--font", font_p, "--manifest", man_p, "--out", gf])
         item["glyph_frame_flagged"] = len(json.load(open(gf)).get("flagged") or []) if os.path.exists(gf) else None
-        # content vs baseline
+        # content vs baseline（v2.6.3+ 可按版本指定 content_baseline=上一正式版；仍报累计 vs v2.5.8）
+        item["content_damaged_vs_v258"] = None
         if v["label"] == BASELINE:
             item["content_damaged_vs_baseline"] = 0
         else:
+            cbase = v.get("content_baseline")
+            bfont = rel(cbase["font"]) if cbase else rel(versions[0]["font"])
+            bman = rel(cbase["manifest"]) if cbase else rel(versions[0]["manifest"])
             cl = f"/tmp/metrics-cl-{v['label']}.json"
-            run(["scripts/content_loss_gate.py", rel(versions[0]["font"]), font_p,
-                 rel(versions[0]["manifest"]), cl])
+            if not (os.path.exists(cl) and os.path.getsize(cl) > 2):
+                run(["scripts/content_loss_gate.py", bfont, font_p, bman, cl])
             item["content_damaged_vs_baseline"] = len(json.load(open(cl))) if os.path.exists(cl) else None
+            if cbase:
+                cl2 = f"/tmp/metrics-cl-v258-{v['label']}.json"
+                if not (os.path.exists(cl2) and os.path.getsize(cl2) > 2):
+                    run(["scripts/content_loss_gate.py", rel(versions[0]["font"]), font_p,
+                         rel(versions[0]["manifest"]), cl2])
+                item["content_damaged_vs_v258"] = len(json.load(open(cl2))) if os.path.exists(cl2) else None
         # recorded gate numbers
         item["missing_flagged"] = item["frame_escape_flagged"] = None
         item["bad_boxes"] = item["empty_assign_halves"] = None
@@ -142,8 +156,20 @@ def main():
         if v.get("fast_gate") and os.path.exists(rel(v["fast_gate"])):
             fg = json.load(open(rel(v["fast_gate"]), encoding="utf-8"))
             item["fast_gate"] = "PASS" if fg.get("pass") else "FAIL"
+        item["glyph_counts_vs_prev"] = None
         if v.get("diff_from_prev") and os.path.exists(rel(v["diff_from_prev"])):
-            item["changed_glyphs_vs_prev"] = len(json.load(open(rel(v["diff_from_prev"]), encoding="utf-8")))
+            dj = json.load(open(rel(v["diff_from_prev"]), encoding="utf-8"))
+            if isinstance(dj, list):
+                item["changed_glyphs_vs_prev"] = len(dj)
+            else:
+                counts = dj.get("counts") or {}
+                if counts:
+                    item["glyph_counts_vs_prev"] = {"changed": counts.get("changed"),
+                                                    "added": counts.get("added"),
+                                                    "removed": counts.get("removed")}
+                    item["changed_glyphs_vs_prev"] = (counts.get("changed") or 0) + (counts.get("added") or 0)
+                else:
+                    item["changed_glyphs_vs_prev"] = len(dj)
         else:
             item["changed_glyphs_vs_prev"] = None
         rows.append(item)
@@ -161,7 +187,8 @@ def main():
     fields = [("chars", "字形数"), ("basic_covered", "基本区覆盖/20,992"),
               ("target_covered", "目标表覆盖/16,567"), ("gap", "缺口"),
               ("font_qa", "font_qa"), ("glyph_frame_flagged", "字形级框线"),
-              ("content_damaged_vs_baseline", "内容 damaged（vs v2.5.8）"),
+              ("content_damaged_vs_baseline", "内容 damaged（基线；v2.6.3+=v2.6.2）"),
+              ("content_damaged_vs_v258", "内容 damaged（累计 vs v2.5.8）"),
               ("missing_flagged", "缺件扫描"), ("frame_escape_flagged", "框线逃逸"),
               ("bad_boxes", "页几何 bad_boxes"), ("empty_assign_halves", "空指派半版"),
               ("fast_gate", "fast_gate"), ("changed_glyphs_vs_prev", "相对上一版变化字")]
@@ -174,7 +201,8 @@ def main():
     md.append("> 注：v2.5.8 的缺件/框线/页几何扫描未按现行口径重跑（—=未测）；v2.6.1 的缺件/框线为当时口径，")
     md.append("> 不可与 v2.6.2 直接比较；v2.6.1 相对 v2.5.8 的变化字数未实测（—）。")
     md.append("> v2.6.2 的「617」是旧候选阈值筛集，**不可复算**；精确 glyf 轮廓差异见 E39（3,351），")
-    md.append("> v2.6.3 起的「变化字」必须由精确轮廓 diff 脚本生成。")
+    md.append("> v2.6.3 起的「变化字」由精确轮廓 diff 脚本生成；v2.6.3 = changed 5（急愈架紉釘）+ added 1（釕）+ removed 0。")
+    md.append("> v2.6.3 起内容闸基线 = 上一正式版 v2.6.2（owner 2026-11-14 决定）；累计 vs v2.5.8 单独列。")
     open(mdout, "w", encoding="utf-8").write("\n".join(md) + "\n")
     print(json.dumps({"out": os.path.relpath(out, ROOT), "md": os.path.relpath(mdout, ROOT),
                       "missing_versions": missing_versions}, ensure_ascii=False))

@@ -6,17 +6,15 @@
 
 ## 0. 三十秒快速开始
 
-- **v2.6.2 正式发布候选**（2026-11-13，E37 后）：字体 sha `a8bb87d9…`（17,005 字）已过 fast_gate 8/8；
-  全闸 **9 PASS / 2 FAIL**（唯一 FAIL：缺件扫描 165、页几何 empty_assign 1,173，均为**已披露已知债**）。
-  发布材料（`README.md`、`LICENSE`、`OFL.txt`、`docs/reference/RELEASE-METRICS.md`、`docs/releases/v2.6.2/KNOWN-DEBTS.md`）
-  已补齐；自审计记录见 `docs/releases/v2.6.2/SELF-AUDIT.md`；**正式包已出（2026-11-14）**：`release/KangXiKai-v2.6.2/`
-  + `KangXiKai-v2.6.2.zip`，font sha `a8bb87d9…`，finalize 17/17 PASS（zip sha 见 `release/RELEASE-INVENTORY.tsv`）。
-- 覆盖：基本区 10,267/20,992 = **48.91%**；目标字表 10,267/16,567 = **61.97%**；缺口 **6,300**。
-- 闸（候选，现行）：font_qa **PASS**（同框 0）；字形级框线 **0 PASS**；框线逃逸 **0 PASS**（E37 口径）；
-  内容 **18**（阈值 35，E31 归因为跨架构归一化差异）；provenance PASS；页几何 bad_boxes **0**；
-  严格 FAIL 仅 2 项：缺件扫描 **165**、empty_assign **1,173**（mapping 覆盖缺口）。
-- 构建：mapping `work/lead/mapping_block_v271.jsonl` + geometry `work/lead/page_geometry.jsonl`（E30 扩张版）
-  + 页级线条带 `work/lead/page_line_bands.json`（27 rect）+ 自动缓存版本；全量重建约 **10m30s**（10 workers）。
+- **v2.6.3 正式发布候选**（2026-11-14）：字体 sha **`6dd473b9…`**（**17,006** 字；含新增 釕 U+91D5）已过
+  fast_gate **8/8 PASS**；全闸 **12/12 PASS**（内容 0/18 基线 v2.6.2；缺件 19/20 零余量披露；empty_assign 1,172 披露）。
+  发布材料：`docs/releases/v2.6.3/{RELEASE,KNOWN-DEBTS,SELF-AUDIT}.md`、`docs/reference/RELEASE-METRICS.md`（含 v2.6.3 列）。
+  v2.6.3 = BF-54 基本区 5 字重定位（愈/急/架/紉/釘）+ 旧釘框改标 釕 + BF-06 扫描侧修复（E40：165→19/20）+ T4 证据链。
+- 覆盖：基本区 10,268/20,992 = **48.91%**；目标字表 10,268/16,567 = **61.98%**；缺口 **6,299**。
+- 闸（候选，现行）：font_qa PASS（同框 0）；字形级框线 **0**；框线逃逸 **0**；内容 **0**（v2.6.2 基线；累计 vs v2.5.8=18 披露）；
+  provenance PASS；页几何 bad_boxes **0**、empty_assign **1,172**（披露）；缺件 **19 字/20 组件**（17 prune 判正确 + 3 scan 残差）。
+- 构建：mapping `work/lead/mapping_block_v273.jsonl`（v271 + 5 条基本区重定位 + 釕）+ geometry `work/lead/page_geometry.jsonl`
+  + 页级线条带（27 rect）+ 自动缓存版本；clean-HEAD 全量重建 398s（10 workers；T1 改动后首跑），cache 命中约 20s。
 - 关键口径：只收字头真迹（D15）；2×2 格块；pre-cut 排除版面（D22，strip 已摘除 E29）；参考字体唯一 = 霞鹜文楷 OFL（D21）。
 - 未决 owner 决策：**D23 内容判据**（改源墨保真度？）、**00/13 卷是否入字表**、**缺口 6,300 策略（BF-41）**。
 
@@ -31,14 +29,15 @@
 
 | 产物 | 路径 | 状态 |
 |---|---|---|
-| 当前候选字体 | `work/font/build/KangXiKai-v2.6.2.ttf`（sha `a8bb87d9…`） | **fast_gate 8/8 PASS**；全闸 9 PASS / 2 FAIL（均披露） |
-| **v2.6.2 正式包** | `release/KangXiKai-v2.6.2/` + `KangXiKai-v2.6.2.zip` | ✅ 2026-11-14 finalize（17/17 PASS；font `a8bb87d9…`；包内 SHA 32 文件含 review/ 快照；zip sha 见 RELEASE-INVENTORY）；披露阈值：内容 35 / 缺件 165 / empty 1,173 / 框线 0 |
+| 当前候选字体 | `work/font/build/KangXiKai-v2.6.3.ttf`（sha `6dd473b9…`，17,006 字） | **fast_gate 8/8 PASS**；全闸 **12/12 PASS**（内容 0/18、缺件 19/20、empty_assign 1,172 均披露） |
+| **v2.6.3 正式包（本版）** | `release/KangXiKai-v2.6.3/` + `KangXiKai-v2.6.3.zip` | 2026-11-14 发布；material staging `work/release/v2.6.3`；finalize 结果以包内 `FINALIZE.json` + `release/RELEASE-INVENTORY.tsv` 为准 |
+| v2.6.2 正式包（上一版） | `release/KangXiKai-v2.6.2/` + `.zip` | ✅ 2026-11-14 finalize 17/17（font `a8bb87d9…`；内容 35 / 缺件 165 / empty 1,173 / 框线 0 披露） |
 | 历史预览包 | `release/_preview/KangXiKai-v2.6.2-preview`（旧证据，b73e9f01 时代） | 已被正式包取代，保留备查 |
 | 发布材料 | `README.md`、`LICENSE`、`OFL.txt`、`docs/reference/RELEASE-METRICS.md`、`docs/releases/v2.6.2/KNOWN-DEBTS.md`、`scripts/templates/README-TEMPLATE.md`、`docs/images/` | 2026-11-13 补齐 |
-| 构建输入·mapping | `work/lead/mapping_block_v271.jsonl`（17,005 字；v270 留档） | 唯一真源 |
+| 构建输入·mapping | `work/lead/mapping_block_v273.jsonl`（17,006 字；v271/v272 留档） | 唯一真源 |
 | 构建输入·几何 | `work/lead/page_geometry.jsonl`（E30 扩张版；原版 `page_geometry_v1.jsonl`） | 唯一真源 |
 | 构建输入·线条带 | `work/lead/page_line_bands.json`（27 rect，页级数据驱动） | pre-cut 数据 |
-| 构建输入·manifest | `work/font/build/manifest_v262.json` | 由 build_stats 生成 |
+| 构建输入·manifest | `work/font/build/manifest_v263.json` | 由 build_stats 生成 |
 | 参考字体 | `scripts/reffont.py` → 霞鹜文楷 LXGW WenKai（OFL，不随包分发） | 唯一参考 |
 | 闸报告 | `work/lead/fast-gate-v262.json`、`gate-report-v262.json`、`glyph-frame-gate-v262.json`、`page-geometry-gate-v262.json` | 现行 |
 | 扫描 | `work/lead/missing_scan_v262.jsonl`（165）、`frame_scan_v262.jsonl`（0） | 带 sidecar 绑定 |
@@ -54,7 +53,7 @@
 | 级别 | 缺陷 | 现状 / 计划 |
 |---|---|---|
 | P0·里程碑 | **empty_assign 1,173**：有 quad 无 mapping 行的半版（vol 01–12 **669**，其中 652 有 lattice；vol 00/13 **504**；40 无 lattice）；含 01_0006 L「一」 | CS3：669 个需重跑检测/映射（真迹，不补假字）；00/13 口径待 owner |
-| P0·里程碑 | **缺件扫描 165**（v2.6.2 已发布值；旧 32/827/1,200 不可比。**v2.6.3 T1 已定位**：主因=扫描侧 precut crossing 过滤 fail-open（E40），修复后对 v2.6.2 字体重扫 **19 字/20 组件**） | BF-06：残余 17 prune_loss + 5 clean_ink_loss（旧集）+ 3 scan 残差 → 类级修/披露；不得再按「165/prune 边缘口径」调参 |
+| P1·已收口（v2.6.3） | **缺件 165 → 19 字/20 组件**：E40 修复扫描侧 precut fail-open；残余 17 prune_loss（owner 判 prune 删除正确）+ 3 scan 残差，按 known-debt 披露 | BF-06 完成（v2.6.3）；prune-by-design 归类代码留 v2.6.4；不得再按 165/prune 旧口径调参 |
 | P0·里程碑 | **内容判据 D23（待 owner）**：content 18（阈值 35）大部分是跨架构归一化差异（E31：旧字形长宽比偏差>15%），非真实缺笔 | 提案改「源墨保真度」（字形投影 vs 自身 source ink 配准 IoU） |
 | P0·里程碑 | **v2.6.1 包不可签收**（旧 finalize/材料数字矛盾/混入 v2.6.0 数据） | 不重打；下一候选按新 finalize 出包（BF-04/17/18/24） |
 | P0·里程碑 | 硬条件未闭环：隔离 **9 字**（刃/榍/法/紆/総/荹/仟/禦/絞）、**100 字签核**、部界锚点（09–11/13 卷缺）、标签精度敞口（VLM top-1 84.6%, n=13）、DATA 许可细节 | CS4/CS5（BF-29/30/31/32/33） |
