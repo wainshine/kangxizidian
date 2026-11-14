@@ -27,7 +27,7 @@
 ## 3. 发布证据链说明
 
 - 本版 T4 已修：OFL 单源、`FINALIZE.json`（包内 + 包外 detached）、finalize staging 原子替换、扫描产物 sha/manifest 绑定、`verify_release`、`glyph_diff` 精确变化字、RELEASE-INVENTORY 生成器。
-- 包内 `FINALIZE.json` 的 zip 自指字段为 `null`+scope 说明；实际终验值（zip sha、sha_final_ok/zip_ok）在包外 detached `release/KangXiKai-v2.6.3.FINALIZE.json`（zip 自指不可内嵌，见 `docs/WORKFLOW.md §8bis`）。
+- 包内 `FINALIZE.json` 的 zip 自指字段为 `null`+scope 说明；实际终验值（zip sha、sha_final_ok/zip_ok）在包外 detached `FINALIZE.json`（与包同名、置于 `release/` 根；zip 自指不可内嵌，见 `docs/WORKFLOW.md §8bis`）。
 - v2.6.2 冻结包不回填新证据字段（只读）。
 
 ## 4. 里程碑硬条件（本包尚未闭环）
