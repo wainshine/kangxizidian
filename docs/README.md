@@ -51,14 +51,14 @@
 | `reference/WORK-MAP.md` | `work/` 痕迹地图与安全清理规则 |
 | `reference/WORK-CLEANUP.md` | 清理分类/已执行记录/影响评估（含原 IMPACT 附录） |
 | `reference/RELEASE-METRICS.md` | 版本对比指标与「一版比上一版好」判据 |
-| `reference/CANONICAL-ORDER.md` · `STRUCTURE.md` · `HEADERS.md` | 正典序/卷部结构/书眉数据层 |
+| `reference/CANONICAL-ORDER.md` · `reference/STRUCTURE.md` · `reference/HEADERS.md` | 正典序/卷部结构/书眉数据层 |
 
 ### E. 发布记录（每版一个子目录，发布后只读）
 
 | 路径 | 定位 |
 |---|---|
 | `releases/README.md` | 发布记录索引 |
-| `releases/v<ver>/RELEASE.md` · `KNOWN-DEBTS.md` · `SELF-AUDIT.md` | 该版发布说明/已知债/发布前自审计 |
+| `releases/v<ver>/` 下：`RELEASE.md` · `KNOWN-DEBTS.md` · `SELF-AUDIT.md` | 该版发布说明/已知债/发布前自审计 |
 
 ### F. 计划（滚动，随版本移动）
 
@@ -71,7 +71,7 @@
 
 | 路径 | 内容 |
 |---|---|
-| `_history/` | 旧文档（含 `PROJECT-AUDIT-2026-11-12.md`、TAKEOVER、旧计划/发布计划等） |
+| `_history/` | 旧文档（含 `_history/PROJECT-AUDIT-2026-11-12.md`、TAKEOVER、旧计划/发布计划等） |
 | `../audit/_history/` | 历史审计证据 |
 
 ## 三、哪些不能动 / 合并删除 / 归档（2026-11-14 决策）
@@ -79,8 +79,8 @@
 | 类别 | 处理 |
 |---|---|
 | **不能动** | `PIPELINE.md`/`WORKFLOW.md`/`DECISIONS.md`/`GLOSSARY.md`/`DATA.md`（权威口径）；`VERSION-HISTORY.md`/`ERRATA.md`（append-only）；`releases/v<ver>/`（发布后只读）；`_history/`（不改写）；已 finalize 的 `release/` 包 |
-| **已合并后删除** | `WORK-CLEANUP-IMPACT.md` → 合并进 `reference/WORK-CLEANUP.md` 附录后删除 |
-| **已移出 docs** | `README-TEMPLATE.md` → `scripts/templates/README-TEMPLATE.md`（打包资产，不是文档） |
+| **已合并后删除** | 原 `WORK-CLEANUP-IMPACT.md` → 并入 `reference/WORK-CLEANUP.md` 附录后已删除 |
+| **已移出 docs** | 原 `README-TEMPLATE.md` → `scripts/templates/README-TEMPLATE.md`（打包资产，不是文档） |
 | **已归档** | `PROJECT-AUDIT-2026-11-12.md` → `_history/`；`KNOWN-DEBTS/SELF-AUDIT` 按版本移入 `releases/v2.6.2/` |
 | **保留但归入 reference** | SCRIPTS/WORK-MAP/WORK-CLEANUP/RELEASE-METRICS/EXPERIMENTS/数据层三篇 |
 

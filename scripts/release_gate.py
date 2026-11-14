@@ -197,7 +197,7 @@ def main():
         if args.reuse_missing:
             out_scan = args.reuse_missing
             vres = GB.validate_reuse(out_scan, files={"font": args.font, "manifest": args.manifest},
-                                  scripts=["scan_missing_parts.py", "reffont.py", "refgate.py",
+                                  scripts=["scan_missing_parts.py", "reffont.py",
                                            "font_build.py", "font_norm.py", "page_frames.py",
                                            "fidelity_eval.py"],
                                   include_reffont=True)

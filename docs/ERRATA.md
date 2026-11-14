@@ -353,3 +353,13 @@
 - **未修（进 v2.6.3）**：11 个「字与 Unicode 不对应」= mapping 标签错误（例：04_0014 R 标注「愈」的框实为注文
   「愈孟」两小字；06_0080 R 标注「急」的框实为「滓」）。修复需按页重定位真迹字头（禁止补假字）——
   归入 v2.6.3 批 mapping 审计（BF-54 / BF-16 扩展）；本候选不宣称此 11 字已解决。
+
+
+## E38. 目录重构后的 stale 绑定（2026-11-14，自审计发现）
+
+- 现象：scripts 分层（refgate 等移入 `scripts/oneoff/`）后，`scan_missing_parts.py` 与 `release_gate.py` 的
+  输入绑定脚本清单仍列 `refgate.py`；现路径不存在 → sha 为空 → `missing_reuse_binding` FAIL（fail-closed 正确生效）。
+- 修复：从两处绑定清单删除 stale 的 `refgate.py`（该脚本早已不参与缺件扫描）；重扫缺件/框线并复验：
+  全闸 11/11 PASS、边界值不变（缺件 165、框线 0）。
+- 教训：移动/归档脚本时，必须同步检查 `gate_binding` 的 `scripts=` 清单与 sidecar 复用校验；
+  代码布局变更后按「重建→快闸→扫描→全闸→打包干跑」跑一遍全链。

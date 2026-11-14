@@ -234,7 +234,7 @@ def main():
                "geometry": "work/lead/page_geometry.jsonl",
                "page_line_bands": "work/lead/page_line_bands.json",
                "build_stats": stats_path if (stats_path and os.path.exists(stats_path)) else None},
-        scripts=["scan_missing_parts.py", "precut_masks.py", "reffont.py", "refgate.py",
+        scripts=["scan_missing_parts.py", "precut_masks.py", "reffont.py",
                  "font_build.py", "font_norm.py", "page_frames.py", "fidelity_eval.py"],
         include_reffont=True)
     GB.write_sidecar(out_abs, binding)

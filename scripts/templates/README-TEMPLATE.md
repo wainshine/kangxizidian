@@ -1,3 +1,4 @@
+<!-- 模板说明：本模板在发布包内渲染，specimen.png / book-vs-font.png 由 font_package 以 --extra 附入包根；路径为包内相对路径。 -->
 # 康熙楷 KangXi Kai
 
 > 一套从《康熙字典》康熙五十五年内府刊本重建的**字头真迹**楷书字体。
