@@ -6,14 +6,14 @@
 
 ## 0. 三十秒快速开始
 
-- **v2.6.3 正式发布候选**（2026-11-14）：字体 sha **`6dd473b9…`**（**17,006** 字；含新增 釕 U+91D5）已过
+- **v2.6.3 正式发布候选**（2026-11-14）：字体 sha **`2414847b…`**（**17,006** 字；含新增 釕 U+91D5；r1 修 `而` 框）已过
   fast_gate **8/8 PASS**；全闸 **12/12 PASS**（内容 0/18 基线 v2.6.2；缺件 19/20 零余量披露；empty_assign 1,172 披露）。
   发布材料：`docs/releases/v2.6.3/{RELEASE,KNOWN-DEBTS,SELF-AUDIT}.md`、`docs/reference/RELEASE-METRICS.md`（含 v2.6.3 列）。
   v2.6.3 = BF-54 基本区 5 字重定位（愈/急/架/紉/釘）+ 旧釘框改标 釕 + BF-06 扫描侧修复（E40：165→19/20）+ T4 证据链。
 - 覆盖：基本区 10,268/20,992 = **48.91%**；目标字表 10,268/16,567 = **61.98%**；缺口 **6,299**。
 - 闸（候选，现行）：font_qa PASS（同框 0）；字形级框线 **0**；框线逃逸 **0**；内容 **0**（v2.6.2 基线；累计 vs v2.5.8=18 披露）；
   provenance PASS；页几何 bad_boxes **0**、empty_assign **1,172**（披露）；缺件 **19 字/20 组件**（17 prune 判正确 + 3 scan 残差）。
-- 构建：mapping `work/lead/mapping_block_v273.jsonl`（v271 + 5 条基本区重定位 + 釕）+ geometry `work/lead/page_geometry.jsonl`
+- 构建：mapping `work/lead/mapping_block_v274.jsonl`（v271 + 5 条基本区重定位 + 釕）+ geometry `work/lead/page_geometry.jsonl`
   + 页级线条带（27 rect）+ 自动缓存版本；clean-HEAD 全量重建 398s（10 workers；T1 改动后首跑），cache 命中约 20s。
 - 关键口径：只收字头真迹（D15）；2×2 格块；pre-cut 排除版面（D22，strip 已摘除 E29）；参考字体唯一 = 霞鹜文楷 OFL（D21）。
 - 未决 owner 决策：**D23 内容判据**（改源墨保真度？）、**00/13 卷是否入字表**、**缺口 6,300 策略（BF-41）**。
@@ -29,12 +29,12 @@
 
 | 产物 | 路径 | 状态 |
 |---|---|---|
-| 当前候选字体 | `work/font/build/KangXiKai-v2.6.3.ttf`（sha `6dd473b9…`，17,006 字） | **fast_gate 8/8 PASS**；全闸 **12/12 PASS**（内容 0/18、缺件 19/20、empty_assign 1,172 均披露） |
+| 当前候选字体 | `work/font/build/KangXiKai-v2.6.3.ttf`（sha `2414847b…`，17,006 字；r1） | **fast_gate 8/8 PASS**；全闸 **12/12 PASS**（内容 0/18、缺件 19/20、empty_assign 1,172 均披露） |
 | **v2.6.3 正式包（本版）** | `release/KangXiKai-v2.6.3/` + `KangXiKai-v2.6.3.zip` | 2026-11-14 发布；material staging `work/release/v2.6.3`；finalize 结果以包内 `FINALIZE.json` + `release/RELEASE-INVENTORY.tsv` 为准 |
 | v2.6.2 正式包（上一版） | `release/KangXiKai-v2.6.2/` + `.zip` | ✅ 2026-11-14 finalize 17/17（font `a8bb87d9…`；内容 35 / 缺件 165 / empty 1,173 / 框线 0 披露） |
 | 历史预览包 | `release/_preview/KangXiKai-v2.6.2-preview`（旧证据，b73e9f01 时代） | 已被正式包取代，保留备查 |
 | 发布材料 | `README.md`、`LICENSE`、`OFL.txt`、`docs/reference/RELEASE-METRICS.md`、`docs/releases/v2.6.2/KNOWN-DEBTS.md`、`scripts/templates/README-TEMPLATE.md`、`docs/images/` | 2026-11-13 补齐 |
-| 构建输入·mapping | `work/lead/mapping_block_v273.jsonl`（17,006 字；v271/v272 留档） | 唯一真源 |
+| 构建输入·mapping | `work/lead/mapping_block_v274.jsonl`（17,006 字；v271/v272/v273 留档） | 唯一真源 |
 | 构建输入·几何 | `work/lead/page_geometry.jsonl`（E30 扩张版；原版 `page_geometry_v1.jsonl`） | 唯一真源 |
 | 构建输入·线条带 | `work/lead/page_line_bands.json`（27 rect，页级数据驱动） | pre-cut 数据 |
 | 构建输入·manifest | `work/font/build/manifest_v263.json` | 由 build_stats 生成 |

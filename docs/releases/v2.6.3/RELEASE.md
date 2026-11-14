@@ -1,10 +1,10 @@
 # RELEASE v2.6.3 · 康熙楷 KangXi Kai
 
 - **发布日期**：2026-11-14
-- **发布类型**：正式包（2.6 补丁线；BF-54 基本区标签重定位 + BF-06 扫描修复 + 证据链修复）
+- **发布类型**：正式包 r1（2.6 补丁线；返工重发：修正「而」框边角料 + 根 README/门脸图同步；BF-54 基本区标签重定位 + BF-06 扫描修复 + 证据链修复）
 - **包路径**：`release/KangXiKai-v2.6.3/` + `release/KangXiKai-v2.6.3.zip`
 - **构建来源**：clean git tree（dirty=false；commit 见包内 `build_recipe-*.json`，本版字体由 clean-HEAD 重建复现）
-- **字体 sha256**：`6dd473b96e356989959825720354ae8aca6749e6f7e3f7b6aeee1722e959104e`
+- **字体 sha256**：`2414847b88457ffaee11fa2a2e89e3c456aa14efd867904119f032485b5a360f`
 - **zip sha256**：见 `release/RELEASE-INVENTORY.tsv`（包内 `SHA256SUMS` 覆盖全部非 SHA 文件，含 `review/`）
 - **finalize**：以包内 `FINALIZE.json` + 包外 detached `release/KangXiKai-v2.6.3.FINALIZE.json` 为准（finalize 全链 PASS 才允许出包）
 
@@ -15,7 +15,8 @@
 
 ## 本版改了什么（相对 v2.6.2）
 
-1. **BF-54 基本区标签重定位（5 字）**：愈/急/架/紉/釘 按 2×2 大字块重新定位到真字头；旧釘框实际字改标 **釕 U+91D5**（+1 字）。精确 glyf 轮廓差异：**changed 5 + added 1 + removed 0**（由 `scripts/glyph_diff.py` 生成）。
+1. **BF-54 基本区标签重定位（5 字）**：愈/急/架/紉/釘 按 2×2 大字块重新定位到真字头；旧釘框实际字改标 **釕 U+91D5**（+1 字）。精确 glyf 轮廓差异（vs v2.6.2）：**changed 6（含 r1 修的「而」）+ added 1 + removed 0**（由 `scripts/glyph_diff.py` 生成）。
+   - **r1 返工**：`而` 的 mapping 框下边带入下邻注文框线（边角料）→ 框收紧为 `[625,358,728,454]`（mapping v274）；`字` 的 prune 误删真迹（宀点/钩，9→7 轮廓）留 v2.6.5 类级修，本版披露、门脸图不使用该字。
 2. **BF-06 扫描侧修复（E40）**：`precut_masks.apply_precut_masks()` 补 `import numpy` + fail-closed，修复 crossing 过滤 fail-open；缺件披露从 165（扫描误报为主）更新为 **19 字/20 组件**（17 prune_loss + 3 scan 残差，unknown=0）。
 3. **T4 发布证据链**：OFL 单源、`FINALIZE.json`、finalize staging 原子替换、扫描产物绑定校验、`verify_release`、`check_release_docs` 数值对账/篡改测试、`build_stats` 入包。
 4. 页几何：04_0048 R 补 1 行 → empty_assign **1,173→1,172**；bad_boxes 仍 **0**。

@@ -7,9 +7,10 @@
   <img src="docs/images/specimen.png" width="920" alt="KangXi Kai specimen">
 </p>
 
-> **状态：v2.6.2（2026-11-13）** —— 17,005 个真实字头字形，全部取自刻本真迹，无生成字。
+> **状态：v2.6.3（2026-11-14，返工重发 r1）** —— 17,006 个真实字头字形，全部取自刻本真迹，无生成字。
 > 本项目为**字头精选集**（非全字库）；覆盖、限制与发布条件见
-> [覆盖范围](#覆盖范围与限制) 与 [docs/releases/v2.6.2/KNOWN-DEBTS.md](docs/releases/v2.6.2/KNOWN-DEBTS.md)。
+> [覆盖范围](#覆盖范围与限制) 与 [docs/releases/v2.6.3/KNOWN-DEBTS.md](docs/releases/v2.6.3/KNOWN-DEBTS.md)。
+> r1 说明：修复「而」框带入下邻注文框线的边角料；首包门脸图/根 README 未同步的问题已一并修正；「字」的 prune 误删真迹留 v2.6.5 类级修（见 ERRATA E41）。
 
 ## 这是什么
 
@@ -51,10 +52,10 @@
 | 项目 | 内容 |
 |---|---|
 | 家族名 | KangXi Kai（康熙楷） |
-| 字形 | **17,005** 个，全部为刻本字头真迹（headword-only） |
+| 字形 | **17,006** 个，全部为刻本字头真迹（headword-only） |
 | 格式 | TTF（glyf，UPM 1000） |
-| 覆盖 | CJK 基本区 10,267 / 20,992 = **48.91%**；目标字表 10,267 / 16,567 = **61.97%** |
-| 缺口 | 6,300 字（含部分常用字，见下文） |
+| 覆盖 | CJK 基本区 10,268 / 20,992 = **48.91%**；目标字表 10,268 / 16,567 = **61.98%** |
+| 缺口 | 6,299 字（含部分常用字，见下文） |
 | 字符集 | 仅汉字；不含标点、数字、拉丁字母（由排版软件回退） |
 | 数据源 | 《康熙字典》清康熙五十五年内府刊本，[書格 shuge.org](https://shuge.org) 数字化（14 册 / 3,869 页） |
 | 授权 | 字体 SIL Open Font License 1.1（[OFL.txt](OFL.txt)）；代码 MIT（[LICENSE](LICENSE)） |
@@ -70,7 +71,7 @@ PDF 扫描（14 册 / 3,869 页）
    ↓  S3 矢量化：2×2 块掩膜 → 主簇清理 → potrace 轮廓
    ↓  S3 归一化：字墨 bbox 最长边 → 760 font units（UPM 1000）
    ↓  S4 闸：font_qa / 字形级框线 / 内容 / 缺件 / 框线逃逸 / 页级几何 / provenance
-KangXiKai-Regular-v2.6.2.ttf
+KangXiKai-Regular-v2.6.3.ttf
 ```
 
 管线细节与复现命令见 [docs/PIPELINE.md](docs/PIPELINE.md)；流程纪律（候选/正式分层、闸、里程碑）
@@ -78,17 +79,18 @@ KangXiKai-Regular-v2.6.2.ttf
 
 ## 覆盖范围与限制
 
-- **不是全字库**：目标表 16,567 字中已收 10,267 字（61.97%），缺口 6,300 字，含
+- **不是全字库**：目标表 16,567 字中已收 10,268 字（61.98%），缺口 6,299 字，含
   一/件/你/內/合/在/多/張/教/樣/氣/法/清/為/王/相/種/臺/與/被/裡/都/間 等常用字；
   缺字由排版软件自动回退系统字体。
 - **仅字头**：只收字头大字，不收注文小字、不补假字形（部分注文中的字形不在字库内）。
-- **少量已知缺陷**：11 字的 mapping 标签待重定位、165 个缺件扫描项、1,173 个半版（页）尚未完成字头定位，
-  正在 2.6.x 补丁线修复；逐项披露见 [docs/releases/v2.6.2/KNOWN-DEBTS.md](docs/releases/v2.6.2/KNOWN-DEBTS.md)。
+- **少量已知缺陷**：BF-54 基本区 5 字已重定位（愈/急/架/紉/釘）；扩展区 6 字 defer；缺件扫描 **19 字/20 组件**
+  （17 prune 判正确 + 3 scan 残差，披露）；empty_assign **1,172** 个半版尚未完成字头定位；「字」等个别字形存在
+  prune 误删真迹的类级问题（v2.6.5 修）。逐项披露见 [docs/releases/v2.6.3/KNOWN-DEBTS.md](docs/releases/v2.6.3/KNOWN-DEBTS.md)。
 - **不含标点/数字/拉丁字母**；缺字自动回退系统字体。
 
 ## 安装与使用
 
-1. 下载发布包 `KangXiKai-v2.6.2.zip`，解压后安装 `KangXiKai-Regular-v2.6.2.ttf`；
+1. 下载发布包 `KangXiKai-v2.6.3.zip`，解压后安装 `KangXiKai-Regular-v2.6.3.ttf`；
 2. 在排版软件中选择家族名 **KangXi Kai** / Regular；
 3. 缺字（含拉丁字母、标点）由系统字体自动回退。
 
@@ -101,20 +103,20 @@ KangXiKai-Regular-v2.6.2.ttf
 ```bash
 # 字体构建（10 workers，全量约 10.5 分钟；缓存命中约 4 分钟）
 FONT_BUILD_WORKERS=10 .venv/bin/python scripts/font_build.py \
-  --mapping work/lead/mapping_block_v271.jsonl \
-  --out work/font/build/KangXiKai-v2.6.2.ttf --version 2.6.2
+  --mapping work/lead/mapping_block_v274.jsonl \
+  --out work/font/build/KangXiKai-v2.6.3.ttf --version 2.6.3
 
 # 快闸
-.venv/bin/python scripts/fast_gate.py --font work/font/build/KangXiKai-v2.6.2.ttf \
-  --manifest work/font/build/manifest_v262.json --version 2.6.2 \
-  --baseline work/font/build/KangXiKai-v2.5.8.ttf \
-  --baseline-manifest work/font/build/manifest_v258.json --content-max-damaged 35
+.venv/bin/python scripts/fast_gate.py --font work/font/build/KangXiKai-v2.6.3.ttf \
+  --manifest work/font/build/manifest_v263.json --version 2.6.3 \
+  --baseline work/font/build/KangXiKai-v2.6.2.ttf \
+  --baseline-manifest work/font/build/manifest_v262.json --content-max-damaged 18
 
 # 全闸（发布候选；扫描可复用已绑定结果）
-.venv/bin/python scripts/release_gate.py --version 2.6.2 \
-  --font work/font/build/KangXiKai-v2.6.2.ttf --manifest work/font/build/manifest_v262.json \
-  --prev work/font/build/KangXiKai-v2.5.8.ttf --prev-manifest work/font/build/manifest_v258.json \
-  --content-max-damaged 35 --tag v262
+.venv/bin/python scripts/release_gate.py --version 2.6.3 \
+  --font work/font/build/KangXiKai-v2.6.3.ttf --manifest work/font/build/manifest_v263.json \
+  --prev work/font/build/KangXiKai-v2.6.2.ttf --prev-manifest work/font/build/manifest_v262.json \
+  --content-max-damaged 18 --tag v263
 ```
 
 构建输入（mapping / 页级几何 / 线条带）、缓存版本规则与闸定义见 [docs/PIPELINE.md](docs/PIPELINE.md)。
@@ -159,9 +161,9 @@ kangxizidian/
 | [docs/PIPELINE.md](docs/PIPELINE.md) | 现行管线（唯一权威） |
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | 候选/正式分层、闸分层、里程碑发版纪律 |
 | [docs/reference/RELEASE-METRICS.md](docs/reference/RELEASE-METRICS.md) | 版本对比指标与发版判据 |
-| [docs/releases/v2.6.2/KNOWN-DEBTS.md](docs/releases/v2.6.2/KNOWN-DEBTS.md) · [docs/releases/v2.6.2/SELF-AUDIT.md](docs/releases/v2.6.2/SELF-AUDIT.md) | 本版已知债披露 · 发布前自审计 |
+| [docs/releases/v2.6.3/KNOWN-DEBTS.md](docs/releases/v2.6.3/KNOWN-DEBTS.md) · [docs/releases/v2.6.3/SELF-AUDIT.md](docs/releases/v2.6.3/SELF-AUDIT.md) | 本版已知债披露 · 发布前自审计 |
 | [docs/VERSION-HISTORY.md](docs/VERSION-HISTORY.md) | 逐版变更 |
-| [docs/releases/](docs/releases/README.md) | 正式版发布记录（v2.6.2 起每版一份） |
+| [docs/releases/](docs/releases/README.md) | 正式版发布记录（v2.6.2 起每版一份；v2.6.3 为返工重发 r1） |
 | [docs/reference/EXPERIMENTS.md](docs/reference/EXPERIMENTS.md) | 实验与探索索引（含失败实验，像馆阁体 EXPERIMENTS） |
 | [docs/plans/PLAN-v2.6.3.md](docs/plans/PLAN-v2.6.3.md) · [docs/plans/PLAN-v2.7.0.md](docs/plans/PLAN-v2.7.0.md) | 后续版本计划（v2.7.0：GAN + 带状扫掠生成/回退） |
 | [docs/DECISIONS.md](docs/DECISIONS.md) · [docs/ERRATA.md](docs/ERRATA.md) · [docs/BACKLOG.md](docs/BACKLOG.md) | 口径决策 / 更正记录 / 唯一待办清单 |

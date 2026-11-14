@@ -423,3 +423,15 @@
   `work/lead/missing-165-stage-attribution.jsonl`、`work/lead/missing-19-stage-attribution.jsonl`、
   `work/lead/bf06-variant-candidates.jsonl`；脚本 `scripts/oneoff/diag_missing_stage.py`、
   `scripts/oneoff/bf06_scan_variant_candidates.py`。
+
+## E41. v2.6.3 首包撤回与 r1 返工（2026-11-14，owner 复核）
+
+- **首包撤回**：v2.6.3 首个正式包（font sha `6dd473b9…`，zip sha `e943182b…`）在 owner 复核中被判返工：
+  ① 仓库根 `README.md` 仍写 v2.6.2（包内 README 是 v2.6.3，根 README 未同步）；
+  ② 门脸图 `docs/images/specimen.png` / 包内 `specimen.png` 中「而」字带入下邻注文框线（边角料未删净）；
+  ③ 同图「字」字形错误：构建链从 9→7 条轮廓，prune 把宀的点/钩当作字墨 bbox 边缘碎片删掉（读似「孑」）。
+- **r1 修复（同版本 v2.6.3 返工重发，owner 决定）**：
+  - `而`：mapping 框改为 `[625,358,728,454]`（mapping v274，仅此 1 条行级改动）→ font sha **`2414847b…`**；
+  - `字`：属类级 prune 判据问题（真迹点/钩被当边缘碎片删除），**不做单字补丁**，本版披露、门脸图不使用该字，留 **v2.6.5** 类级修；
+  - 根 `README.md` 更新到 v2.6.3；门脸图/样张/字形网格按 v2.6.3 字体重生成，图内避开已知缺陷字（字/而/山）。
+- 首包（含旧 zip/FINALIZE）作废，以 r1 包（`release/KangXiKai-v2.6.3/` 重打）为准；本 ERRATA 与 `docs/releases/v2.6.3/*`、`docs/VERSION-HISTORY.md` 为准。

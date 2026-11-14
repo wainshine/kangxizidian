@@ -18,9 +18,12 @@ from PIL import Image, ImageDraw, ImageFont
 
 REF = os.path.join(ROOT, "work", "font", "_fonts", "LXGWWenKai-Regular.ttf")
 OUT = os.path.join(ROOT, "docs", "images")
+# 门脸图不展示已知缺陷字（字：prune 误删宀点/钩；而：旧框带入注文框线，v2.6.3-r1 已修框但样本里先不用）
+EXCLUDE = set("字而")
 
 # 候选样张句（全为常用字；脚本会自动挑选字符全在字表中的句子）
 CANDIDATES = [
+    "天地日月 江河湖海",   # 全在字表内、且不含已知缺陷字/山（山有底线残片）
     "天地玄黃 宇宙洪荒 日月盈昃 辰宿列張",
     "春眠不覺曉 處處聞啼鳥 夜來風雨聲",
     "大學之道 在明明德 在親民 在止於至善",
@@ -37,11 +40,13 @@ def load_chars(manifest):
 def pick_phrase(chars):
     for s in CANDIDATES:
         body = s.replace(" ", "")
+        if any(c in EXCLUDE for c in body):
+            continue
         if all(c in chars for c in body):
             return body
-    # 兜底：从字表里挑 8 个常见字
-    common = "永字八法天地玄黃宇宙洪荒日月星辰"
-    ok = [c for c in common if c in chars]
+    # 兜底：从字表里挑 8 个常见字（排除已知缺陷字）
+    common = "永八法天地玄黃宇宙洪荒日月星辰"
+    ok = [c for c in common if c in chars and c not in EXCLUDE]
     return " ".join("".join(ok[:8]))
 
 
@@ -60,7 +65,7 @@ def draw_spaced(d, text, font, xy, gap=26, fill=0):
     return x
 
 
-def make_specimen(font_path, chars, path):
+def make_specimen(font_path, chars, path, n_total):
     W, H = 1800, 1000
     im = Image.new("L", (W, H), 255)
     d = ImageDraw.Draw(im)
@@ -71,7 +76,7 @@ def make_specimen(font_path, chars, path):
     f_cap = ImageFont.truetype(REF, 26) if os.path.exists(REF) else ImageFont.load_default()
     phrase = pick_phrase(chars)  # 只要求字符齐全；样张优先好看、可读
     sub = "康熙五十五年刊本"
-    sub2 = "楷書字頭"
+    sub2 = "楷書"
     # 标题
     render_line(d, "康熙楷", f_title, (90, 40))
     d.text((W - 90, 120), "KangXi Kai", font=f_cap, fill=110, anchor="ra")
@@ -95,7 +100,7 @@ def make_specimen(font_path, chars, path):
         draw_spaced(d, phrase, f, (96, 620 + i * 60), gap=6)
         d.text((W - 90, 620 + i * 60), f"{size}px", font=f_cap, fill=120, anchor="ra")
     d.line([(90, 900), (W - 90, 900)], fill=200, width=2)
-    d.text((96, 925), "康熙五十五年内刊本《康熙字典》字头真迹 · headword-only · " + "17,005 real glyphs · OFL-1.1",
+    d.text((96, 925), "康熙五十五年内刊本《康熙字典》字头真迹 · headword-only · " + f"{n_total:,} real glyphs · OFL-1.1",
            font=f_cap, fill=120)
     im.save(path)
     print("saved", path)
@@ -134,7 +139,7 @@ def make_glyph_grid(font_path, chars, path):
                    "仁義禮智信溫良恭儉讓中正和平上下左右見聞思學")
     sel = []
     for c in curated:
-        if c not in chars or c in sel:
+        if c not in chars or c in sel or c in EXCLUDE:
             continue
         try:
             if _stray_score(font_path, c) > 0.0:
@@ -179,7 +184,7 @@ def make_book_vs_font(font_path, mapping_path, path, manifest_path):
     """上部=原书字头裁片（每字来自其实际页），下部=当前字体渲染同串字；只选已通过干净度检查的字。"""
     man = json.load(open(manifest_path, encoding="utf-8"))["chars"]
     # 候选：常用、结构有代表性；按顺序过滤出 8 个「字形干净（无游离碎片）」且字表内有的字
-    curated = list("永字八法天地玄黃宇宙洪荒日月星辰楷書字頭點畫結構碑帖翰墨丹青")
+    curated = list("永八法天地玄黃宇宙洪荒日月星辰楷書點畫結構碑帖翰墨丹青")
     bad = set()
     for fn in ("work/lead/review-feedback-v262.json",):
         p = os.path.join(ROOT, fn)
@@ -196,7 +201,7 @@ def make_book_vs_font(font_path, mapping_path, path, manifest_path):
                     pass
     picked = []
     for ch in curated:
-        if ch in picked or ch not in man or ch in bad:
+        if ch in picked or ch not in man or ch in bad or ch in EXCLUDE:
             continue
         try:
             if _stray_score(font_path, ch) > 0.0:
@@ -208,7 +213,7 @@ def make_book_vs_font(font_path, mapping_path, path, manifest_path):
             break
     if len(picked) < 8:  # 兜底：任意干净字
         for ch in sorted(man):
-            if ch in picked or ch in bad:
+            if ch in picked or ch in bad or ch in EXCLUDE:
                 continue
             try:
                 if _stray_score(font_path, ch) <= 0.0:
@@ -242,14 +247,14 @@ def make_book_vs_font(font_path, mapping_path, path, manifest_path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--font", default="work/font/build/KangXiKai-v2.6.2.ttf")
-    ap.add_argument("--manifest", default="work/font/build/manifest_v262.json")
-    ap.add_argument("--mapping", default="work/lead/mapping_block_v271.jsonl")
+    ap.add_argument("--font", default="work/font/build/KangXiKai-v2.6.3.ttf")
+    ap.add_argument("--manifest", default="work/font/build/manifest_v263.json")
+    ap.add_argument("--mapping", default="work/lead/mapping_block_v274.jsonl")
     args = ap.parse_args()
     os.makedirs(OUT, exist_ok=True)
     font = os.path.join(ROOT, args.font)
     chars = load_chars(os.path.join(ROOT, args.manifest))
-    make_specimen(font, chars, os.path.join(OUT, "specimen.png"))
+    make_specimen(font, chars, os.path.join(OUT, "specimen.png"), len(chars))
     make_book_vs_font(font, os.path.join(ROOT, args.mapping),
                       os.path.join(OUT, "book-vs-font.png"),
                       os.path.join(ROOT, args.manifest))

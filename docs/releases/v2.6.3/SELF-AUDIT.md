@@ -5,7 +5,7 @@
 
 ## 1. 构建可复现
 
-- clean-HEAD 重建：`git status` clean、`build_stats.git.dirty=false`；字体 sha **`6dd473b9…`** 与候选一致；
+- clean-HEAD 重建：`git status` clean、`build_stats.git.dirty=false`；r1 字体 sha **`2414847b…`**（在 v2.6.3 首包基础上仅改 `而` 的映射框，mapping v274）；
 - mapping `work/lead/mapping_block_v273.jsonl`（仅 5 条基本区行级改动 + 釕；其余行逐字节不变）；
 - manifest 由 build_stats 生成（17,006 字）；`build_recipe` 由 build_stats 派生（cache_ver=算法 sha8+geometry sha12+bands sha12、git commit、真实构建时间、input sha）。
 
@@ -22,6 +22,12 @@
 | fast_gate | **8/8 PASS** | `fast-gate-v263.json` |
 | 变化字 | changed **5** + added **1** + removed **0**（精确轮廓） | `diff-v262-v263.json` / `glyph_diff.py` |
 | release_gate | finalize 结果见包内 `FINALIZE.json` | 包外 detached `release/KangXiKai-v2.6.3.FINALIZE.json` |
+
+## 2bis. r1 返工（2026-11-14）
+
+- 首包（font sha `6dd473b9…`、zip sha `e943182b…`）发现：根 README 仍 v2.6.2；门脸图显示「而」带下邻注文框线、「字」prune 误删宀点/钩。
+- r1 修复：「而」mapping 框 `[625,358,728,454]`（mapping v274）→ 字体 sha `2414847b…`；根 README/门脸图/样张同步 v2.6.3（图内避开「字/而/山」等已知缺陷字）；「字」披露并留 v2.6.5。
+- 首包已撤回并在 ERRATA E41 记录；本文件与包内数字以 r1 为准。
 
 ## 3. 本批声明的变化（不是回归）
 
