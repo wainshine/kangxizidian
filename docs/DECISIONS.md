@@ -245,3 +245,12 @@ D11 的「标签真源 = 所有者终审」在 42,302 条尺度上**不可行**�
 - A/B（同输入，仅差 strip）：strip 关闭后字形级框线 12 处（E29），把这 12 处按同法反算成页级 rect 并入 `page_line_bands.json`（14→26 rect）后：
   strip 关闭版本 **glyph_frame=0、content（对 strip 版本）0 damaged、font_qa PASS**；
 - **决定**：主链 `strip_border_lines` 默认关闭（`FONT_STRIP_BORDER` 仅留 A/B 复现口），候选 sha `f901c9d4…`；「纯 pre-cut」口径自此成立（E29）。
+
+## D23（提案 · 未定稿）：内容闸判据改为「源墨保真度」（2026-11-14 记录，待 owner 决议）
+
+- **背景**：现行 `content_loss_gate` 以「vs v2.5.8 的 ink_ratio + 配准 IoU」为判据；E31 证明 v2.6.2 内容
+  18/35 中多数为跨架构归一化差异（旧字形长宽比偏差 >15%），其中 9 字 IoU<0.3（audit4 DATA-405）。
+- **提案（未定稿）**：改为「源墨保真度」——字形投影 vs **自身 source ink** 的配准 IoU（以构建源墨为基线）；
+  旧字体 delta 只作回归告警；里程碑要求 IoU<0.3 桶=0 或逐字复核。
+- **状态**：本文为**提案，未生效**。owner 确认后升级为正式 D23，并同步更新 `content_loss_gate.py` 的判据、
+  阈值、发布材料与 `RELEASE-METRICS` 口径。在确认前，content 闸仍按现行口径（18/35 披露）执行。

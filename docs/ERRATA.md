@@ -350,6 +350,9 @@
 - 修复后全库数字：font_qa PASS、glyph_frame **0**、frame_escape **0**（新口径）、content vs v2.5.8 **18**/35；
   缺件扫描 165（=把 165 字在块内细笔画恢复后，prune_edge_contours 又在字墨 bbox 边缘删掉的组件；
   属「恢复 vs 边缘清理」的下一轮口径问题，已入 v2.6.3 首批（BF-06），见 `docs/plans/PLAN-v2.6.3.md` §1）。
+  - **更正（2026-11-14，audit4 DATA-402 / E39）**：上述「prune_edge_contours 边缘删除」归因**不成立**——
+    234 个缺件组件中 **0** 个满足 prune 的 thin+ring+area 删除条件（结构性互斥）；165 的真实丢失阶段
+    待 v2.6.3 构建侧插桩定位。本句保留为历史记录，不再作为修复依据。
 - **未修（进 v2.6.3）**：11 个「字与 Unicode 不对应」= mapping 标签错误（例：04_0014 R 标注「愈」的框实为注文
   「愈孟」两小字；06_0080 R 标注「急」的框实为「滓」）。修复需按页重定位真迹字头（禁止补假字）——
   归入 v2.6.3 批 mapping 审计（BF-54 / BF-16 扩展）；本候选不宣称此 11 字已解决。
@@ -363,3 +366,32 @@
   全闸 11/11 PASS、边界值不变（缺件 165、框线 0）。
 - 教训：移动/归档脚本时，必须同步检查 `gate_binding` 的 `scripts=` 清单与 sidecar 复用校验；
   代码布局变更后按「重建→快闸→扫描→全闸→打包干跑」跑一遍全链。
+
+## E39. 第 4 代审计（audit4）确认的作废数字/口径（2026-11-14，v2.6.3 前置）
+
+- 来源：`audit/AUDIT-REPORT-v2.6.2-audit4.md`、`audit/AUDIT4-FINDINGS-v2.6.2.jsonl`（76 条：P1 20 条/15 组，P2 35，P3 21）。
+- 本节只记录**作废/更正**，不改写历史记录；已发布记录（`docs/releases/v2.6.2/*`）按 D7 只读。
+
+1. **「缺件 165 = `prune_edge_contours` 边缘清理删除」作废**（DATA-402）：234 个缺件组件中 **0** 个满足 prune 的
+   thin+ring+area 删除条件（结构性互斥：组件最小边 ≥8px vs prune 细线阈值 5.0–6.8px）；165 的**真实丢失阶段
+   未定**，v2.6.3 用「构建侧逐阶段插桩 + 独立扫描对照」定位（BF-06 重定义）。E37 对应句已加更正注记。
+   复算：`work/review/audit4/data/recompute/m_prune.py`。
+2. **「617 变化字」作废**（DATA-401）：617 = `work/lead/diff-v261-v262.json` 行数（旧候选 b73e9f01 的阈值筛集，
+   mtime 早于最终字体）；对发布字体 a8bb87d9 的**精确 glyf 轮廓差异 = 3,351**（audit4 + Lead 复算，32.7s）。
+   新维护者不得把 617 当变化规模；v2.6.3 起该指标必须由精确轮廓 diff 脚本生成。
+3. **v2.6.2 发布 provenance 记录不成立**（BUILD-401/DATA-404）：字体实际由 **dirty 工作树**构建
+   （`build_stats.git={commit 8ac16dfe, dirty:true, status_n:9}`，`cache_ver=ae10c121_0bf0dfce1496_d70038dd4d52`），
+   而包内 `build_recipe` 记录的是**打包时刻** clean commit `8622ba89`；`build_stats` 未随包；
+   README「构建时间 22:36:22Z」实为打包/统计写入时刻（真实构建 UTC 2026-11-13T14:33:31Z）。
+   复算：`.venv/bin/python -c "import json;print(json.load(open('work/font/build/KangXiKai-v2.6.2.build_stats.json'))['git'])"`。
+4. **SELF-AUDIT §4 的 clean-tree commit `c199945` 错误**（DOCS-401）：实际打包 commit 为 `8622ba8`
+   （gate-report/build_recipe/package_summary 三处一致）。按发布记录只读规则，`docs/releases/v2.6.2/SELF-AUDIT.md`
+   不改写，以本条为准。
+5. **finalize 终验证据口径**（LEAD4-001）：包内 gate-report 是 finalize **前**写定的报告，不含
+   `sha_final_ok/zip_ok`；work/lead 的 out 报告可被后续审计/复核重跑覆盖。v2.6.3 起 finalize 另写只读
+   `FINALIZE.json`（sha_final_ok/zip_ok/zip sha/扫描产物 sha）。
+6. **`check_release_docs` 不核对闸数字**（LEAD4-005 / GATE-10）：把 QA.md「18/35」改成「999/35」、
+   KNOWN-DEBTS「165」改成 100 仍 PASS；v2.6.3 T4 修（数值对账 + 篡改测试）。
+7. **扫描证据在 finalize 后被重写**（DATA-403/GATE-404）：`work/lead/missing_scan_v262.jsonl.sha256` /
+   `frame_scan_v262.jsonl.sha256` 的 created_utc 晚于 finalize、git 为 dirty；包内无扫描产物/绑定快照。
+   设计缺陷（可变证据 + 无产物 sha 锚定 + sidecar TOCTOU）成立；v2.6.3 起扫描产物随包 + FINALIZE 记录 sha。

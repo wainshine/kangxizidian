@@ -120,7 +120,7 @@ R 正式包（里程碑）                                               scripts
 |---|---|---|---|
 | 字体 QA | `font_qa.py` | 表/cmap==manifest/空字形/bbox(tiny,超 em)/advance/fontRevision/同框=0；**不数孔洞/连通分量**（D21） | **PASS**（同框 0） |
 | 内容缺失 | `content_loss_gate.py` | 新旧字形 ink_ratio/IoU（vs v2.5.8；跨架构归一化差异见 E31/D23） | **18**（阈值 35；D23 判据待定） |
-| 缺件扫描 | `scan_missing_parts.py` | 源块组件未被字形覆盖；**复刻构建最终墨迹链配准**（E36：build_stats pad / block mask / clean_cluster+clean_ink box 口径 / fin_frac≥0.6；参考字体=霞鹜文楷 OFL；E37 起 pre-cut 与构建同口径 crossing 过滤） | **165**（E37 后：恢复的细笔画被 `prune_edge_contours` 边缘清理；旧 32/827/1,200 不可比） |
+| 缺件扫描 | `scan_missing_parts.py` | 源块组件未被字形覆盖；**复刻构建最终墨迹链配准**（E36：build_stats pad / block mask / clean_cluster+clean_ink box 口径 / fin_frac≥0.6；参考字体=霞鹜文楷 OFL；E37 起 pre-cut 与构建同口径 crossing 过滤） | **165**（E37 后；旧 32/827/1,200 不可比。**根因未定**：audit4 已证伪「prune 边缘清理」归因（E39），v2.6.3 构建侧插桩+扫描对照定位） |
 | 框线逃逸（源图级） | `scan_frame_escape.py` | 块内贯穿线残留（同 pre-cut 口径 E32/E33；E37 起厚度 ≤3px@300 亚像素线不计） | **0 PASS**（E37 口径；旧 153/158/43/1 均为历史） |
 | 字形级框线闸 | `glyph_frame_gate.py` | 扫 **TTF 输出字形**：细长直线（厚≤3px@256、长≥max(0.5 字宽,128px)）；只用线段几何，不数孔洞（D21） | **0 PASS**（E24/E27/E29/E37） |
 | 无拷贝 provenance 闸 | `provenance_gate.py` | manifest/mapping/stats 三者自洽；`label_source=="mapping"`；无 `__overlay__`/`repair_overlay`/`contours_override` 标记 | v2.6.1 PASS（同框 2 对为 warning） |
@@ -193,7 +193,7 @@ FONT_BUILD_WORKERS=10 .venv/bin/python scripts/font_build.py \
 | 缺口 | **6,300**（其中高频 23 + 忠 待重新定位） |
 | 隔离 | 9（刃/榍/法/紆/総/荹/仟/禦/絞） |
 | 全量构建 | 17,005 字 / **402s**（无页 mask）/ **634s**（含页级 pre-cut mask，最新）；缓存命中 **232s**（10 workers） |
-| 闸（v2.6.2 候选，E37 后） | font_qa **PASS**（同框 0）；字形级框线 **0**；框线逃逸 **0**；内容 **18**（阈值 35）；provenance PASS；页级几何 bad_boxes 0 / empty_assign 1,173；缺件 **165**（prune 边缘口径）；fast_gate **8/8** |
+| 闸（v2.6.2 候选，E37 后） | font_qa **PASS**（同框 0）；字形级框线 **0**；框线逃逸 **0**；内容 **18**（阈值 35）；provenance PASS；页级几何 bad_boxes 0 / empty_assign 1,173；缺件 **165**（根因未定，E39）；fast_gate **8/8** |
 | 已知结构债 | 343 页无 content_quad；缺件扫描邻字隔离待修正；页级几何按页修；09–11/13 卷锚点；100 字签核 |
 
 ---

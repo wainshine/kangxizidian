@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
-"""release_metrics.py — 跨版本发布指标对比（v2.6.2 vs v2.6.1 / v2.5.8，发版通用）。
+"""release_metrics.py — 跨版本发布指标对比（2.6 补丁线，发版通用）。
 
-指标（全部可复算）：
-  1 规模/覆盖：chars、基本区覆盖、目标表（canonical 唯一基本区 16,567）覆盖、缺口；
-  2 质量闸：font_qa（PASS/FAIL）、glyph_frame_gate（字形级框线数）、
-    content_loss_gate（相对基线 v2.5.8 的 damaged 数）；
-  3 源级扫描：缺件 / 框线逃逸（读该版本 gate-report 或扫描产物；无则 null）；
-  4 页几何：bad_boxes / empty_assign（读 gate-report；无则 null）；
-  5 快闸：fast_gate pass（读报告；无则 null）；
-  6 变更规模：与上一版本相比渲染字形有变化的字数（可选，读 diff JSON）。
+**v2.6.3 起参数化**（T0.5）：
+  - `--versions-json` 可覆盖内置 VERSIONS（可选）；
+  - `--out/--md-out` 显式指定输出（默认 work/lead/release-metrics.json/.md）；
+  - 缺失字体/manifest 的版本不再崩溃：该行标 null 并 WARN（便于 v2.6.3 发布前先出对比表）。
 
 "更好"的判定（见 docs/reference/RELEASE-METRICS.md）：
   - 覆盖不减（chars、目标覆盖、缺口不扩大）；
@@ -16,10 +12,10 @@
   - 已知债逐项披露且不新增 P0/P1 未解释项；
   - 所有口径变化（扫描/阈值/参考字体）必须同报告披露。
 
-用法：
-  .venv/bin/python scripts/release_metrics.py --out work/lead/release-metrics.json
+注意：`相对上一版变化字` 必须由「精确 glyf 轮廓 diff」生成（audit4 DATA-401：旧 617 是旧候选
+阈值筛集、不可复算）；本脚本只读 diff JSON，不自行生成。v2.6.2 历史行保留旧值但见 RELEASE-METRICS 注记。
 """
-import json, os, subprocess, sys
+import argparse, datetime, hashlib, json, os, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
@@ -27,7 +23,7 @@ PY = sys.executable
 VERSIONS = [
     {"label": "v2.5.8", "font": "work/font/build/KangXiKai-v2.5.8.ttf",
      "manifest": "work/font/build/manifest_v258.json",
-     "gate_report": None, "fast_gate": None,"diff_from_prev": None},
+     "gate_report": None, "fast_gate": None, "diff_from_prev": None},
     {"label": "v2.6.1", "font": "release/KangXiKai-v2.6.1/KangXiKai-Regular-v2.6.1.ttf",
      "manifest": "release/KangXiKai-v2.6.1/manifest-v261.json",
      "gate_report": "release/KangXiKai-v2.6.1/gate-report-v261.json",
@@ -37,6 +33,11 @@ VERSIONS = [
      "gate_report": "work/lead/gate-report-v262.json",
      "fast_gate": "work/lead/fast-gate-v262.json",
      "diff_from_prev": "work/lead/diff-v261-v262.json"},
+    {"label": "v2.6.3", "font": "work/font/build/KangXiKai-v2.6.3.ttf",
+     "manifest": "work/font/build/manifest_v263.json",
+     "gate_report": "work/lead/gate-report-v263.json",
+     "fast_gate": "work/lead/fast-gate-v263.json",
+     "diff_from_prev": "work/lead/diff-v262-v263.json"},
 ]
 BASELINE = "v2.5.8"
 
@@ -65,38 +66,57 @@ def canonical_target():
 
 
 def main():
-    out = os.path.join(ROOT, "work/lead/release-metrics.json")
-    if "--out" in sys.argv:
-        out = rel(sys.argv[sys.argv.index("--out") + 1])
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default="work/lead/release-metrics.json")
+    ap.add_argument("--md-out", default="work/lead/release-metrics.md")
+    ap.add_argument("--versions-json", default=None, help="可选：覆盖内置 VERSIONS 的 JSON 数组")
+    args = ap.parse_args()
+    out = rel(args.out)
+    mdout = rel(args.md_out)
+    versions = VERSIONS
+    if args.versions_json:
+        versions = json.load(open(rel(args.versions_json), encoding="utf-8"))
     target = canonical_target()
     basic = {chr(c) for c in range(0x4E00, 0xA000)}
     rows = []
-    for v in VERSIONS:
-        font = rel(v["font"]); man = json.load(open(rel(v["manifest"]), encoding="utf-8"))
+    missing_versions = []
+    for v in versions:
+        font_p, man_p = rel(v["font"]), rel(v["manifest"])
+        if not os.path.exists(font_p) or not os.path.exists(man_p):
+            missing_versions.append(v["label"])
+            print(f"WARN: {v['label']} 字体/manifest 不存在，跳过（行标 null）：{v['font']}", file=sys.stderr)
+            rows.append({"label": v["label"], "font": v["font"], "font_sha256": None,
+                         "chars": None, "basic_covered": None, "basic_total": len(basic),
+                         "target_covered": None, "target_total": len(target), "gap": None,
+                         "font_qa": None, "glyph_frame_flagged": None,
+                         "content_damaged_vs_baseline": None, "missing_flagged": None,
+                         "frame_escape_flagged": None, "bad_boxes": None,
+                         "empty_assign_halves": None, "fast_gate": None,
+                         "changed_glyphs_vs_prev": None})
+            continue
+        man = json.load(open(man_p, encoding="utf-8"))
         mchars = set(man["chars"])
         item = {"label": v["label"], "font": v["font"], "font_sha256": None,
                 "chars": len(mchars),
                 "basic_covered": len(mchars & basic), "basic_total": len(basic),
                 "target_covered": len(mchars & target), "target_total": len(target),
                 "gap": len(target - mchars)}
-        import hashlib
-        item["font_sha256"] = hashlib.sha256(open(font, "rb").read()).hexdigest()
+        item["font_sha256"] = hashlib.sha256(open(font_p, "rb").read()).hexdigest()
         # font_qa
-        rc, so, se = run(["scripts/font_qa.py", "--font", font, "--manifest", rel(v["manifest"]),
+        rc, so, se = run(["scripts/font_qa.py", "--font", font_p, "--manifest", man_p,
                           "--outdir", f"/tmp/metrics-qa-{v['label']}"])
         item["font_qa"] = "PASS" if rc == 0 else "FAIL"
         # glyph_frame_gate
         gf = f"/tmp/metrics-gf-{v['label']}.json"
-        rc, so, se = run(["scripts/glyph_frame_gate.py", "--font", font, "--manifest", rel(v["manifest"]), "--out", gf])
+        run(["scripts/glyph_frame_gate.py", "--font", font_p, "--manifest", man_p, "--out", gf])
         item["glyph_frame_flagged"] = len(json.load(open(gf)).get("flagged") or []) if os.path.exists(gf) else None
         # content vs baseline
         if v["label"] == BASELINE:
             item["content_damaged_vs_baseline"] = 0
         else:
             cl = f"/tmp/metrics-cl-{v['label']}.json"
-            rc, so, se = run(["scripts/content_loss_gate.py",
-                              rel(VERSIONS[0]["font"]), font,
-                              rel(VERSIONS[0]["manifest"]), cl])
+            run(["scripts/content_loss_gate.py", rel(versions[0]["font"]), font_p,
+                 rel(versions[0]["manifest"]), cl])
             item["content_damaged_vs_baseline"] = len(json.load(open(cl))) if os.path.exists(cl) else None
         # recorded gate numbers
         item["missing_flagged"] = item["frame_escape_flagged"] = None
@@ -128,8 +148,10 @@ def main():
             item["changed_glyphs_vs_prev"] = None
         rows.append(item)
         print(json.dumps(item, ensure_ascii=False))
-    report = {"generated_at": "2026-11-13", "baseline": BASELINE,
+    report = {"generated_at": datetime.datetime.now().strftime("%Y-%m-%d"),
+              "baseline": BASELINE,
               "target_set": "work/seq/canonical.jsonl unique CJK basic",
+              "missing_versions": missing_versions,
               "versions": rows}
     json.dump(report, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     # markdown
@@ -143,6 +165,7 @@ def main():
               ("missing_flagged", "缺件扫描"), ("frame_escape_flagged", "框线逃逸"),
               ("bad_boxes", "页几何 bad_boxes"), ("empty_assign_halves", "空指派半版"),
               ("fast_gate", "fast_gate"), ("changed_glyphs_vs_prev", "相对上一版变化字")]
+
     def cell(v):
         return "—" if v is None else str(v)
     for k, name in fields:
@@ -150,9 +173,11 @@ def main():
     md.append("")
     md.append("> 注：v2.5.8 的缺件/框线/页几何扫描未按现行口径重跑（—=未测）；v2.6.1 的缺件/框线为当时口径，")
     md.append("> 不可与 v2.6.2 直接比较；v2.6.1 相对 v2.5.8 的变化字数未实测（—）。")
-    mdout = os.path.join(ROOT, "work/lead/release-metrics.md")
+    md.append("> v2.6.2 的「617」是旧候选阈值筛集，**不可复算**；精确 glyf 轮廓差异见 E39（3,351），")
+    md.append("> v2.6.3 起的「变化字」必须由精确轮廓 diff 脚本生成。")
     open(mdout, "w", encoding="utf-8").write("\n".join(md) + "\n")
-    print(json.dumps({"out": os.path.relpath(out, ROOT), "md": os.path.relpath(mdout, ROOT)}, ensure_ascii=False))
+    print(json.dumps({"out": os.path.relpath(out, ROOT), "md": os.path.relpath(mdout, ROOT),
+                      "missing_versions": missing_versions}, ensure_ascii=False))
 
 
 if __name__ == "__main__":
