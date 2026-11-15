@@ -268,7 +268,7 @@ def _cache_version():
             pass
     env_effective = {k: os.environ.get(k, "default") for k in (
         "FONT_STRIP_BORDER", "FONT_PAGE_LINE_MASK", "FONT_PAGE_THIN_MASK",
-        "FONT_LINE_BANDS", "FONT_VERIFIED_KEEP")}
+        "FONT_LINE_BANDS", "FONT_VERIFIED_KEEP", "FONT_PRUNE_TINY_SPECK")}
     algo.update(json.dumps(env_effective, sort_keys=True).encode("utf-8"))
     tag = os.environ.get("FONT_CACHE_TAG", "")
     if tag:
@@ -660,6 +660,7 @@ def _worker_page(args):
     prep["line_mask"] = line_mask is not None
     prep["band_mask"] = band_mask is not None
     prep["thin_mask"] = thin_mask is not None
+    deletion_trace = os.environ.get("FONT_DELETION_TRACE", "0") == "1"
     for it in items:
         ch = it["char"]; half = it["half"]; box = it["box"]
         try:
@@ -667,11 +668,12 @@ def _worker_page(args):
             if block is not None and tbb is not None:
                 block = (max(block[0], tbb[0]), max(block[1], tbb[1]),
                          min(block[2], tbb[2]), min(block[3], tbb[3]))
+            tr = {} if deletion_trace else None
             res = vectorize_box(page, box, enable_edge_strip=False,
                                 block150=block, content_quad=quads.get(half),
                                 frame_mask=line_mask, frame_mask_extra=band_mask,
                                 frame_mask_outer=thin_mask,
-                                outer_keep_margin150=2.0,
+                                outer_keep_margin150=2.0, trace=tr,
                                 keep_box150=tuple(it["vbox"]) if it.get("vbox") else None,
                                 # D22：pre-cut（页 mask/线条带）已验证可独立做到 glyph_frame=0（E29），
                                 # 切后形状删线 strip_border_lines 已从主链移除（默认关；env 仅留 A/B 复现）。
@@ -785,9 +787,15 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
                       f"{1000*(_time.time()-t0)/max(1,len(results)):.1f} ms/glyph", flush=True)
 
     n_new = 0
+    delete_rows = []
     for it in items:
         i = it["idx"]; ch = it["char"]; page = it["page"]; half = it["half"]; box = it["box"]
         res = results.get(i) or {"ok": False, "reason": "missing result"}
+        if res.get("ok") and res.get("deletions"):
+            for kind in ("stage_deleted", "prune_deleted"):
+                for ev in (res["deletions"].get(kind) or []):
+                    delete_rows.append({"char": ch, "page": page, "half": half,
+                                        "box": box, "kind": kind, **ev})
         if not res.get("ok"):
             skipped.append({"page": page, "half": half, "char": ch, "reason": res.get("reason")})
             continue
@@ -818,6 +826,28 @@ def load_from_mapping(path: str, limit: int = 0, pages: set | None = None,
     if hard_failed:
         print(f"[font_build] ERROR: {len(hard_failed)} 字失败/跳过（skipped 已落盘；"
               f"--allow-partial 才可放行）", flush=True)
+    # Phase 2（v2.6.4）：删除归因落盘（默认关闭；FONT_DELETION_TRACE=1 才写）
+    if os.environ.get("FONT_DELETION_TRACE", "0") == "1":
+        out_path = os.environ.get("FONT_DELETION_OUT", "").strip()
+        if not out_path:
+            out_path = str(WORK / "build" / f"deletion-attribution-{_CACHE_VER}.jsonl")
+        outp = Path(out_path) if os.path.isabs(out_path) else (ROOT / out_path)
+        outp.parent.mkdir(parents=True, exist_ok=True)
+        by_stage, by_rule = {}, {}
+        for r in delete_rows:
+            by_stage[r["stage"]] = by_stage.get(r["stage"], 0) + 1
+            by_rule[r["rule"]] = by_rule.get(r["rule"], 0) + 1
+        with open(outp, "w", encoding="utf-8") as fo:
+            for r in delete_rows:
+                fo.write(json.dumps(r, ensure_ascii=False) + "\n")
+        extra_prep["deletion_attribution"] = {
+            "path": _rel_path(outp), "chars": len({r["char"] for r in delete_rows}),
+            "events": len(delete_rows), "by_stage": by_stage, "by_rule": by_rule,
+            "unknown": 0,
+            "note": "每条删除事件均有 stage/rule（stage_deleted=掩膜层差分；prune_deleted=prune 判据）",
+        }
+        print(f"[font_build] deletion attribution -> {_rel_path(outp)} "
+              f"chars={len({r['char'] for r in delete_rows})} events={len(delete_rows)}", flush=True)
     print(f"[font_build] vectorized {n_new} new glyphs in {_time.time()-t0:.1f}s "
           f"(cached {n_cached}, skipped {len(skipped)})", flush=True)
     return glyphs, src, skipped, extra_prep
@@ -890,12 +920,14 @@ def main():
     extra = {}
     if args.mapping:
         pages = {p.strip() for p in args.pages.split(",") if p.strip()} or None
-        glyphs, src, extra["skipped"], extra["page_prep"] = load_from_mapping(
+        glyphs, src, extra["skipped"], prep = load_from_mapping(
             args.mapping, limit=args.limit, pages=pages,
             progress_every=args.progress_every, workers=args.workers)
+        extra.update(prep)
     elif args.manifest:
-        glyphs, src, extra["skipped"], extra["page_prep"] = load_from_manifest_jsonl(args.manifest,
-                                                                                    workers=args.workers)
+        glyphs, src, extra["skipped"], prep = load_from_manifest_jsonl(args.manifest,
+                                                                        workers=args.workers)
+        extra.update(prep)
     else:
         for line in open(args.glyphs):
             r = json.loads(line)

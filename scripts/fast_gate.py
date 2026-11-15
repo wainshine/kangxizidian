@@ -45,10 +45,13 @@ def cache_dir(font):
     return d, h
 
 
-def quarantine_chars():
+def quarantine_chars(version):
+    """只认当前版 residual（+显式 --quarantine）；不再并集历史版本（P1-2）。"""
     q = set()
     files = []
-    for p in sorted(glob.glob(os.path.join(ROOT, "work", "lead", "v*_residual.json"))):
+    tag = "v" + str(version).replace(".", "")
+    pat = os.path.join(ROOT, "work", "lead", f"{tag}*_residual.json")
+    for p in sorted(glob.glob(pat)):
         try:
             q |= set(json.load(open(p))["chars"])
             files.append(os.path.relpath(p, ROOT))
@@ -123,7 +126,7 @@ def main():
         new = set(json.load(open(os.path.join(ROOT, args.manifest)))["chars"])
         old = set(json.load(open(os.path.join(ROOT, args.baseline_manifest)))["chars"])
         removed, added = sorted(old - new), sorted(new - old)
-        q, qfiles = quarantine_chars()
+        q, qfiles = quarantine_chars(args.version)
         q2, qfiles2 = load_quarantine_extra(args.quarantine)
         q |= q2
         qfiles += qfiles2
@@ -153,8 +156,11 @@ def main():
                 except Exception:
                     cached = None
         if cached is None:
-            r = run([sys.executable, "scripts/content_loss_gate.py", args.baseline, args.font,
-                     args.baseline_manifest, sum_path])
+            _env = dict(os.environ)
+            _env["CONTENT_LOSS_MAX_DAMAGED"] = str(args.content_max_damaged)
+            r = subprocess.run([sys.executable, "scripts/content_loss_gate.py", args.baseline, args.font,
+                                args.baseline_manifest, sum_path],
+                               cwd=ROOT, capture_output=True, text=True, env=_env)
             try:
                 summary = json.load(open(sum_path, encoding="utf-8"))
             except Exception as e:

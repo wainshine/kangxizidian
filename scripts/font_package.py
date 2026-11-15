@@ -285,9 +285,9 @@ def render_readme(stats: dict, prov_counts: dict, version: str, ttf_name: str,
     gap_text = (f"本版为**管线验证 demo**：只映射真实存在且已目检的真迹字 "
                 f"（{real_n} 字），未做 20,992 基本区全覆盖承诺；缺字不 fill。"
                 if cmap_n < 1000 else
-                f"本版目标 cmap {20992 + PUNCT_EXPECTED}（基本区 20,992 + 标点/数字/空格 "
-                f"{PUNCT_EXPECTED}），实际 {cmap_n}；真迹 {real_n}，"
-                f"非真迹 {cmap_n - real_n}（见 provenance 表）。")
+                f"本版为 headword-only 真迹字体（D15）：实际 cmap {cmap_n}，真迹 {real_n}；"
+                f"目标覆盖率/缺口见本包 `stats.json`、`coverage.txt` 与项目 `docs/`，"
+                f"不承诺 20,992 基本区全覆盖。")
     return README_TEMPLATE.format(
         family=FAMILY, style=STYLE, version=version, tag=tag, upm=stats["upm"],
         ttf_name=ttf_name,
@@ -540,6 +540,9 @@ def main():
         readme = tpl.read_text(encoding="utf-8").format(**fmt)
     else:
         readme = render_readme(stats, prov_counts, version, ttf_name, False)
+    # 模板说明 HTML 注释不应进入用户可见 README（P2-7）
+    import re as _re
+    readme = _re.sub(r"^<!--.*?-->\s*", "", readme, count=1, flags=_re.S)
     (out / "README.md").write_text(readme, encoding="utf-8")
     # ③ 样张（可选）
     if args.specimen:

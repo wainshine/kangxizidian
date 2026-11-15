@@ -346,7 +346,9 @@ _DOC_CACHE: dict[str, object] = {}
 
 
 def prune_edge_contours(contours: list[dict], ring: float = 0.10,
-                       area_frac: float = 0.02) -> list[dict]:
+                       area_frac: float = 0.02,
+                       report: list | None = None,
+                       tiny_speck: bool = True) -> list[dict]:
     """删除「完全落在字形 bbox 外环(ring)内」的小轮廓（邻字/栏线碎片）。
 
     在 normalize 之后调用（EM 坐标）。孔洞在内部，不受影响；完整笔画面积大，也不受影响。
@@ -390,9 +392,21 @@ def prune_edge_contours(contours: list[dict], ring: float = 0.10,
                    or (cy1 <= y0 + my) or (cy0 >= y1 - my))
         # 只删「贴边且线状」的栏线/框线残片；不再删普通小轮廓（会误删笔画/偏旁）
         if in_ring and thin and a < area_frac * total:
+            if report is not None:
+                report.append({"stage": "prune", "rule": "edge_thin_fragment",
+                               "bbox_em": [round(cx0, 2), round(cy0, 2),
+                                           round(cx1, 2), round(cy1, 2)],
+                               "area_em": round(a, 2), "n_segs": len(c.get("segs") or []),
+                               "in_ring": True, "thin": True})
             continue
         # 墨点噪声：极小且极小的轮廓（<0.1% 面积且最长边<12 units）
-        if a < 0.001 * total and max(cw, chh) < 12:
+        if tiny_speck and a < 0.001 * total and max(cw, chh) < 12:
+            if report is not None:
+                report.append({"stage": "prune", "rule": "tiny_speck",
+                               "bbox_em": [round(cx0, 2), round(cy0, 2),
+                                           round(cx1, 2), round(cy1, 2)],
+                               "area_em": round(a, 2), "n_segs": len(c.get("segs") or []),
+                               "in_ring": bool(in_ring), "thin": bool(thin)})
             continue
         keep.append(c)
     return keep or contours
@@ -912,6 +926,58 @@ def _filter_line_mask_to_crossing(mask: np.ndarray, block_rect) -> np.ndarray:
     return (np.asarray(mask).astype(np.uint8) * keep).astype(np.uint8)
 
 
+_STAGE_ORDER = ("binarize", "clip", "trim", "strip_bands", "erase", "frame_mask",
+                "block_mask", "block_band", "remove_specks", "strip_border",
+                "clean_cluster", "clean_ink")
+
+
+def _stage_deletion_events(stages: dict, info: dict | None) -> list:
+    """阶段掩膜对比：前一阶段有、后一阶段消失的组件（BF-51/E40 同构的删除归因）。
+
+    返回 [{stage, rule, bbox_crop, bbox_em, area_px}]；不做孔洞/连通分量质量判定（D21），
+    只记录「哪一层删了什么」供人工复核。
+    """
+    if not stages or info is None:
+        return []
+    import numpy as np
+    import cv2
+    bx0, by0, bx1, by1 = [float(v) for v in info["bbox_px"]]
+    ex0, ey0, ex1, ey1 = [float(v) for v in info["bbox_em"]]
+    scale = float(info["scale"])
+    mx, my = (bx0 + bx1) / 2.0, (by0 + by1) / 2.0
+    cx, cy = (ex0 + ex1) / 2.0, (ey0 + ey1) / 2.0
+
+    def crop_to_em(px, py):
+        return (round((px - mx) * scale + cx, 2), round((my - py) * scale + cy, 2))
+
+    names = [n for n in _STAGE_ORDER if n in stages]
+    events = []
+    for prev, cur in zip(names, names[1:]):
+        a = np.asarray(stages[prev], dtype=np.uint8)
+        b = np.asarray(stages[cur], dtype=np.uint8)
+        if a.sum() == 0:
+            continue
+        bd = cv2.dilate(b, np.ones((3, 3), np.uint8)) if b.sum() else b
+        n, lab, st, _ = cv2.connectedComponentsWithStats(a, 8)
+        for i in range(1, n):
+            x, y, w, h, area = [int(v) for v in st[i]]
+            area = int(area)
+            if area < 3:
+                continue
+            comp = (lab == i)
+            overlap = int((comp & (bd > 0)).sum()) if b.sum() else 0
+            if overlap / max(1, area) >= 0.5:
+                continue
+            e0 = crop_to_em(x, y + h)
+            e1 = crop_to_em(x + w, y)
+            events.append({"stage": cur, "rule": f"stage:{cur}",
+                           "bbox_crop": [x, y, x + w, y + h],
+                           "bbox_em": [min(e0[0], e1[0]), min(e0[1], e1[1]),
+                                       max(e0[0], e1[0]), max(e0[1], e1[1])],
+                           "area_px": area})
+    return events
+
+
 def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                    center: tuple[int, int, int, int] | None = None,
                    char: str | None = None, enable_line_swt: bool = False,
@@ -1010,17 +1076,26 @@ def vectorize_gray(gray: np.ndarray, long_side: float = INK_LONG_SIDE,
                                          "segs": [list(seg) for seg in c["segs"]]}
                                         for c in contours]
         trace["norm_info"] = dict(info)
-    contours = prune_edge_contours(contours)
+    prune_deleted = [] if trace is not None else None
+    tiny_speck = os.environ.get("FONT_PRUNE_TINY_SPECK", "1") != "0"
+    contours = prune_edge_contours(contours, report=prune_deleted, tiny_speck=tiny_speck)
     if trace is not None:
         trace["contours_final"] = [{"start": list(c["start"]),
                                     "segs": [list(seg) for seg in c["segs"]]}
                                    for c in contours]
+        trace["deletion_events"] = {
+            "stage_deleted": _stage_deletion_events(trace.get("stages") or {}, info),
+            "prune_deleted": prune_deleted or [],
+        }
         trace["ok"] = True
     n_segs = sum(len(c["segs"]) for c in contours)
     if n_segs < 4:
         return {"ok": False, "reason": f"degenerate contour ({n_segs} segs)", "ink_px": n_ink}
-    return {"ok": True, "contours": contours, "n_contours": len(contours),
-            "n_segs": n_segs, "ink_px": n_ink, "norm": info}
+    out = {"ok": True, "contours": contours, "n_contours": len(contours),
+           "n_segs": n_segs, "ink_px": n_ink, "norm": info}
+    if trace is not None and isinstance(trace.get("deletion_events"), dict):
+        out["deletions"] = trace["deletion_events"]
+    return out
 
 
 def vectorize_crop(crop_path: Path, long_side: float = INK_LONG_SIDE,

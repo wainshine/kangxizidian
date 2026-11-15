@@ -16,7 +16,8 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 sys.path.insert(0, os.path.join(ROOT, "work", "font", "_pylibs"))
 from PIL import Image, ImageDraw, ImageFont
 
-REF = os.path.join(ROOT, "work", "font", "_fonts", "LXGWWenKai-Regular.ttf")
+import reffont  # noqa: E402  参考字体唯一来源
+REF = reffont.path()
 OUT = os.path.join(ROOT, "docs", "images")
 # 门脸图不展示已知缺陷字（字：prune 误删宀点/钩；而：旧框带入注文框线，v2.6.3-r1 已修框但样本里先不用）
 EXCLUDE = set("字而")

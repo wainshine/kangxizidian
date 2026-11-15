@@ -1,4 +1,4 @@
-# PROJECT-STATE · 项目状态与交接（2026-11-13）
+# PROJECT-STATE · 项目状态与交接（2026-11-15）
 
 > 新会话读这一页即可知道「现在到哪了、什么是真的、下一步干什么」。细节见：
 > `PIPELINE.md`（怎么做）、`WORKFLOW.md`（怎么走流程）、`VERSION-HISTORY.md`（从哪来）、
@@ -6,10 +6,8 @@
 
 ## 0. 三十秒快速开始
 
-- **v2.6.3 正式发布候选**（2026-11-14）：字体 sha **`2414847b…`**（**17,006** 字；含新增 釕 U+91D5；r1 修 `而` 框）已过
-  fast_gate **8/8 PASS**；全闸 **12/12 PASS**（内容 0/18 基线 v2.6.2；缺件 19/20 零余量披露；empty_assign 1,172 披露）。
-  发布材料：`docs/releases/v2.6.3/{RELEASE,KNOWN-DEBTS,SELF-AUDIT}.md`、`docs/reference/RELEASE-METRICS.md`（含 v2.6.3 列）。
-  v2.6.3 = BF-54 基本区 5 字重定位（愈/急/架/紉/釘）+ 旧釘框改标 釕 + BF-06 扫描侧修复（E40：165→19/20）+ T4 证据链。
+- **v2.6.4 已发布**（2026-11-15）：字体 sha **`9740e7aa…`**（**17,006** 字）；修正「字」mapping 选错源框（真字头 03_0007 L，4 条轮廓，非 prune）与古文异体标签 4 字（凔/濬/眞/䞯）；glyph_diff changed 5 / added 0 / removed 0；fast_gate **8/8 PASS**；内容 **0**（基线 v2.6.3）、缺件 **19 字/20 组件**、empty_assign **1,172**、字形框线/框线逃逸 **0**。发布材料：`docs/releases/v2.6.4/{RELEASE,KNOWN-DEBTS,SELF-AUDIT}.md`。
+- 上一版 **v2.6.3**（2026-11-14，历史）：font sha `2414847b…`；「字」归因已在 v2.6.4 更正（E43）。
 - 覆盖：基本区 10,268/20,992 = **48.91%**；目标字表 10,268/16,567 = **61.98%**；缺口 **6,299**。
 - 闸（候选，现行）：font_qa PASS（同框 0）；字形级框线 **0**；框线逃逸 **0**；内容 **0**（v2.6.2 基线；累计 vs v2.5.8=17 披露）；
   provenance PASS；页几何 bad_boxes **0**、empty_assign **1,172**（披露）；缺件 **19 字/20 组件**（17 prune 判正确 + 3 scan 残差）。
@@ -29,15 +27,15 @@
 
 | 产物 | 路径 | 状态 |
 |---|---|---|
-| 当前候选字体 | `work/font/build/KangXiKai-v2.6.3.ttf`（sha `2414847b…`，17,006 字；r1） | **fast_gate 8/8 PASS**；全闸 **12/12 PASS**（内容 0/18、缺件 19/20、empty_assign 1,172 均披露） |
-| **v2.6.3 正式包（本版）** | `release/KangXiKai-v2.6.3/` + `KangXiKai-v2.6.3.zip` | 2026-11-14 发布；material staging `work/release/v2.6.3`；finalize 结果以包内 `FINALIZE.json` + `release/RELEASE-INVENTORY.tsv` 为准 |
+| 当前字体（v2.6.4） | `work/font/build/KangXiKai-v2.6.4.ttf`（sha `9740e7aa…`，17,006 字） | **fast_gate 8/8 PASS**（内容 0、缺件 19/20、empty_assign 1,172 均披露） |
+| **v2.6.4 正式包（本版）** | `release/KangXiKai-v2.6.4/` + `KangXiKai-v2.6.4.zip` | 2026-11-15 发布；finalize 以包内 `FINALIZE.json` + `release/RELEASE-INVENTORY.tsv` 为准 |
 | v2.6.2 正式包（上一版） | `release/KangXiKai-v2.6.2/` + `.zip` | ✅ 2026-11-14 finalize 17/17（font `a8bb87d9…`；内容 35 / 缺件 165 / empty 1,173 / 框线 0 披露） |
 | 历史预览包 | `release/_preview/KangXiKai-v2.6.2-preview`（旧证据，b73e9f01 时代） | 已被正式包取代，保留备查 |
 | 发布材料 | `README.md`、`LICENSE`、`OFL.txt`、`docs/reference/RELEASE-METRICS.md`、`docs/releases/v2.6.2/KNOWN-DEBTS.md`、`scripts/templates/README-TEMPLATE.md`、`docs/images/` | 2026-11-13 补齐 |
-| 构建输入·mapping | `work/lead/mapping_block_v274.jsonl`（17,006 字；v271/v272/v273 留档） | 唯一真源 |
+| 构建输入·mapping | `work/lead/mapping_block_v275.jsonl`（17,006 字；v274 留档） | 唯一真源 |
 | 构建输入·几何 | `work/lead/page_geometry.jsonl`（E30 扩张版；原版 `page_geometry_v1.jsonl`） | 唯一真源 |
 | 构建输入·线条带 | `work/lead/page_line_bands.json`（27 rect，页级数据驱动） | pre-cut 数据 |
-| 构建输入·manifest | `work/font/build/manifest_v263.json` | 由 build_stats 生成 |
+| 构建输入·manifest | `work/font/build/manifest_v264.json` | 由 build_stats 生成 |
 | 参考字体 | `scripts/reffont.py` → 霞鹜文楷 LXGW WenKai（OFL，不随包分发） | 唯一参考 |
 | 闸报告 | `work/lead/fast-gate-v262.json`、`gate-report-v262.json`、`glyph-frame-gate-v262.json`、`page-geometry-gate-v262.json` | 现行 |
 | 扫描 | `work/lead/missing_scan_v262.jsonl`（165）、`frame_scan_v262.jsonl`（0） | 带 sidecar 绑定 |

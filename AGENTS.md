@@ -31,9 +31,10 @@
 - **数字来源**：任何写进文档/报告的数字必须来自闸输出或可复算命令；没有证据就写「待验证」。
 - **发布口径**：候选不进 `release/`；只有**里程碑**才打正式包；正式包必须来自 **clean git tree**，SHA 覆盖 gate-report，finalize 后不再改包内文件。
 
-## 2. 当前状态（2026-11-14，v2.6.3 已发布）
+## 2. 当前状态（2026-11-15，v2.6.4 已发布）
 
-- **v2.6.3 已发布（2026-11-14）**：`release/KangXiKai-v2.6.3/` + `.zip`；font sha `2414847b…`（**17,006 字**，含新增 釕；r1 修 `而` 框；「字」prune 误删真迹披露，留 v2.6.5）；fast_gate **8/8 PASS**、全闸 **12/12 PASS**；内容 **0/18（基线 v2.6.2）**、缺件 **19 字/20 组件**（17 prune 判正确 + 3 scan 残差，披露）、empty_assign **1,172**、字形框线/框线逃逸 **0**；发布材料 `docs/releases/v2.6.3/`、`docs/reference/RELEASE-METRICS.md`；本版含 BF-54 基本区 5 字重定位（愈/急/架/紉/釘）+ 釕、BF-06 扫描侧修复（E40：165→19/20）、T4 证据链。下一批 v2.6.4：扩展区 BF-54、prune-by-design 归类、empty_assign、D23 等。
+- **v2.6.4 已发布（2026-11-15）**：`release/KangXiKai-v2.6.4/` + `.zip`；font sha `9740e7aa…`（17,006 字）；修正「字」mapping 选错源框（真字头 03_0007 L，非 prune）与古文异体标签 4 字（凔/濬/眞/䞯）；glyph_diff changed 5 / added 0 / removed 0；内容 0（基线 v2.6.3）、缺件 19/20、empty_assign 1,172、字形框线/框线逃逸 0；fast_gate 8/8 PASS。发布材料 `docs/releases/v2.6.4/`。
+- **v2.6.3 已发布（2026-11-14，历史）**：font sha `2414847b…`；首包撤回/r1 重发；「字」归因已在 v2.6.4 更正为 mapping 选错源框（ERRATA E43），prune 不是根因。
 - 历史基线：**v2.6.2 工程候选**（`work/font/build/KangXiKai-v2.6.2.ttf`，sha `a8bb87d9…`（owner 复核反馈修复 E37 后）；**fast_gate 8/8 PASS**）；**v2.6.2 正式包已出（2026-11-14）**：`release/KangXiKai-v2.6.2/` + `.zip`，font sha `a8bb87d9…`，finalize 17/17 PASS（zip sha 见 `release/RELEASE-INVENTORY.tsv`）；披露阈值：内容 35 / 缺件 165 / empty 1,173 / 框线 0。**v2.6.x = 2.6 系列补丁线**：下一批 **v2.6.3**（BF-06 缺件 165、BF-54 标签 11；见 `docs/plans/PLAN-v2.6.3.md`），做不完的计划项顺延 v2.6.4/2.6.5…，不阻塞本系列发版。`release/` 现含 v2.5.8（重构前基线）、v2.6.1（过程版）、**v2.6.2（正式包，2026-11-14）**。
 - 字形 **17,006**（headword-only 真迹；v2.6.3 含新增 釕）；基本区 10,268/20,992 = **48.91%**；目标字表 10,268/16,567 = **61.98%**；缺口 **6,299**。
 - 闸（v2.6.2 候选）：font_qa **PASS**（同框 0）；字形级框线 **0 PASS**（E27 页级线条带）；内容 **18**（阈值 35）PASS——大部分归因为跨架构归一化差异（E31，非真实缺笔；待 D23 确认源墨保真度判据）；provenance PASS；页级几何 **bad_boxes 0** / empty_assign 1,173（唯一严格 FAIL，mapping 缺口）；源图框线 **0**、缺件 **165**（v2.6.2 已发布值；v2.6.3 T1 定位主因=扫描侧 precut fail-open（E40），修复后对 v2.6.2 字体重扫 **19 字/20 组件**；残余 prune/clean_ink/scan 见 E40）。

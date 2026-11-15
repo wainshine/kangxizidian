@@ -118,8 +118,18 @@ def pkg_info(pkg_dir, release_root):
     info["finalize_present"] = fin is not None
     info["detached_finalize"] = detached if os.path.exists(detached) else None
     info["finalized"] = bool(det and det.get("sha_final_ok") is True and det.get("zip_ok") is True)
+    info["finalized_source"] = "detached_finalize" if info["finalized"] else None
     if info["finalized"] and info["zip_sha256"]:
         info["finalized"] = info["finalized"] and det.get("zip_sha256") == info["zip_sha256"]
+    # legacy（v2.6.2 及以前）：无 detached FINALIZE 时以包内 gate-report.attestation 为准，
+    # 但必须同时有正式发布记录 docs/releases/v<ver>/RELEASE.md（过程版不算正式）。
+    if not info["finalized"] and gr:
+        _doc_ok = bool(version and os.path.exists(os.path.join(
+            ROOT, "docs", "releases", f"v{version}", "RELEASE.md")))
+        att = gr.get("attestation") or {}
+        if att.get("finalized") is True and info["sha_ok"] and _doc_ok:
+            info["finalized"] = True
+            info["finalized_source"] = "gate_report_attestation_legacy"
     # 发布 commit
     commit = None
     if det:

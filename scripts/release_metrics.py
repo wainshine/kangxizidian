@@ -42,6 +42,13 @@ VERSIONS = [
      # 累计 vs v2.5.8 仍单独报告（content_damaged_vs_v258）
      "content_baseline": {"font": "work/font/build/KangXiKai-v2.6.2.ttf",
                           "manifest": "work/font/build/manifest_v262.json"}},
+    {"label": "v2.6.4", "font": "work/font/build/KangXiKai-v2.6.4.ttf",
+     "manifest": "work/font/build/manifest_v264.json",
+     "gate_report": "work/lead/gate-report-v264.json",
+     "fast_gate": "work/lead/fast-gate-v264.json",
+     "diff_from_prev": "work/lead/diff-v263-v264.json",
+     "content_baseline": {"font": "work/font/build/KangXiKai-v2.6.3.ttf",
+                          "manifest": "work/font/build/manifest_v263.json"}},
 ]
 BASELINE = "v2.5.8"
 

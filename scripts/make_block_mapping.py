@@ -26,36 +26,29 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 sys.path.insert(0, os.path.join(ROOT, "work", "font", "_pylibs"))
 
 
-def _shrink_box_past_bands(page, box, pad=12):
-    """裁片级：若 box 边附近存在贯穿裁片的框线带，把该边推过去（只动外带，不碰字身）。"""
-    import numpy as np
-    import font_norm as FN
-    try:
-        gray = FN.render_pdf_crop(page, box, pad150=pad, dpi=300)
-        ink = FN.binarize(gray)
-    except Exception:
-        return box
-    h, w = ink.shape
-    x0, y0, x1, y1 = [float(v) for v in box]
-    # box 在 crop 坐标：pad*2 边距
-    px = pad * 2
-    for _ in range(2):
-        rows = np.where(ink.mean(axis=1) >= 0.45)[0]
-        cols = np.where(ink.mean(axis=0) >= 0.45)[0]
-        def runs(idx):
-            return np.split(idx, np.where(np.diff(idx) > 1)[0] + 1) if len(idx) else []
-        # 上边：仅在 box 上边线以上/附近的带（crop 顶部 2*pad+10 内）
-        for r in runs(rows):
-            if r[-1] - r[0] + 1 > 16: continue
-            yc = (r[0] + r[-1]) / 2.0
-            if yc < px:
-                y0 = max(y0, y0 + (r[-1] + 1) / 2.0 - (px - 0) / 2.0)  # 近似：推到带下
-        for c in runs(cols):
-            if c[-1] - c[0] + 1 > 16: continue
-            xc = (c[0] + c[-1]) / 2.0
-            if xc < px:
-                x0 = max(x0, x0 + (c[-1] + 1) / 2.0)
-    return [round(v) for v in (x0, y0, x1, y1)]
+import numpy as _np
+
+
+def _box_corners(b):
+    x0, y0, x1, y1 = [float(v) for v in b]
+    return _np.array([[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]], dtype=_np.float32)
+
+
+def _transform_box(b, mat):
+    """2x3 仿射变换 box 的 4 角，返回新 box。"""
+    if mat is None:
+        return list(b)
+    pts = _cv2.transform(_box_corners(b), _np.asarray(mat, dtype=_np.float32))[0]
+    xs, ys = pts[:, 0], pts[:, 1]
+    return [float(xs.min()), float(ys.min()), float(xs.max()), float(ys.max())]
+
+
+def _inter(a, b):
+    x0, y0 = max(a[0], b[0]), max(a[1], b[1])
+    x1, y1 = min(a[2], b[2]), min(a[3], b[3])
+    if x1 <= x0 or y1 <= y0:
+        return None
+    return [x0, y0, x1, y1]
 
 
 def worker(args):
@@ -74,11 +67,20 @@ def worker(args):
         block = fb.block_for_box(lat, old) if lat else None
         if block is None:
             continue
-        nb = list(block)
+        nb = [float(v) for v in block]
         if q is not None:
-            qb = q["box"]
-            nb = [max(nb[0], qb[0] + 2), max(nb[1], qb[1] + 2),
-                  min(nb[2], qb[2] - 2), min(nb[3], qb[3] - 2)]
+            # BF-61/BUILD-404：block 在 150dpi 原图坐标，quad.box 在旋转空间。
+            # 若 block（经 M 变到旋转空间后）已在 quad 内，保持原 block（避免全库 1px 漂移）；
+            # 只有压到 quad 边界的块才做 M 空间求交、Minv 变回，确保 box⊆quad。
+            qb = list(q["box"])
+            rot = _transform_box(nb, q.get("M"))
+            inside = (rot[0] >= qb[0] + 2 and rot[1] >= qb[1] + 2
+                      and rot[2] <= qb[2] - 2 and rot[3] <= qb[3] - 2)
+            if not inside:
+                inter = _inter(rot, qb)
+                if inter is None:
+                    continue
+                nb = _transform_box(inter, q.get("Minv"))
         nb = [float(round(v)) for v in nb]
         if nb[2] - nb[0] < 60 or nb[3] - nb[1] < 60:
             continue
@@ -91,6 +93,8 @@ def main():
     ap.add_argument("--mapping", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--dry-run", action="store_true",
+                    help="只统计改动/越界，不写 mapping（BF-61 验证）")
     args = ap.parse_args()
     rows = [json.loads(l) for l in open(os.path.join(ROOT, args.mapping), encoding="utf-8")]
     jobs = {}
@@ -117,17 +121,23 @@ def main():
         for idx_a, a in enumerate(r.get("assigned", [])):
             ch = a.get("char")
             rid = f"{r.get('page')}|{idx_a}|{ch}"
-            if rid in newmap:
+            if (rid, ch) in newmap:
                 cand = dict(a.get("cand") or {})
                 old = cand.get("box") or a.get("box")
-                if [float(round(v)) for v in old] != newmap[rid, ch]:
+                _oldv = [float(round(v)) for v in old]
+                if _oldv != newmap[(rid, ch)]:
                     changed += 1
-                cand["box"] = newmap[rid, ch]
+                cand["box"] = newmap[(rid, ch)]
                 a["cand"] = cand
+    stats = {"pages": len(jl), "boxed": len(newmap), "changed": changed,
+             "dry_run": bool(args.dry_run), "out": args.out}
+    if args.dry_run:
+        print(json.dumps(stats, ensure_ascii=False))
+        return
     with open(os.path.join(ROOT, args.out), "w", encoding="utf-8") as fo:
         for r in rows:
             fo.write(json.dumps(r, ensure_ascii=False) + "\n")
-    print(json.dumps({"pages": len(jl), "boxed": len(newmap), "changed": changed}))
+    print(json.dumps(stats, ensure_ascii=False))
 
 
 if __name__ == "__main__":

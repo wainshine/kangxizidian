@@ -38,12 +38,30 @@ _INDEX = None
 _CMAP = None
 
 
+def _looks_ofl(p: str) -> bool:
+    """机械校验：文件名/同目录许可文件暗示 OFL；不满足即拒绝（D21）。"""
+    d = os.path.dirname(p)
+    name = os.path.basename(p).lower()
+    if "lxgw" in name or "wenkai" in name or "ofl" in name:
+        return True
+    try:
+        for f in os.listdir(d):
+            fl = f.lower()
+            if fl.startswith(("ofl", "license", "copying")) or "ofl" in fl:
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def path() -> str:
-    """参考字体路径；不可用即报错（fail-closed，不静默换字体）。"""
+    """参考字体路径；不可用/非 OFL 即报错（fail-closed，不静默换字体）。"""
     global _PATH
     if _PATH is None:
         for p in _CANDIDATES:
             if p and os.path.exists(p):
+                if not _looks_ofl(p):
+                    raise RuntimeError(f"参考字体未通过 OFL 机械校验（禁止专有字体）：{p}")
                 _PATH = p
                 break
         if _PATH is None:

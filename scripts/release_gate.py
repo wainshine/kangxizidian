@@ -665,7 +665,9 @@ def main():
     quarantine, qfiles = set(), []
     cands = [args.quarantine] if args.quarantine else []
     import glob as _glob
-    cands += sorted(_glob.glob(os.path.join(ROOT, "work", "lead", "v*_residual.json")))
+    # P1-2：只认当前版 residual，不并集历史版本；历史隔离字必须显式 --quarantine
+    _tag = "v" + str(args.version).replace(".", "")
+    cands += sorted(_glob.glob(os.path.join(ROOT, "work", "lead", f"{_tag}*_residual.json")))
     for cand in cands:
         p = cand if os.path.isabs(cand) else os.path.join(ROOT, cand)
         if os.path.exists(p):
@@ -707,9 +709,11 @@ def main():
                     out_json = args.reuse_content
                     r = subprocess.CompletedProcess(args=[], returncode=0, stdout="reused")
             if r is None:
+                _env = dict(os.environ)
+                _env["CONTENT_LOSS_MAX_DAMAGED"] = str(args.content_max_damaged)
                 r = subprocess.run([sys.executable, "scripts/content_loss_gate.py",
                                     args.prev, args.font, args.prev_manifest, out_json],
-                                   cwd=ROOT, capture_output=True, text=True)
+                                   cwd=ROOT, capture_output=True, text=True, env=_env)
             summary = None
             try:
                 obj = json.load(open(os.path.join(ROOT, out_json), encoding="utf-8"))
